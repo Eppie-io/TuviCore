@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <AnalysisLevel>none</AnalysisLevel>
+    <AnalysisLevel>6.0-minimum</AnalysisLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
