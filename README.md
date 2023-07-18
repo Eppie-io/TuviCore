@@ -1,2 +1,2 @@
-# Eppie-Core
-Eppie core libs
+# TuviCore
+Core libs
