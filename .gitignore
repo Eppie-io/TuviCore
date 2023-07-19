@@ -6,3 +6,7 @@ Sources/Tuvi.Core.DataStorage/obj/
 Sources/Tuvi.Core.DataStorage/bin/
 Sources/Tuvi.Core.Backup/obj/
 Sources/Tuvi.Core.Backup/bin/
+Sources/Tuvi.Core/obj/
+Sources/Tuvi.Core/bin/
+Sources/Tuvi.Core.Mail/obj/
+Sources/Tuvi.Core.Mail/bin/
