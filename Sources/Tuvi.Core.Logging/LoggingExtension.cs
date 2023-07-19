@@ -4,7 +4,7 @@ namespace Tuvi.Core.Logging
 {
     public static class LoggingExtension
     {
-        public static ILoggerFactory _loggerFactory;
+        private static ILoggerFactory _loggerFactory;
 
         public static ILoggerFactory LoggerFactory
         {
