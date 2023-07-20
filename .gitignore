@@ -16,3 +16,7 @@ Sources/Tuvi.Core.Web.BackupServiceClient/obj/
 Sources/Tuvi.Core.Web.BackupServiceClient/bin/
 Sources/Tuvi.Core.Web.BackupService/obj/
 Sources/Tuvi.Core.Web.BackupService/bin/
+Sources/Tuvi.Core.Dec/obj/
+Sources/Tuvi.Core.Dec/bin/
+Sources/Tuvi.Core.Dec.Web.Impl/obj/
+Sources/Tuvi.Core.Dec.Web.Impl/bin/
