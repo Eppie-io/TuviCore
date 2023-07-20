@@ -12,3 +12,7 @@ Sources/Tuvi.Core.Mail/obj/
 Sources/Tuvi.Core.Mail/bin/
 Sources/Tuvi.Core.Backup.Impl/obj/
 Sources/Tuvi.Core.Backup.Impl/bin/
+Sources/Tuvi.Core.Web.BackupServiceClient/obj/
+Sources/Tuvi.Core.Web.BackupServiceClient/bin/
+Sources/Tuvi.Core.Web.BackupService/obj/
+Sources/Tuvi.Core.Web.BackupService/bin/
