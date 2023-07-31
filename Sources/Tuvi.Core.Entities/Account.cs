@@ -61,6 +61,8 @@ namespace Tuvi.Core.Entities
 
         public string KeyTag { get; set; }
 
+        public int Type { get; set; }
+
         [SQLite.Ignore]
         public IAuthenticationData AuthData { get; set; }
 
