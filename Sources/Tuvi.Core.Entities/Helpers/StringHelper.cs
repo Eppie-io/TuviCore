@@ -73,7 +73,7 @@ namespace Tuvi.Core.Entities
                 || (text != null && text.IndexOf(subText, StringComparison.CurrentCultureIgnoreCase) >= 0);
         }
 
-        private static string DecEppiePostfix = "@dec.eppie.io";
+        private static string DecEppiePostfix = "@eppie";
         public static bool IsDecentralizedEmail(EmailAddress email)
         {
             return email.Address.IndexOf(DecEppiePostfix, StringComparison.CurrentCultureIgnoreCase) == email.Address.Length - DecEppiePostfix.Length;
