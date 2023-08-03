@@ -29,7 +29,7 @@ namespace Tuvi.Core.Mail
         /// from specified <paramref name="folder"/>.
         /// </summary>
         /// <returns>List of messages</returns>
-        Task<IList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Send <paramref name="messsage"/>.
@@ -50,7 +50,7 @@ namespace Tuvi.Core.Mail
         /// which delivered later than <paramref name="lastMessage"/>.
         /// </summary>
         /// <returns>List of messages</returns>
-        Task<IList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get limited <paramref name="count"/> of messages from <paramref name="folder"/>
