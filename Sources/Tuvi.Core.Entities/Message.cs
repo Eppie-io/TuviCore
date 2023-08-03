@@ -55,7 +55,7 @@ namespace Tuvi.Core.Entities
         public string Address { get; }
 
         public string Name { get; }
-
+        [JsonIgnore]
         public string DisplayName
         {
             get
@@ -154,7 +154,7 @@ namespace Tuvi.Core.Entities
             }
             return Address.CompareTo(other.Address);
         }
-
+        [JsonIgnore]
         public bool IsHybrid
         {
             get
@@ -162,7 +162,7 @@ namespace Tuvi.Core.Entities
                 return !String.IsNullOrEmpty(new EmailStructure(Address).PubKey);
             }
         }
-
+        [JsonIgnore]
         public string StandardAddress
         {
             get
@@ -178,6 +178,7 @@ namespace Tuvi.Core.Entities
         {
             get => new EmailAddress(StandardAddress, Name);
         }
+        [JsonIgnore]
         public string DecentralizedAddress
         {
             get
