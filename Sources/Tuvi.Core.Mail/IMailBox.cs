@@ -87,19 +87,9 @@ namespace Tuvi.Core.Mail
         Task MarkMessagesAsUnReadAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Mark message with <paramref name="id"/> in <paramref name="folderPath"/> as flagged.
-        /// </summary>
-        Task FlagMessageAsync(uint id, Folder folderPath, CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Mark <paramref name="messages"/> as flagged.
         /// </summary>
         Task FlagMessagesAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Mark message with <paramref name="id"/> in <paramref name="folderPath"/> as unflagged.
-        /// </summary>
-        Task UnflagMessageAsync(uint id, Folder folderPath, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Mark <paramref name="messages"/> as unflagged.
