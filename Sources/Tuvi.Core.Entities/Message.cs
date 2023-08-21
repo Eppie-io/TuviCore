@@ -93,13 +93,7 @@ namespace Tuvi.Core.Entities
 
         public override bool Equals(object obj)
         {
-            if (obj == null)
-            {
-                return false;
-            }
-            return obj is EmailAddress other &&
-                   HasSameAddress(other.Address);// &&
-                                                 //Name == other.Name;
+            return Equals(obj as EmailAddress);
         }
         public override string ToString()
         {
