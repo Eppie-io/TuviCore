@@ -31,6 +31,7 @@ namespace Tuvi.Core.DataStorage
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="NoCollectionException"/>
+        /// <exception cref="NoCollectionException"/>
         Task DeleteAccountByEmailAsync(EmailAddress accountEmail, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -87,29 +88,29 @@ namespace Tuvi.Core.DataStorage
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="MessageAlreadyExistInDatabaseException"/>
-        Task AddMessageAsync(EmailAddress accountEmail, Message message, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task AddMessageAsync(EmailAddress accountEmail, Message message, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update <paramref name="message"/> in storage.
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="NoCollectionException"/>
-        Task UpdateMessageAsync(EmailAddress accountEmail, Message message, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task UpdateMessageAsync(EmailAddress accountEmail, Message message, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update <paramref name="messages"/> in storage.
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="NoCollectionException"/>
-        Task UpdateMessagesAsync(EmailAddress accountEmail, IEnumerable<Message> messages, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task UpdateMessagesAsync(EmailAddress accountEmail, IEnumerable<Message> messages, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
-        Task UpdateMessagesFlagsAsync(EmailAddress accountEmail, IEnumerable<Message> messages, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task UpdateMessagesFlagsAsync(EmailAddress accountEmail, IEnumerable<Message> messages, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Add list of messages to storage. Messages existed in storage are updated.
         /// </summary>
         /// <exception cref="DataBaseException"/>
-        Task AddMessageListAsync(EmailAddress accountEmail, string folder, IReadOnlyList<Message> messages, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task AddMessageListAsync(EmailAddress accountEmail, string folder, IReadOnlyList<Message> messages, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get message by <paramref name="id"/> from storage.
@@ -213,14 +214,14 @@ namespace Tuvi.Core.DataStorage
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="NoCollectionException"/>
-        Task DeleteMessageAsync(EmailAddress accountEmail, string folder, uint uid, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task DeleteMessageAsync(EmailAddress accountEmail, string folder, uint uid, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete messages list from storage.
         /// </summary>
         /// <exception cref="DataBaseException"/>
         /// <exception cref="NoCollectionException"/>
-        Task DeleteMessagesAsync(EmailAddress accountEmail, string folder, IEnumerable<uint> messages, bool synchronized = false, CancellationToken cancellationToken = default);
+        Task DeleteMessagesAsync(EmailAddress accountEmail, string folder, IEnumerable<uint> messages, bool updateUnreadAndTotal = true, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get list of stored messages earlier than lastMessage containing contactEmail as sender or recipient
