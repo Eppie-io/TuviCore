@@ -19,18 +19,18 @@ namespace Tuvi.Core.Entities
         }
     }
 
-    public class MailServiceIsNotConnectionException : Exception
+    public class MailServiceIsNotConnectedException : Exception
     {
-        public MailServiceIsNotConnectionException()
+        public MailServiceIsNotConnectedException()
         {
         }
 
-        public MailServiceIsNotConnectionException(string message)
+        public MailServiceIsNotConnectedException(string message)
             : base(message)
         {
         }
 
-        public MailServiceIsNotConnectionException(string message, Exception innerException)
+        public MailServiceIsNotConnectedException(string message, Exception innerException)
             : base(message, innerException)
         {
         }

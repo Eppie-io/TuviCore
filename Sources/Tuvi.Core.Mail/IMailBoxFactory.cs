@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Tuvi.Core.Entities;
+﻿using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.Mail
 {
@@ -10,8 +8,7 @@ namespace Tuvi.Core.Mail
         /// Create mailbox corresponding to <paramref name="account"/>
         /// </summary>
         /// <param name="account"></param>
-        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<IMailBox> CreateMailBoxAsync(Account account, CancellationToken cancellationToken = default);
+        IMailBox CreateMailBox(Account account);
     }
 }
