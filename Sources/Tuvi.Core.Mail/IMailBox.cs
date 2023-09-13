@@ -34,7 +34,7 @@ namespace Tuvi.Core.Mail
         /// <summary>
         /// Send <paramref name="messsage"/>.
         /// </summary>
-        /// <exception cref="MailServiceIsNotConnectionException"/>
+        /// <exception cref="MailServiceIsNotConnectedException"/>
         /// <exception cref="MailServiceIsNotAuthentificatedException"/>
         Task SendMessageAsync(Message messsage, CancellationToken cancellationToken = default);
 
