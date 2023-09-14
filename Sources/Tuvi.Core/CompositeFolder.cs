@@ -84,11 +84,14 @@ namespace Tuvi.Core
                     }
                 });
                 await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
-                return tasks.SelectMany(x => x.Result).ToList();
+                return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
             }
             catch (AggregateException aex)
             {
-                var errors = aex.InnerExceptions.OfType<NewMessagesCheckFailedException>().Select(x => x.ErrorsCollection).SelectMany(x => x).ToList();
+                var errors = aex.InnerExceptions.OfType<NewMessagesCheckFailedException>()
+                                                .Select(x => x.ErrorsCollection)
+                                                .SelectMany(x => x)
+                                                .ToList();
                 if (errors.Count == 0)
                 {
                     throw;
