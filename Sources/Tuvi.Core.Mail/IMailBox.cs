@@ -57,7 +57,14 @@ namespace Tuvi.Core.Mail
         /// which delivered earlier than <paramref name="lastMessage"/>.
         /// </summary>
         /// <returns>List of messages</returns>
-        Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool fast, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessag, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get limited <paramref name="count"/> of messages from <paramref name="folder"/>
+        /// which delivered earlier than <paramref name="lastMessage"/>.
+        /// </summary>
+        /// <returns>List of messages</returns>
+        Task<IReadOnlyList<Message>> GetEarlierMessagesForSynchronizationAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Append draft <paramref name="message"/> into Drafts folder.
