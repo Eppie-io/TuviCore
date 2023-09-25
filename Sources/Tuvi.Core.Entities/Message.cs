@@ -346,6 +346,14 @@ namespace Tuvi.Core.Entities
             IsMarkedAsRead = other.IsMarkedAsRead;
             return true;
         }
+
+        public IEnumerable<EmailAddress> AllRecipients
+        {
+            get
+            {
+                return To.Concat(Cc).Concat(Bcc).Distinct();
+            }
+        }
     }
 
     public class ProtectionInfo
