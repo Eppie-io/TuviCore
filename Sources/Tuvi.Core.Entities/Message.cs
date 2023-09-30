@@ -35,8 +35,7 @@ namespace Tuvi.Core.Entities
     }
 
     public class EmailAddress : IEquatable<EmailAddress>, IComparable<EmailAddress>
-    {
-        [JsonConstructor]
+    {        
         public EmailAddress(string address)
         {
             if (address is null)
@@ -46,6 +45,7 @@ namespace Tuvi.Core.Entities
             Address = address;
         }
 
+        [JsonConstructor]
         public EmailAddress(string address, string name) : this(address)
         {
             Name = name;
