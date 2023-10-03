@@ -5,6 +5,7 @@ namespace Tuvi.Core
 {
     public class ImplementationDetailsProvider : IBackupDetailsProvider, IKeyDerivationDetailsProvider
     {
+        // TODO: Needs to be moved to the client side
         public static string BackupPgpKeyIdentity => "backup@system.service.tuvi.com";
 
         private string _keyDerivationSalt;
