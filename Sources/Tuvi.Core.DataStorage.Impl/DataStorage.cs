@@ -1,0 +1,2062 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+using SQLite;
+using Tuvi.Core.Entities;
+
+namespace Tuvi.Core.DataStorage.Impl
+{
+    #region Internal data
+    class EmailAddressData
+    {
+        public EmailAddressData()
+        {
+
+        }
+
+        public EmailAddressData(EmailAddress email)
+        {
+            if (email is null)
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+
+            Address = email.Address;
+            Name = email.Name;
+        }
+
+        [PrimaryKey]
+        [AutoIncrement]
+        public int Id { get; set; }
+
+        [Indexed(Unique = true)]
+        [Collation("NOCASE")]
+        public string Address { get; set; }
+
+        public string Name { get; set; }
+
+        public EmailAddress ToEmailAddress()
+        {
+            return new EmailAddress(Address, Name);
+        }
+
+        public void UpdateValue(EmailAddress email)
+        {
+            if (!(email?.Name is null))
+            {
+                Name = email.Name;
+            }
+        }
+    }
+
+    class MessageEmailAddress
+    {
+        [PrimaryKey]
+        [AutoIncrement]
+        public int Id { get; set; }
+
+        [Indexed]
+        public int Message { get; set; }
+
+        [Indexed]
+        public int Email { get; set; }
+
+        public enum EmailType { From, ReplyTo, To, Cc, Bcc };
+        public EmailType Type { get; set; }
+    }
+
+    class MessageContact
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+        [Indexed]
+        public int MessageId { get; set; }
+        [Indexed]
+        public int ContactId { get; set; }
+    }
+
+    class ProtonMessageId
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+        [Indexed(Unique = true)]
+        public string MessageId { get; set; }
+    }
+
+    class ProtonLabel
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+        [Indexed(Unique = true)]
+        public string LabelId { get; set; }
+    }
+
+    class ProtonMessageLabel
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+        [Indexed]
+        public int MessageId { get; set; }
+        [Indexed]
+        public int LabelId { get; set; }
+    }
+
+    #endregion
+    class ChangeState
+    {
+        public enum Change
+        {
+            Add,
+            Update,
+            Delete
+        }
+
+        List<KeyValuePair<Change, object>> _changes;
+        DataStorage _storage;
+
+        public ChangeState(DataStorage storage)
+        {
+            _changes = new List<KeyValuePair<Change, object>>();
+            _storage = storage;
+        }
+
+        public void Add(object o)
+        {
+            AddChange(Change.Add, o);
+        }
+
+        public void Update(object o)
+        {
+            AddChange(Change.Update, o);
+        }
+
+        public void Delete(object o)
+        {
+            AddChange(Change.Delete, o);
+        }
+
+        private void AddChange(Change c, object o)
+        {
+            _changes.Add(new KeyValuePair<Change, object>(c, o));
+        }
+
+        public void RaiseEvents()
+        {
+            foreach (var change in _changes)
+            {
+                if (change.Value is Contact)
+                {
+                    var c = change.Value as Contact;
+                    switch (change.Key)
+                    {
+                        case Change.Add:
+                            _storage.RaiseContactAddedEvent(c);
+                            break;
+                        case Change.Update:
+                            _storage.RaiseContactChangedEvent(c);
+                            break;
+                        case Change.Delete:
+                            _storage.RaiseContactDeletedEvent(c);
+                            break;
+                    }
+                }
+            }
+        }
+
+
+    }
+
+    struct DbConnection
+    {
+        public SQLiteConnection Connection { get; private set; }
+
+        public ChangeState ChangeState { get; private set; }
+
+        public DbConnection(SQLiteConnection connection, ChangeState changeState)
+        {
+            Connection = connection;
+            ChangeState = changeState;
+        }
+    }
+
+    internal class DataStorage : KeyStorage, IDataStorage, Proton.IStorage
+    {
+        public event EventHandler<ContactAddedEventArgs> ContactAdded;
+        public event EventHandler<ContactChangedEventArgs> ContactChanged;
+        public event EventHandler<ContactDeletedEventArgs> ContactDeleted;
+
+        public DataStorage(string filePath)
+            : base(filePath)
+        {
+
+        }
+
+        ~DataStorage()
+        {
+            Dispose(false);
+        }
+
+        public void RaiseContactAddedEvent(Contact contact)
+        {
+            ContactAdded?.Invoke(this, new ContactAddedEventArgs(contact));
+        }
+
+        public void RaiseContactChangedEvent(Contact contact)
+        {
+            ContactChanged?.Invoke(this, new ContactChangedEventArgs(contact));
+        }
+
+        public void RaiseContactDeletedEvent(Contact contact)
+        {
+            ContactDeleted?.Invoke(this, new ContactDeletedEventArgs(contact.Email));
+        }
+
+        private static int GetLastRowId(SQLiteConnection c)
+        {
+            return c.ExecuteScalar<int>("select last_insert_rowid();");
+        }
+
+        private static void AddAccountAuthData(SQLiteConnection connection, int accountId, IAuthenticationData authData)
+        {
+            if (authData is null)
+            {
+                return;
+            }
+            switch (authData.Type)
+            {
+                case AuthenticationType.Basic:
+                    {
+                        var prev = connection.Find<BasicAuthData>(x => x.AccountId == accountId);
+                        if (prev != null)
+                            connection.Delete(prev);
+
+                        var data = (BasicAuthData)authData;
+                        data.AccountId = accountId;
+                        connection.Insert(data);
+                    }
+                    break;
+                case AuthenticationType.OAuth2:
+                    {
+                        var prev = connection.Find<OAuth2Data>(x => x.AccountId == accountId);
+                        if (prev != null)
+                            connection.Delete(prev);
+
+                        var data = (OAuth2Data)authData;
+                        data.AccountId = accountId;
+                        connection.Insert(data);
+                    }
+                    break;
+            }
+        }
+
+        private void AddAccountFolders(DbConnection db, int accountId, Account account, CancellationToken cancellationToken)
+        {
+            var connection = db.Connection;
+            account.FoldersStructure.ForEach(x =>
+            {
+                x.AccountId = accountId;
+                x.AccountEmail = account.Email;
+            });
+
+            var prev = connection.Table<Folder>().Where(x => x.AccountId == accountId).ToList();
+            prev.ForEach(x =>
+            {
+                x.AccountEmail = account.Email;
+            });
+
+            foreach (var folder in prev)
+            {
+                var existingFolder = account.FoldersStructure.Find(y => y.Equals(folder));
+                if (existingFolder != null)
+                {
+                    folder.UnreadCount = existingFolder.UnreadCount;
+                    folder.TotalCount = existingFolder.TotalCount;
+                    connection.Update(folder);
+                }
+                else
+                {
+                    var messages = connection.Table<Entities.Message>().Where(m => m.FolderId == folder.Id).ToList();
+                    messages.ForEach(m => DeleteMessage(db, m, updateUnreadAndTotal: true, cancellationToken));
+                    connection.Delete(folder);
+                }
+            }
+
+            var toAdd = account.FoldersStructure.Where(x => !prev.Exists(y => y.Equals(x))).ToList();
+            connection.InsertAll(toAdd);
+
+            if (account.DefaultInboxFolder != null)
+            {
+                account.DefaultInboxFolderId = connection.Find<Folder>(x => x.AccountId == accountId && x.FullName == account.DefaultInboxFolder.FullName).Id;
+            }
+        }
+
+        public async Task AddAccountAsync(Account accountData, CancellationToken cancellationToken)
+        {
+            if (await ExistsAccountWithEmailAddressAsync(accountData.Email, cancellationToken).ConfigureAwait(false))
+            {
+                throw new AccountAlreadyExistInDatabaseException();
+            }
+
+            await WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                accountData.EmailId = InsertOrUpdateEmailAddress(connection, accountData.Email);
+                Debug.Assert(accountData.EmailId > 0);
+                connection.Insert(accountData);
+                int accountId = GetLastRowId(connection);
+
+                AddAccountAuthData(connection, accountId, accountData.AuthData);
+                AddAccountFolders(db, accountId, accountData, cancellationToken);
+
+                if (accountData.DefaultInboxFolder != null)
+                {
+                    connection.Update(accountData);
+                }
+
+            }).ConfigureAwait(false);
+        }
+
+        private int InsertOrUpdateEmailAddress(SQLiteConnection connection, EmailAddress email)
+        {
+            var emailData = FindEmailAddress(connection, email);
+            if (emailData != null)
+            {
+                emailData.UpdateValue(email);
+                connection.Update(emailData);
+                return emailData.Id;
+            }
+            connection.Insert(new EmailAddressData(email));
+            return GetLastRowId(connection);
+        }
+
+        public Task DeleteAccountAsync(Account accountData, CancellationToken cancellationToken)
+        {
+            return DeleteAccountByEmailAsync(accountData.Email, cancellationToken);
+        }
+
+        public Task DeleteAccountByEmailAsync(EmailAddress accountEmail, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var item = FindAccountStrict(connection, accountEmail);
+
+                connection.Table<Folder>().Delete(x => x.AccountId == item.Id);
+                connection.Table<BasicAuthData>().Delete(x => x.AccountId == item.Id);
+                connection.Table<OAuth2Data>().Delete(x => x.AccountId == item.Id);
+
+                connection.Delete(item);
+            });
+        }
+
+        public Task UpdateAccountAsync(Account account, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var emailData = FindEmailAddress(connection, account.Email);
+                if (emailData == null)
+                {
+                    return;
+                }
+                var item = connection.Find<Account>(x => x.EmailId == emailData.Id);
+                if (item == null)
+                {
+                    return;
+                }
+                account.Id = item.Id;
+
+                emailData.UpdateValue(account.Email);
+                connection.Update(emailData);
+
+                AddAccountAuthData(connection, account.Id, account.AuthData);
+                AddAccountFolders(db, account.Id, account, cancellationToken);
+
+                connection.Update(account);
+            });
+        }
+
+        private static void BuildAccountAuthData(SQLiteConnection connection, Account account)
+        {
+            account.AuthData = account.AuthData ?? connection.Find<BasicAuthData>(x => x.AccountId == account.Id);
+            account.AuthData = account.AuthData ?? connection.Find<OAuth2Data>(x => x.AccountId == account.Id);
+        }
+
+        private static void BuildAccountFolders(SQLiteConnection connection, Account account)
+        {
+            var folders = connection.Table<Folder>().Where(x => x.AccountId == account.Id).ToList();
+            foreach (var folder in folders)
+            {
+                folder.AccountEmail = account.Email;
+            }
+            account.FoldersStructure = folders;
+            account.DefaultInboxFolder = folders.FirstOrDefault(x => x.Id == account.DefaultInboxFolderId);
+        }
+
+        private Folder GetAccountDeafultInboxFolder(SQLiteConnection connection, EmailAddress accountEmail)
+        {
+            var account = FindAccountStrict(connection, accountEmail);
+            var folder = connection.Find<Folder>(account.DefaultInboxFolderId);
+            folder.AccountEmail = accountEmail;
+            return folder;
+        }
+
+        public Task<Account> GetAccountAsync(EmailAddress accountEmail, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var account = FindAccountStrict(connection, accountEmail);
+                BuildAccount(connection, accountEmail, account);
+                return account;
+            });
+        }
+
+        public Task<List<Account>> GetAccountsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var accounts = connection.Table<Account>().ToList();
+                foreach (var account in accounts)
+                {
+                    var emailData = GetEmailAddressData(connection, account.EmailId);
+                    BuildAccount(connection, emailData.ToEmailAddress(), account);
+                }
+
+                return accounts;
+            });
+        }
+
+        private static void BuildAccount(SQLiteConnection connection, EmailAddress accountEmail, Account account)
+        {
+            account.Email = accountEmail;
+            BuildAccountAuthData(connection, account);
+            BuildAccountFolders(connection, account);
+        }
+
+        private void DeleteMessage(DbConnection db, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            var connection = db.Connection;
+            connection.Delete(message);
+            UpdateFolderCounters(connection, null, message, updateUnreadAndTotal);
+            UpdateContactsUnreadCount(connection, null, message);
+            DeleteMessageContact(db, message, cancellationToken);
+            DeleteAttachments(connection, message);
+            DeleteMessageEmails(connection, message);
+            DeleteProtection(connection, message);
+        }
+
+        private void DeleteMessageContact(DbConnection db, Entities.Message message, CancellationToken cancellationToken)
+        {
+            var connection = db.Connection;
+            var messageToContact = connection.Table<MessageContact>()
+                                             .Where(x => x.MessageId == message.Pk)
+                                             .Select(x => x.ContactId);
+            var contacts = connection.Table<Contact>().Where(x => messageToContact.Contains(x.Id));
+            foreach (var contact in contacts)
+            {
+                BuildContact(connection, contact);
+                var messages = GetEarlierContactMessages(connection, contact.Email, 1, null, cancellationToken);
+                if (messages.Count > 0)
+                {
+                    contact.LastMessageData = new LastMessageData(messages[0].Folder.AccountEmail,
+                                                                  messages[0].Id,
+                                                                  messages[0].Date);
+                    UpdateContact(db, contact);
+                }
+            }
+
+            connection.Table<MessageContact>().Delete(x => x.MessageId == message.Pk);
+
+        }
+
+        private static void DeleteAttachments(SQLiteConnection connection, Entities.Message message)
+        {
+            connection.Table<Attachment>().Delete(x => x.MessageId == message.Pk);
+        }
+
+        private void InitMessageFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderPath, Entities.Message message, Entities.Message oldMessage = null)
+        {
+            if (String.IsNullOrEmpty(folderPath))
+            {
+                throw new ArgumentException($"message folder path should be specified");
+            }
+            var folder = FindAccountFolderStrict(connection, accountEmail, folderPath);
+            message.FolderId = folder.Id;
+            message.Folder = folder;
+        }
+
+        private Folder FindAccountFolderStrict(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
+        {
+            var folder = FindAccountFolder(connection, accountEmail, folderName);
+            if (folder is null)
+            {
+                throw new DataBaseException($"Folder '{folderName}' doesn't exist");
+            }
+            folder.AccountEmail = accountEmail;
+            return folder;
+        }
+
+        private Folder FindAccountFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
+        {
+            var account = FindAccountStrict(connection, accountEmail);
+            var folder = connection.Find<Folder>(x => x.AccountId == account.Id &&
+                                                      x.FullName == folderName);
+            return folder;
+        }
+
+        private static void UpdateFolderCounters(SQLiteConnection connection,
+                                                 Entities.Message newMessage,
+                                                 Entities.Message oldMessage = null,
+                                                 bool updateUnreadAndTotal = true)
+        {
+            int folderId = (newMessage ?? oldMessage).FolderId;
+            var folder = connection.Find<Folder>(folderId);
+            if (folder is null)
+            {
+                return;
+            }
+            int delta = 0;
+            if (oldMessage is null)
+            {
+                delta = 1;
+            }
+            else if (newMessage is null)
+            {
+                delta = -1;
+            }
+            if (updateUnreadAndTotal)
+            {
+                UpdateFolderUnreadCount(connection, folder, newMessage, oldMessage);
+                folder.TotalCount += delta;
+                Debug.Assert(folder.UnreadCount <= folder.TotalCount);
+            }
+            folder.LocalCount += delta;
+            Debug.Assert(!updateUnreadAndTotal || updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount);
+
+            connection.Update(folder);
+        }
+
+        private static void UpdateFolderUnreadCount(SQLiteConnection connection,
+                                                    Folder folder,
+                                                    Entities.Message newMessage,
+                                                    Entities.Message oldMessage)
+        {
+            Debug.Assert(folder != null);
+            var delta = GetUnreadChanges(newMessage, oldMessage);
+            if (delta == 0)
+            {
+                return;
+            }
+            folder.UnreadCount += delta;
+            Debug.Assert(folder.UnreadCount >= 0);
+        }
+
+        private static void UpdateContactsUnreadCount(SQLiteConnection connection, Entities.Message newMessage, Entities.Message oldMessage = null)
+        {
+            if (newMessage is null && oldMessage is null)
+            {
+                return;
+            }
+            var delta = GetUnreadChanges(newMessage, oldMessage);
+            if (delta == 0)
+            {
+                return;
+            }
+
+            // message should be in database
+            int messageId = (newMessage ?? oldMessage).Pk;
+            var messageContactPair = connection.Table<MessageContact>()
+                                               .Where(x => x.MessageId == messageId)
+                                               .Deferred()
+                                               .Select(x => x.ContactId).ToList();
+            var contacts = connection.Table<Contact>()
+                                     .Where(x => messageContactPair.Contains(x.Id))
+                                     .Deferred();
+            foreach (var contact in contacts)
+            {
+                contact.UnreadCount += delta;
+                Debug.Assert(contact.UnreadCount >= 0);
+                connection.Update(contact);
+            }
+        }
+
+        private static int GetUnreadChanges(Entities.Message newMessage, Entities.Message oldMessage)
+        {
+            if (oldMessage != null &&
+                newMessage != null &&
+                newMessage.IsMarkedAsRead == oldMessage.IsMarkedAsRead)
+            {
+                return 0;
+            }
+            if (newMessage != null && !newMessage.IsMarkedAsRead)
+            {
+                return 1;
+            }
+            if (oldMessage != null && !oldMessage.IsMarkedAsRead)
+            {
+                return -1;
+            }
+            return 0;
+        }
+
+        private static void InsertAttachments(SQLiteConnection connection, Entities.Message message)
+        {
+            DeleteAttachments(connection, message);
+
+            message.Attachments.ForEach(x => x.MessageId = message.Pk);
+            connection.InsertAll(message.Attachments);
+        }
+
+        private static void DeleteMessageEmails(SQLiteConnection connection, Entities.Message message)
+        {
+            connection.Table<MessageEmailAddress>().Delete(x => x.Message == message.Pk);
+        }
+
+        private void InsertMessageEmail(SQLiteConnection connection, MessageEmailAddress.EmailType type, EmailAddress email, int messagePk)
+        {
+            connection.Insert(new MessageEmailAddress
+            {
+                Type = type,
+                Email = InsertOrUpdateEmailAddress(connection, email),
+                Message = messagePk,
+            });
+        }
+
+        private void InsertMessageEmails(SQLiteConnection connection, Entities.Message message)
+        {
+            DeleteMessageEmails(connection, message);
+
+            message.From.ForEach(x => InsertMessageEmail(connection, MessageEmailAddress.EmailType.From, x, message.Pk));
+            message.ReplyTo.ForEach(x => InsertMessageEmail(connection, MessageEmailAddress.EmailType.ReplyTo, x, message.Pk));
+            message.To.ForEach(x => InsertMessageEmail(connection, MessageEmailAddress.EmailType.To, x, message.Pk));
+            message.Cc.ForEach(x => InsertMessageEmail(connection, MessageEmailAddress.EmailType.Cc, x, message.Pk));
+            message.Bcc.ForEach(x => InsertMessageEmail(connection, MessageEmailAddress.EmailType.Bcc, x, message.Pk));
+        }
+
+        private static void DeleteProtection(SQLiteConnection connection, Entities.Message message)
+        {
+            connection.Table<ProtectionInfo>().Where(x => x.MessageId == message.Pk).ToList().ForEach(x =>
+            {
+                connection.Table<SignatureInfo>().Delete(y => y.ProtectionId == x.Id);
+                connection.Delete(x);
+            });
+        }
+
+        private static void InsertProtection(SQLiteConnection connection, Entities.Message message)
+        {
+            DeleteProtection(connection, message);
+
+            if (message.Protection != null)
+            {
+                message.Protection.MessageId = message.Pk;
+                connection.Insert(message.Protection);
+                int protectionId = GetLastRowId(connection);
+
+                if (message.Protection.SignaturesInfo != null)
+                {
+                    message.Protection.SignaturesInfo.ForEach(x => { x.ProtectionId = protectionId; connection.Insert(x); });
+                }
+            }
+        }
+
+        private void InsertMessageContact(DbConnection db, EmailAddress accountEmail, Entities.Message message)
+        {
+            var connection = db.Connection;
+            var contactEmails = message.GetContactEmails(accountEmail);
+
+            foreach (var contactEmail in contactEmails)
+            {
+                var contact = FindContactByEmail(connection, contactEmail);
+                if (contact is null)
+                {
+                    contact = new Contact(contactEmail.Name, contactEmail);
+                    contact.LastMessageData = new LastMessageData(accountEmail, message.Id, message.Date);
+                    InsertContact(db, contact);
+                }
+                else
+                {
+                    BuildContact(connection, contact);
+                    if (contact.LastMessageData is null ||
+                        message.Date > contact.LastMessageData.Date)
+                    {
+                        contact.LastMessageData = new LastMessageData(accountEmail, message.Id, message.Date);
+                        UpdateContact(db, contact);
+                    }
+                }
+
+                connection.Insert(new MessageContact() { MessageId = message.Pk, ContactId = contact.Id });
+            }
+        }
+
+        public async Task<List<DecMessage>> GetDecMessagesAsync(EmailAddress email, Folder folder, int count, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder.FullName);
+                var query = Database.Table<DecMessage>().Where(x => x.Path == path)
+                                                        .OrderByDescending(x => x.Id);
+                if (count != 0)
+                {
+                    query = query.Take(count);
+                }
+                return await query.ToListAsync().ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<DecMessage> GetDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder.FullName);
+
+                return await Database.FindAsync<DecMessage>(x => x.Path == path && x.Id == id).ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<DecMessage> UpdateDecMessageAsync(EmailAddress email, DecMessage message, CancellationToken cancellationToken)
+        {
+            try
+            {
+                message.Path = CreatePath(email, message.FolderName);
+
+                await Database.UpdateAsync(message).ConfigureAwait(false);
+
+                return message;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task DeleteDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder.FullName);
+                var message = await Database.FindAsync<DecMessage>(x => x.Path == path && x.Id == id).ConfigureAwait(false);
+                await Database.DeleteAsync(message).ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<bool> IsDecMessageExistsAsync(EmailAddress email, string folder, string hash, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder);
+
+                return await Database.FindAsync<DecMessage>(x => x.Path == path && x.Hash == hash).ConfigureAwait(false) != null;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<DecMessage> AddDecMessageAsync(EmailAddress email, DecMessage message, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Database.RunInTransactionAsync(t =>
+                {
+                    message.Path = CreatePath(email, message.FolderName);
+
+                    t.Insert(message);
+                    message.Id = (uint)GetLastRowId(t);
+
+                }).ConfigureAwait(false);
+
+                return message;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task AddMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            string folderPath = message.Folder.FullName;
+            if (await IsMessageExistAsync(accountEmail, folderPath, message.Id, cancellationToken).ConfigureAwait(false))
+            {
+                throw new MessageAlreadyExistInDatabaseException();
+            }
+
+            await WriteDatabaseAsync(db =>
+            {
+                message.Path = CreatePath(accountEmail, folderPath);
+                AddMessage(db, accountEmail, folderPath, message, updateUnreadAndTotal);
+
+            }).ConfigureAwait(false);
+        }
+
+        private void AddMessage(DbConnection db, EmailAddress accountEmail, string folder, Entities.Message message, bool updateUnreadAndTotal)
+        {
+            var connection = db.Connection;
+            InitMessageFolder(connection, accountEmail, folder, message);
+            connection.Insert(message);
+            message.Pk = GetLastRowId(connection);
+
+            InsertAttachments(connection, message);
+            InsertMessageEmails(connection, message);
+            InsertProtection(connection, message);
+            UpdateFolderCounters(connection, message, null, updateUnreadAndTotal);
+            if (!message.Folder.IsInbox &&
+                !message.Folder.IsSent)
+            {
+                // Actually, only INBOX and SENT messages are taken into account when we collect contacts
+                return;
+            }
+            InsertMessageContact(db, accountEmail, message);
+            UpdateContactsUnreadCount(connection, message);
+        }
+
+        public Task UpdateMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                message.Path = CreatePath(accountEmail, message.Folder.FullName);
+
+                var item = connection.Find<Entities.Message>(x => x.Path == message.Path && x.Id == message.Id);
+                message.Pk = item.Pk;
+
+                InitMessageFolder(connection, accountEmail, message.Folder.FullName, message, item);
+
+                connection.Update(message);
+
+                InsertAttachments(connection, message);
+                InsertMessageEmails(connection, message);
+                InsertProtection(connection, message);
+                UpdateFolderCounters(connection, message, item, updateUnreadAndTotal);
+                UpdateContactsUnreadCount(connection, message, item);
+
+            });
+        }
+
+        public async Task UpdateMessagesAsync(EmailAddress email, IEnumerable<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            try
+            {
+                foreach (var message in messages)
+                {
+                    await UpdateMessageAsync(email, message, updateUnreadAndTotal, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public Task UpdateMessagesFlagsAsync(EmailAddress email, IEnumerable<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                foreach (var message in messages)
+                {
+                    var connection = db.Connection;
+                    var item = connection.Find<Entities.Message>(x => x.Path == message.Path && x.Id == message.Id);
+                    if (item is null)
+                    {
+                        continue;
+                    }
+                    UpdateFolderCounters(connection, message, item, updateUnreadAndTotal);
+                    UpdateContactsUnreadCount(connection, message, item);
+                    item.IsFlagged = message.IsFlagged;
+                    item.IsMarkedAsRead = message.IsMarkedAsRead;
+                    connection.Update(message);
+                }
+            });
+        }
+
+        public Task AddMessageListAsync(EmailAddress email, string folder, IReadOnlyList<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            if (messages.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return WriteDatabaseAsync(db =>
+            {
+                var path = CreatePath(email, folder);
+
+                foreach (var message in messages)
+                {
+                    message.Path = path;
+                    AddMessage(db, email, folder, message, updateUnreadAndTotal);
+                }
+            });
+        }
+
+        private Entities.Message BuildMessage(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LoadMessageEmailAddresses(connection, message, cancellationToken);
+            return BuildMessageWithoutEmailAddresses(connection, message, cancellationToken);
+        }
+        private Entities.Message BuildMessageWithoutEmailAddresses(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            message.Attachments.AddRange(connection.Table<Attachment>().Where(x => x.MessageId == message.Pk));
+            cancellationToken.ThrowIfCancellationRequested();
+            message.Folder = connection.Find<Folder>(message.FolderId);
+            if (message.Folder != null)
+            {
+                var account = connection.Find<Account>(message.Folder.AccountId);
+                message.Folder.AccountEmail = GetEmailAddressData(connection, account.EmailId).ToEmailAddress();
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            message.Protection = connection.Find<ProtectionInfo>(x => x.MessageId == message.Pk);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (message.Protection != null)
+            {
+                message.Protection.SignaturesInfo = connection.Table<SignatureInfo>().Where(x => x.ProtectionId == message.Protection.Id).ToList();
+            }
+            return message;
+        }
+
+        private Dictionary<int, EmailAddressData> _emailAddressDataCache = new Dictionary<int, EmailAddressData>();
+        private EmailAddressData GetEmailAddressData(SQLiteConnection connection, int emailId)
+        {
+            lock (_emailAddressDataCache)
+            {
+                EmailAddressData emailData = null;
+                if (!_emailAddressDataCache.TryGetValue(emailId, out emailData))
+                {
+                    emailData = connection.Find<EmailAddressData>(emailId);
+                    if (emailData != null)
+                    {
+                        _emailAddressDataCache.Add(emailId, emailData);
+                    }
+                }
+                return emailData;
+            }
+        }
+
+        private Entities.Message LoadMessageEmailAddresses(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
+        {
+            var emails = connection.Table<MessageEmailAddress>()
+                                   .Where(x => x.Message == message.Pk);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var x in emails)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var email = GetEmailAddressData(connection, x.Email).ToEmailAddress();
+                switch (x.Type)
+                {
+                    case MessageEmailAddress.EmailType.From:
+                        message.From.Add(email);
+                        break;
+                    case MessageEmailAddress.EmailType.ReplyTo:
+                        message.ReplyTo.Add(email);
+                        break;
+                    case MessageEmailAddress.EmailType.To:
+                        message.To.Add(email);
+                        break;
+                    case MessageEmailAddress.EmailType.Cc:
+                        message.Cc.Add(email);
+                        break;
+                    case MessageEmailAddress.EmailType.Bcc:
+                        message.Bcc.Add(email);
+                        break;
+                }
+            }
+            return message;
+        }
+
+        private Task<List<Entities.Message>> BuildMessagesAsync(List<Entities.Message> items, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var messages = new List<Entities.Message>(items.Count);
+                foreach (var message in items)
+                {
+                    messages.Add(BuildMessage(connection, message, cancellationToken));
+                }
+                return messages;
+            });
+        }
+
+        public Task<Entities.Message> GetMessageAsync(EmailAddress email, string folder, uint id, bool fast, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync((connection) =>
+            {
+                var path = CreatePath(email, folder);
+                var message = connection.Find<Entities.Message>(x => x.Path == path && x.Id == id);
+                if (message is null)
+                {
+                    return null;
+                }
+                if (fast)
+                {
+                    return message;
+                }
+                return BuildMessage(connection, message, cancellationToken);
+            });
+        }
+
+        public async Task<IReadOnlyList<Entities.Message>> GetMessageListAsync(EmailAddress email, string folder, uint count, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder);
+
+                var items = count == 0
+                    ? await Database.Table<Entities.Message>().Where(x => x.Path == path).ToListAsync().ConfigureAwait(false)
+                    : await Database.Table<Entities.Message>().Where(x => x.Path == path).OrderByDescending(x => x.Id).Take((int)count).ToListAsync().ConfigureAwait(false);
+                return await BuildMessagesAsync(items, cancellationToken).ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<IReadOnlyList<Entities.Message>> GetMessageListAsync(EmailAddress email, string folder, uint fromUid, uint count, bool fast, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder);
+
+                var items = await Database
+                    .Table<Entities.Message>()
+                    .Where(x => x.Path == path && x.Id < fromUid)
+                    .OrderByDescending(x => x.Id)
+                    .Take((int)count)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+
+                if (fast)
+                {
+                    return items;
+                }
+                return await BuildMessagesAsync(items, cancellationToken).ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<IReadOnlyList<Entities.Message>> GetMessageListAsync(EmailAddress email, string folder, (uint, uint) range, bool fast, CancellationToken cancellationToken)
+        {
+            return await ReadDatabaseAsync((Func<SQLiteConnection, IReadOnlyList<Entities.Message>>)(connection =>
+            {
+                uint min = Math.Min(range.Item1, range.Item2);
+                uint max = Math.Max(range.Item1, range.Item2);
+                var path = CreatePath(email, folder);
+                var items = connection.Table<Entities.Message>()
+                                      .Where(x => x.Path == path && x.Id < max && x.Id >= min)
+                                      .OrderByDescending(x => x.Id)
+                                      .Deferred();
+                if (fast)
+                {
+                    return items.ToList();
+                }
+
+                var messages = new List<Entities.Message>();
+                foreach (var item in items)
+                {
+                    messages.Add(BuildMessage(connection, item, cancellationToken));
+                }
+                return messages;
+            })).ConfigureAwait(false);
+        }
+
+        public async Task<uint> GetMessagesCountAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var path = CreatePath(email, folder);
+                return (uint)await Database.Table<Entities.Message>().Where(x => x.Path == path).CountAsync().ConfigureAwait(false);
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public Task<Entities.Message> GetLatestMessageAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var path = CreatePath(email, folder);
+                var item = connection.Table<Entities.Message>()
+                                     .Where(x => x.Path == path)
+                                     .ThenByDescending(x => x.Id)
+                                     .FirstOrDefault();
+                return item is null ? null : BuildMessage(connection, item, cancellationToken);
+            });
+        }
+
+        public Task<Entities.Message> GetEarliestMessageAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var path = CreatePath(email, folder);
+                var item = connection.Table<Entities.Message>()
+                                     .Where(x => x.Path == path)
+                                     .ThenBy(x => x.Id)
+                                     .FirstOrDefault();
+                return item is null ? null : BuildMessage(connection, item, cancellationToken);
+            });
+        }
+
+        public Task<Entities.Message> GetEarliestMessageAsync(Folder folder, CancellationToken cancellationToken = default)
+        {
+            Debug.Assert(folder.Id > 0);
+            return ReadDatabaseAsync(connection =>
+            {
+                var item = connection.Table<Entities.Message>()
+                                     .Where(x => x.FolderId == folder.Id)
+                                     .ThenBy(x => x.Id)
+                                     .FirstOrDefault();
+                return item is null ? null : BuildMessage(connection, item, cancellationToken);
+            });
+        }
+
+        public Task<IReadOnlyList<Entities.Message>> GetEarlierMessagesInFoldersAsync(IEnumerable<Folder> folders,
+                                                                             int count,
+                                                                             Entities.Message lastMessage,
+                                                                             CancellationToken cancellationToken)
+        {
+            var folderIds = folders.Select(x => x.Id).ToList();
+            if (folderIds.Count == 0)
+            {
+                return Task.FromResult<IReadOnlyList<Entities.Message>>(new List<Entities.Message>());
+            }
+            return ReadDatabaseAsync((Func<SQLiteConnection, IReadOnlyList<Entities.Message>>)(connection =>
+            {
+
+                Func<IEnumerable<Entities.Message>> getItemsQuery = () =>
+                {
+                    if (folderIds.Count == 1)
+                    {
+                        int folderId = folderIds[0];
+                        Expression<Func<Entities.Message, bool>> filter = x => x.FolderId == folderId;
+                        if (lastMessage != null)
+                        {
+                            filter = x => x.FolderId == folderId &&
+                            (x.Date < lastMessage.Date || (x.Date == lastMessage.Date && x.Id < lastMessage.Id));
+                        }
+                        return connection.Table<Entities.Message>()
+                                         .Where(filter)
+                                         .OrderByDescending(x => x.Date)
+                                         .ThenByDescending(x => x.Id)
+                                         .Take(count).Deferred();
+                    }
+                    string folderIdsStr = string.Join(",", folderIds.Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray());
+                    // We need to join Message and Folder tables here,
+                    // but SQLite.Net doesn't support joins, so we do them manually
+                    // Here we get the latest from the earliest messages in INBOX folders which are not fully loaded
+                    string messageQuery = $@"select * from (
+select *, min(Date) from Message 
+INNER JOIN Folder ON Message.FolderId=Folder.Id
+WHERE Folder.Id in ({folderIdsStr}) and Folder.LocalCount < Folder.TotalCount
+GROUP BY FolderId
+) ORDER BY Date DESC";
+
+                    var earliestFolderMessages = connection.Query<Entities.Message>(messageQuery).FirstOrDefault();
+                    if (earliestFolderMessages is null)
+                    {
+                        // Everything is loaded, so we don't limit messages
+
+                        // We need to join Message and Folder tables here,
+                        // but SQLite.Net doesn't support joins, so we do them manually
+                        // Note, different folder may containt the same Id,
+                        // to keep order stable and deterministic, first we sort by Date, THEN by folder id and only afterwards by message id
+
+                        if (lastMessage is null)
+                        {
+                            // Join tables and query without message filtering
+                            string firstQuery = $@"select Message.*, Folder.Attributes from Message 
+INNER JOIN Folder ON Message.FolderId=Folder.Id
+WHERE Folder.Id in ({folderIdsStr})
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?1";
+                            return connection.DeferredQuery<Entities.Message>(firstQuery, count);
+                        }
+                        // Join tables and filter by message Date and Id
+                        string nextQuery = $@"select Message.*, Folder.Attributes from Message 
+INNER JOIN Folder ON Message.FolderId=Folder.Id
+WHERE Folder.Id in ({folderIdsStr}) and (Date < ?1 or (Date = ?1 and ((FolderId=?2 and Message.Id < ?3) or FolderId > ?2 )))
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?4";
+                        return connection.DeferredQuery<Entities.Message>(nextQuery,
+                                                                 lastMessage.Date,
+                                                                 lastMessage.FolderId,
+                                                                 lastMessage.Id,
+                                                                 count);
+                    }
+
+                    // We have to get the messages before the latest from the earliest loaded messages
+
+                    // We need to join Message and Folder tables here,
+                    // but SQLite.Net doesn't support joins, so we do them manually
+                    // Note, different folder may containt the same Id,
+                    // to keep order stable and deterministic, first we sort by Date, THEN by folder id and only afterwards by message id
+
+                    if (lastMessage is null)
+                    {
+                        // Join tables and query without message filtering
+                        string query = $@"select Message.*, Folder.Attributes from Message 
+INNER JOIN Folder ON Message.FolderId=Folder.Id
+WHERE Folder.Id in ({folderIdsStr})  AND Date >= ?2
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?1";
+                        return connection.DeferredQuery<Entities.Message>(query, count, earliestFolderMessages.Date);
+                    }
+                    // Join tables and filter by message Date and Id
+                    string query2 = $@"select Message.*, Folder.Attributes from Message 
+INNER JOIN Folder ON Message.FolderId=Folder.Id
+WHERE Folder.Id in ({folderIdsStr}) and (Date < ?1 or (Date = ?1 and ((FolderId=?2 and Message.Id < ?3) or FolderId > ?2 ))) AND Date >= ?5
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?4";
+                    return connection.DeferredQuery<Entities.Message>(query2,
+                                                             lastMessage.Date,
+                                                             lastMessage.FolderId,
+                                                             lastMessage.Id,
+                                                             count,
+                                                             earliestFolderMessages.Date);
+                };
+                var items = getItemsQuery();
+                var messages = new List<Entities.Message>(count);
+                foreach (var item in items)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    messages.Add(BuildMessage(connection, item, cancellationToken));
+                }
+                return messages;
+            }));
+        }
+
+        public async Task<IReadOnlyList<Entities.Message>> GetEarlierMessagesAsync(Folder folder,
+                                                                          int count,
+                                                                          Entities.Message lastMessage,
+                                                                          CancellationToken cancellationToken)
+        {
+            var folders = new List<Folder>();
+            if (folder is null)
+            {
+                folders.AddRange(await ReadDatabaseAsync<IReadOnlyList<Folder>>(connection =>
+                {
+                    return connection.Table<Folder>().Where(x => x.Attributes == FolderAttributes.Inbox).ToList();
+                }).ConfigureAwait(false));
+            }
+            else
+            {
+                folders.Add(folder);
+            }
+            return await GetEarlierMessagesInFoldersAsync(folders, count, lastMessage, cancellationToken).ConfigureAwait(false);
+        }
+
+        public Task<IReadOnlyList<Entities.Message>> GetEarlierContactMessagesAsync(EmailAddress contactEmail,
+                                                                           int count,
+                                                                           Entities.Message lastMessage,
+                                                                           CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return GetEarlierContactMessages(connection, contactEmail, count, lastMessage, cancellationToken);
+            });
+        }
+
+        private IReadOnlyList<Entities.Message> GetEarlierContactMessages(SQLiteConnection connection,
+                                                                 EmailAddress contactEmail,
+                                                                 int count,
+                                                                 Entities.Message lastMessage,
+                                                                 CancellationToken cancellationToken)
+        {
+            var messages = new List<Entities.Message>(count);
+            var contact = FindContactByEmail(connection, contactEmail);
+            if (contact is null)
+            {
+                return messages;
+            }
+
+            Func<IEnumerable<Entities.Message>> getItemsQuery = () =>
+            {
+                // We need to join Message and Folder tables here,
+                // but SQLite.Net doesn't support joins, so we do them manually
+                // Note, different folder may containt the same Id,
+                // to keep order stable and deterministic, first we sort by Date, THEN by folder id and only afterwards by message id
+                if (lastMessage is null)
+                {
+                    // Join tables and query without message filtering
+                    const string query = @"select Message.* from MessageContact 
+INNER JOIN Message ON Message.Pk=MessageContact.MessageId
+WHERE ContactId = ?1
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC ";
+                    return connection.DeferredQuery<Entities.Message>(query, contact.Id);
+                }
+                // Join tables and filter by message Date and Id
+                const string query2 = @"select Message.* from MessageContact 
+INNER JOIN Message ON Message.Pk=MessageContact.MessageId
+WHERE ContactId = ?1 and (Date < ?2 or (Date = ?2 and ((FolderId=?3 and Message.Id < ?4) or FolderId > ?3))) 
+ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
+                return connection.DeferredQuery<Entities.Message>(query2, contact.Id, lastMessage.Date, lastMessage.FolderId, lastMessage.Id);
+            };
+
+            foreach (var item in getItemsQuery())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                LoadMessageEmailAddresses(connection, item, cancellationToken);
+
+                Debug.Assert(item.IsFromCorrespondenceWithContact(contactEmail), "This shouldn't happen, IsFromCorrespondenceWithContact is equivalent of SQL query");
+
+                var message = BuildMessageWithoutEmailAddresses(connection, item, cancellationToken);
+                if (message.Folder != null &&
+                    (message.Folder.IsJunk || message.Folder.IsTrash))
+                {
+                    continue;
+                }
+                messages.Add(message);
+                if (messages.Count >= count)
+                {
+                    break;
+                }
+            }
+
+            return messages;
+        }
+
+        public async Task<Entities.Message> GetContactLastMessageAsync(EmailAddress email, string folder, EmailAddress contactEmail, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folder);
+                var items = await Database.Table<Entities.Message>().Where(x => x.Path == path).OrderByDescending(x => x.Id).ToListAsync().ConfigureAwait(false);
+                var messages = (await BuildMessagesAsync(items, cancellationToken).ConfigureAwait(false))
+                    .Where(message => message.IsFromCorrespondenceWithContact(email, contactEmail))
+                    .OrderByDescending(message => message.Date);
+
+                return messages.Any() ? messages.First() : null;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<bool> IsMessageExistAsync(EmailAddress email, string folderName, uint uid, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var path = CreatePath(email, folderName);
+                var message = await Database.FindAsync<Entities.Message>(x => x.Path == path && x.Id == uid).ConfigureAwait(false);
+
+                return message != null;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public Task DeleteFolderAsync(EmailAddress email, string folder, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var path = CreatePath(email, folder);
+                var messages = connection.Table<Entities.Message>().Where(x => x.Path == path);
+
+                foreach (var message in messages)
+                {
+                    DeleteMessage(db, message, updateUnreadAndTotal: true, cancellationToken);
+                }
+            });
+        }
+
+        public Task DeleteMessageAsync(EmailAddress email, string folder, uint uid, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            return DeleteMessagesAsync(email, folder, new List<uint> { uid }, updateUnreadAndTotal, cancellationToken);
+        }
+
+        public Task DeleteMessagesAsync(EmailAddress email, string folder, IEnumerable<uint> uids, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var path = CreatePath(email, folder);
+
+                foreach (var uid in uids)
+                {
+                    var message = connection.Find<Entities.Message>(x => x.Path == path && x.Id == uid);
+                    DeleteMessage(db, message, updateUnreadAndTotal, cancellationToken);
+                }
+            });
+        }
+
+        public Task<bool> ExistsAccountWithEmailAddressAsync(EmailAddress email, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return ExistsAccountWithEmailAddress(connection, email);
+            });
+        }
+
+        private bool ExistsAccountWithEmailAddress(SQLiteConnection connection, EmailAddress accountEmail)
+        {
+            return FindAccount(connection, accountEmail) != null;
+        }
+
+        private static string CreatePath(EmailAddress email, string folder)
+        {
+            return email.Address + "\\" + folder;
+        }
+
+        public Task AddAccountGroupAsync(AccountGroup group, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                connection.Insert(group);
+            });
+        }
+
+        public Task<IReadOnlyList<AccountGroup>> GetAccountGroupsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return connection.Table<AccountGroup>().ToList() as IReadOnlyList<AccountGroup>;
+            });
+        }
+
+        public Task DeleteAccountGroupAsync(AccountGroup group, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                connection.Delete(group);
+            });
+        }
+
+        public Task<int> GetUnreadMessagesCountAsync(EmailAddress accountEmail, string folder, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var res = FindAccountFolder(connection, accountEmail, folder);
+                if (res is null)
+                {
+                    return 0; // it seems that folder has been deleted
+                }
+                return res.UnreadCount;
+            });
+        }
+
+        private void BuildContact(SQLiteConnection connection, Contact contact)
+        {
+            contact.AvatarInfo = connection.Find<ImageInfo>(contact.AvatarInfoId) ?? ImageInfo.Empty;
+            contact.LastMessageData = connection.Find<LastMessageData>(contact.LastMessageDataId) ?? contact.LastMessageData;
+            if (contact.LastMessageData != null)
+            {
+                var emailData = GetEmailAddressData(connection, contact.LastMessageData.AccountEmailId);
+                contact.LastMessageData.AccountEmail = emailData.ToEmailAddress();
+            }
+            contact.Email = GetEmailAddressData(connection, contact.EmailId).ToEmailAddress();
+        }
+
+        public Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var items = connection.Table<Contact>().ToList();
+
+                foreach (var item in items)
+                {
+                    BuildContact(connection, item);
+                }
+
+                return items.AsEnumerable<Contact>();
+            });
+        }
+
+        public Task<Contact> GetContactAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var item = FindContactByEmail(connection, contactEmail);
+                if (item is null)
+                {
+                    throw new DataBaseException("Invalid email contact request");
+                }
+                BuildContact(connection, item);
+                return item;
+            });
+        }
+
+        private void InsertContactData(SQLiteConnection connection, Contact contact)
+        {
+            contact.EmailId = InsertOrUpdateEmailAddress(connection, contact.Email);
+            if (!contact.AvatarInfo.IsEmpty)
+            {
+                connection.Insert(contact.AvatarInfo);
+                contact.AvatarInfoId = GetLastRowId(connection);
+            }
+
+            if (contact.LastMessageData != null)
+            {
+                // TOODO: we create new record each time, this is not ok
+                contact.LastMessageData.AccountEmailId = InsertOrUpdateEmailAddress(connection, contact.LastMessageData.AccountEmail);
+                connection.Insert(contact.LastMessageData);
+                contact.LastMessageDataId = GetLastRowId(connection);
+            }
+        }
+
+        public Task AddContactAsync(Contact contact, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                if (contact is null || contact.Email is null)
+                {
+                    throw new DataBaseException("Attempt to add invalid contact");
+                }
+                InsertContact(db, contact);
+            });
+        }
+
+        private void InsertContact(DbConnection db, Contact contact)
+        {
+            var connection = db.Connection;
+            InsertContactData(connection, contact);
+            connection.Insert(contact);
+            db.ChangeState.Add(contact);
+        }
+
+        private void UpdateContact(DbConnection db, Contact contact)
+        {
+            var connection = db.Connection;
+            InsertContactData(connection, contact);
+            connection.Update(contact);
+            db.ChangeState.Update(contact);
+        }
+
+        public Task<bool> ExistsContactWithEmailAddressAsync(EmailAddress email, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return ExistsContactWithEmailAddress(connection, email);
+            });
+        }
+
+        private bool ExistsContactWithEmailAddress(SQLiteConnection connection, EmailAddress email)
+        {
+            return FindContactByEmail(connection, email) != null;
+        }
+
+        private Contact FindContactByEmail(SQLiteConnection connection, EmailAddress email)
+        {
+            var emailData = FindEmailAddress(connection, email);
+            if (emailData is null)
+            {
+                return null;
+            }
+            return connection.Find<Contact>(x => x.EmailId == emailData.Id);
+        }
+
+        public async Task<bool> TryAddContactAsync(Contact contact, CancellationToken cancellationToken)
+        {
+            try
+            {
+                bool res = false;
+                await WriteDatabaseAsync(db =>
+                {
+                    if (contact is null || contact.Email is null)
+                    {
+                        // invalid
+                        return;
+                    }
+                    var connection = db.Connection;
+                    if (ExistsContactWithEmailAddress(connection, contact.Email))
+                    {
+                        // already exists
+                        return;
+                    }
+                    InsertContact(db, contact);
+                    res = true;
+                }).ConfigureAwait(false);
+                return res;
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch
+#pragma warning restore CA1031 // Do not catch general exception types
+            {
+            }
+
+            return false;
+        }
+
+        public Task SetContactAvatarAsync(EmailAddress contactEmail, byte[] avatarBytes, int avatarWidth, int avatarHeight, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var item = FindContactByEmail(connection, contactEmail);
+
+                if (item != null)
+                {
+                    connection.Insert(new ImageInfo(avatarWidth, avatarHeight, avatarBytes));
+                    item.AvatarInfoId = GetLastRowId(connection);
+
+                    connection.Update(item);
+                }
+            });
+        }
+
+        public Task UpdateContactAsync(Contact contact, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                contact.Id = connection.Find<Contact>(x => x.EmailId == contact.EmailId).Id;
+                UpdateContact(db, contact);
+            });
+        }
+
+        public Task RemoveContactAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var item = FindContactByEmail(connection, contactEmail);
+                connection.Delete<ImageInfo>(item.AvatarInfoId);
+                connection.Delete<LastMessageData>(item.LastMessageDataId);
+                connection.Delete(item);
+            });
+        }
+
+        private Dictionary<EmailAddress, EmailAddressData> _emailAddressesCache2 = new Dictionary<EmailAddress, EmailAddressData>();
+        private EmailAddressData FindEmailAddress(SQLiteConnection connection, EmailAddress email)
+        {
+            lock (_emailAddressesCache2)
+            {
+                EmailAddressData emailData = null;
+                if (_emailAddressesCache2.TryGetValue(email, out emailData))
+                {
+                    return emailData;
+                }
+                emailData = connection.Find<EmailAddressData>(y => y.Address == email.Address);
+                if (emailData is null)
+                {
+                    return null;
+                }
+                _emailAddressesCache2.Add(email, emailData);
+                return emailData;
+            }
+        }
+
+        private EmailAddressData FindEmailAddressStrict(SQLiteConnection connection, EmailAddress email)
+        {
+            var emailData = FindEmailAddress(connection, email);
+            if (emailData == null)
+            {
+                throw new DataBaseException("Unknown email requested");
+            }
+            return emailData;
+        }
+
+        private Account FindAccount(SQLiteConnection connection, EmailAddress accountEmail)
+        {
+            var emailData = FindEmailAddress(connection, accountEmail);
+            if (emailData is null)
+            {
+                return null;
+            }
+            return connection.Find<Account>(x => x.EmailId == emailData.Id);
+        }
+
+        private Account FindAccountStrict(SQLiteConnection connection, EmailAddress accountEmail)
+        {
+            var account = FindAccount(connection, accountEmail);
+            if (account == null)
+            {
+                throw new AccountIsNotExistInDatabaseException();
+            }
+            return account;
+        }
+
+        public Task RemoveContactAvatarAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var item = FindContactByEmail(connection, contactEmail);
+
+                connection.Delete<ImageInfo>(item.AvatarInfoId);
+
+                item.AvatarInfoId = 0;
+                connection.Update(item);
+            });
+        }
+
+        public Task<IEnumerable<Contact>> GetContactsWithLastMessageIdAsync(EmailAddress accountEmail, uint messageId, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var emailData = FindEmailAddressStrict(connection, accountEmail);
+                var items = connection.Table<LastMessageData>().Where(x => x.MessageId == messageId && x.AccountEmailId == emailData.Id).ToList();
+                var contacts = new List<Contact>();
+                foreach (var item in items)
+                {
+                    var contactItems = connection.Table<Contact>().Where(x => x.LastMessageDataId == item.Id);
+                    foreach (var contact in contactItems)
+                    {
+                        BuildContact(connection, contact);
+                        contacts.Add(contact);
+                    }
+                }
+                return (IEnumerable<Contact>)contacts;
+            });
+        }
+
+        public Task<int> GetContactUnreadMessagesCountAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var contact = FindContactByEmail(connection, contactEmail);
+                if (contact is null)
+                {
+                    return 0;
+                }
+                return contact.UnreadCount;
+            });
+        }
+
+        public Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var counts = connection.Table<Contact>()
+                                       .Deferred()
+                                       .Select(x => new KeyValuePair<EmailAddress, int>(GetEmailAddressData(connection, x.EmailId).ToEmailAddress(), x.UnreadCount)).ToList();
+
+                return (IEnumerable<KeyValuePair<EmailAddress, int>>)counts;
+            });
+        }
+
+        private async Task WriteDatabaseAsync(Action<DbConnection> writeFunc)
+        {
+            CheckDisposed();
+            try
+            {
+                var changeContext = new ChangeState(this);
+                await Database.RunInTransactionAsync((connection) =>
+                {
+                    CheckDisposed();
+                    var dbConnection = new DbConnection(connection, changeContext);
+                    writeFunc(dbConnection);
+                }).ConfigureAwait(false);
+                changeContext.RaiseEvents();
+            }
+            catch (ObjectDisposedException)
+            {
+                throw;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        private async Task<T> ReadDatabaseAsync<T>(Func<SQLiteConnection, T> readFunc)
+        {
+            CheckDisposed();
+            try
+            {
+                if (Database is null)
+                {
+                    throw new DataBaseException("Database is not opened");
+                }
+                T result = default;
+                await Database.RunInTransactionAsync((connection) =>
+                {
+                    CheckDisposed();
+                    result = readFunc(connection);
+                }).ConfigureAwait(false);
+                return result;
+            }
+            catch (ObjectDisposedException)
+            {
+                throw;
+            }
+            catch (SQLiteException exp)
+            {
+                throw new DataBaseException(exp.Message, exp);
+            }
+        }
+
+        public async Task<Settings> GetSettingsAsync(CancellationToken cancellationToken)
+        {
+            var settings = new Settings();
+
+            foreach (var prop in settings.GetType().GetProperties())
+            {
+                var option = await Database.FindAsync<SettingsTable>(x => x.Key == prop.Name).ConfigureAwait(false);
+                prop.SetValue(settings, option != null ? option.Value : 0);
+            }
+
+            return settings;
+        }
+
+        public async Task SetSettingsAsync(Settings settings, CancellationToken cancellationToken)
+        {
+            foreach (var prop in settings.GetType().GetProperties())
+            {
+                var option = new SettingsTable { Key = prop.Name, Value = (int)prop.GetValue(settings) };
+                await Database.InsertOrReplaceAsync(option).ConfigureAwait(false);
+            }
+        }
+
+        public async Task UpdateAccountEmailAsync(EmailAddress prev, EmailAddress email, CancellationToken cancellationToken)
+        {
+            await WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var messages = connection.Table<Entities.Message>().Where(x => x.Path.Contains(prev.Address)).ToList();
+                messages.ForEach(x => x.Path = x.Path.Replace(prev.Address, email.Address));
+                connection.UpdateAll(messages);
+
+                var emailData = FindEmailAddress(connection, prev);
+                emailData.Address = email.Address;
+                connection.Update(emailData);
+
+            }).ConfigureAwait(false);
+        }
+
+        private bool _isDisposed;
+
+        private void CheckDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(DataStorage));
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+            if (disposing)
+            {
+                // release managed resource(actually it holds unmanaged resources internally)
+                if (Database != null)
+                {
+                    SQLiteAsyncConnection.ResetPool();
+                }
+            }
+            _isDisposed = true;
+        }
+
+        public Task AddOrUpdateMessagesAsync(IReadOnlyList<Proton.Message> messages, CancellationToken cancellationToken)
+        {
+            if (messages.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+
+                var labelIds = messages.SelectMany(x => x.LabelIds)
+                                       .Distinct()
+                                       .OrderBy(x => x)
+                                       .ToList();
+                var storedLabels = connection.Table<ProtonLabel>().Select(x => x.LabelId)
+                                                                  .OrderBy(x => x)
+                                                                  .ToList();
+                var newLabels = labelIds.Except(storedLabels);
+                foreach (var label in newLabels.Select(x => new ProtonLabel() { LabelId = x }))
+                {
+                    connection.Insert(label);
+                }
+
+                var labelLookup = connection.Table<ProtonLabel>().ToDictionary(x => x.LabelId);
+
+                foreach (var message in messages)
+                {
+                    int messageId = 0;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var existingMessage = connection.Table<Proton.Message>().Where(m => m.MessageId == message.MessageId).FirstOrDefault();
+                    if (existingMessage is null)
+                    {
+                        connection.Insert(message);
+                        messageId = GetLastRowId(connection);
+                    }
+                    else
+                    {
+                        message.Id = existingMessage.Id;
+                        messageId = existingMessage.Id;
+                        connection.Update(message);
+                        // remove existing labels
+                        connection.Table<ProtonMessageLabel>().Delete(x => x.MessageId == existingMessage.Id);
+                    }
+                    foreach (var label in message.LabelIds.Select(x => new ProtonMessageLabel() { MessageId = messageId, LabelId = labelLookup[x].Id }))
+                    {
+                        connection.Insert(label);
+                    }
+                }
+            });
+        }
+
+        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(string labelId, int count, CancellationToken cancellationToken)
+        {
+            return GetMessagesAsync(labelId, 0, getEarlier: true, count, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).FirstOrDefault();
+                if (label is null)
+                {
+                    return new List<Proton.Message>();
+                }
+                var labeledMessages = connection.Table<ProtonMessageLabel>()
+                                                .Where(x => x.LabelId == label.Id)
+                                                .Select(x => x.MessageId);
+                var query = connection.Table<Proton.Message>()
+                                      .Where(x => labeledMessages.Contains(x.Id))
+                                      .OrderByDescending(x => x.Id);
+                if (knownId > 0)
+                {
+                    if (getEarlier)
+                    {
+                        query = query.Where(x => x.Id < knownId);
+                    }
+                    else
+                    {
+                        query = query.Where(x => x.Id > knownId);
+                    }
+                }
+
+                return GetMessagesImpl(count, ref query);
+            });
+        }
+
+        private static IReadOnlyList<Proton.Message> GetMessagesImpl(int count, ref TableQuery<Proton.Message> query)
+        {
+            if (count > 0)
+            {
+                query = query.Take(count); // NOTE: if count == 0 we return all items
+            }
+            return (IReadOnlyList<Proton.Message>)query.ToList();
+        }
+
+        public Task<Proton.Message> GetMessageAsync(string labelId, uint id, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).First();
+                var labeledMessage = connection.Table<ProtonMessageLabel>()
+                                                .Where(x => x.LabelId == label.Id && x.MessageId == id)
+                                                .FirstOrDefault();
+                if (labeledMessage is null)
+                {
+                    return null;
+                }
+                return connection.Table<Proton.Message>()
+                                 .Where(x => x.Id == id)
+                                 .FirstOrDefault();
+            });
+        }
+
+        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(IReadOnlyList<uint> ids, CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return (IReadOnlyList<Proton.Message>)connection.Table<Proton.Message>()
+                                                                .Where(x => ids.Contains((uint)x.Id))
+                                                                .ToList();
+            });
+        }
+
+        public Task AddMessageIDs(IReadOnlyList<string> ids, CancellationToken cancellationToken)
+        {
+            if (ids.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var table = connection.Table<ProtonMessageId>();
+                foreach (var id in ids)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    connection.Insert(new ProtonMessageId() { MessageId = id });
+                }
+            });
+        }
+
+        public Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync(connection =>
+            {
+                return (IReadOnlyList<KeyValuePair<string, uint>>)connection.Table<ProtonMessageId>()
+                                                                            .OrderBy(x => x.Id)
+                                                                            .Select(x => new KeyValuePair<string, uint>(x.MessageId, (uint)x.Id))
+                                                                            .ToList();
+            });
+        }
+
+        public Task DeleteMessageByMessageIdsAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken)
+        {
+            if (ids.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                foreach (var id in ids)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    connection.Table<ProtonMessageId>().Delete(x => x.MessageId == id);
+                    connection.Table<Proton.Message>().Delete(x => x.MessageId == id);
+                }
+            });
+        }
+
+        public Task DeleteMessagesByIds(IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken)
+        {
+            if (ids.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return WriteDatabaseAsync(db =>
+            {
+                var connection = db.Connection;
+                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).First();
+                foreach (var id in ids)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    connection.Table<ProtonMessageLabel>().Delete(x => x.MessageId == id && x.LabelId == label.Id);
+                }
+            });
+        }
+    }
+}

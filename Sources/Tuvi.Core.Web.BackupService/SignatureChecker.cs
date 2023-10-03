@@ -39,7 +39,7 @@ namespace Tuvi.Core.Web.BackupService
                 verificationContext.Import(bundle);
 
                 var backupDataSignatureVerifier = BackupProtectorCreator.CreateBackupProtector(verificationContext);
-                backupDataSignatureVerifier.SetPgpKeyIdentity(DataIdentificators.BackupPgpKeyIdentity);
+                backupDataSignatureVerifier.SetPgpKeyIdentity(ImplementationDetailsProvider.BackupPgpKeyIdentity);
 
                 return await backupDataSignatureVerifier.VerifySignatureAsync(backupStream, signatureStream).ConfigureAwait(false);
             }

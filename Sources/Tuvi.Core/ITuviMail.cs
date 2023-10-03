@@ -90,7 +90,7 @@ namespace Tuvi.Core
 
         Task DeleteMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
 
-        Task RestoreFromBackupIfNeededAsync();
+        Task RestoreFromBackupIfNeededAsync(Uri downloadUri);
 
         Task MarkMessagesAsReadAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
         Task MarkMessagesAsUnReadAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
