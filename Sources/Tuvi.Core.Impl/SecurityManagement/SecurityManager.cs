@@ -7,14 +7,14 @@ using System.Threading.Tasks;
 using KeyDerivation;
 using KeyDerivation.Keys;
 using KeyDerivationLib;
+using Org.BouncyCastle.Bcpg;
+using Org.BouncyCastle.Bcpg.OpenPgp;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
 using TuviPgpLib;
 using TuviPgpLib.Entities;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Bcpg;
 
 namespace Tuvi.Core.Impl.SecurityManagement
 {
@@ -133,6 +133,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public async Task ResetAsync()
         {
+            // TODO Zero master key
             MasterKey = null;
             SeedQuiz = null;
             await DataStorage.ResetAsync().ConfigureAwait(false);

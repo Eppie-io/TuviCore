@@ -199,7 +199,14 @@ namespace Tuvi.Core.Impl
             }
 
             SchedulerWithTimer scheduler = new SchedulerWithTimer(
-                (schedulerCancellation) => CheckForNewMessagesAsync(account, schedulerCancellation),
+                (schedulerCancellation) =>
+                {
+                    if (_isDisposed)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    return CheckForNewMessagesAsync(account, schedulerCancellation);
+                },
                 TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds);
             scheduler.ExceptionOccurred += OnSchedulerExceptionOccurred;
 
@@ -222,7 +229,7 @@ namespace Tuvi.Core.Impl
         {
             if (_isDisposed)
             {
-                throw new ObjectDisposedException(GetType().FullName);
+                throw new ObjectDisposedException(nameof(TuviMail));
             }
         }
 
@@ -291,12 +298,24 @@ namespace Tuvi.Core.Impl
             //}
         }
 
-        public Task ResetApplicationAsync()
+        public async Task ResetApplicationAsync()
         {
-            WipeAllDataNeeded?.Invoke(this, null);
+            CheckDisposed();
+            // reset caches
+            AccountGroupCache.Clear();
+            AccountCache.Clear();
+            AccountServiceCache.Clear();
+            foreach (var s in AccountSchedulers)
+            {
+                s.Value.Cancel();
+            }
+            AccountSchedulers.Clear();
+            FolderToAccountMapping.Clear();
 
             // TODO: TVM-181 clear application cache like mailboxes and mails
-            return SecurityManager.ResetAsync();
+            await SecurityManager.ResetAsync().ConfigureAwait(true);
+
+            WipeAllDataNeeded?.Invoke(this, null);
         }
 
         public Task<bool> IsFirstApplicationStartAsync(CancellationToken cancellationToken)
@@ -306,6 +325,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<bool> ChangeApplicationPasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             try
             {
                 await SecurityManager.ChangePasswordAsync(currentPassword, newPassword, cancellationToken).ConfigureAwait(false);
@@ -319,24 +339,28 @@ namespace Tuvi.Core.Impl
 
         public Task<bool> ExistsAccountWithEmailAddressAsync(EmailAddress email, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             return DataStorage.ExistsAccountWithEmailAddressAsync(email, cancellationToken);
         }
 
         public Task<Account> GetAccountAsync(EmailAddress email, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             return DataStorage.GetAccountAsync(email, cancellationToken);
         }
 
         public Task<List<Account>> GetAccountsAsync(CancellationToken cancellationToken)
         {
+            CheckDisposed();
             return DataStorage.GetAccountsAsync(cancellationToken);
         }
 
         public async Task<IReadOnlyList<CompositeAccount>> GetCompositeAccountsAsync(CancellationToken cancellationToken)
         {
+            CheckDisposed();
             await LoadAccountsAsync(cancellationToken).ConfigureAwait(false);
 
-            // wrap accounts with CompositeAccount, but preserve previous behaviour
+            // wrap accounts with CompositeAccount, but preserve previous behavior
             var accountGroups = AccountCache.Values.GroupBy(x => x.GroupId);
             var res = new List<CompositeAccount>();
             var comparer = new FolderEqualityComparer();
@@ -418,7 +442,7 @@ namespace Tuvi.Core.Impl
 
         private async Task<CompositeFolder> GetAllAccountsInboxAsync(CancellationToken cancellationToken)
         {
-            // wrap accounts with CompositeAccount, but preserve previous behaviour
+            // wrap accounts with CompositeAccount, but preserve previous behavior
             var accounts = await DataStorage.GetAccountsAsync(cancellationToken).ConfigureAwait(false);
             var folders = new List<Folder>();
             foreach (var account in accounts)
@@ -435,6 +459,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<IAccountService> GetAccountServiceAsync(EmailAddress email, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             var account = await GetAccountAsync(email, cancellationToken).ConfigureAwait(false);
             return GetAccountService(account);
         }
@@ -480,6 +505,7 @@ namespace Tuvi.Core.Impl
 
         public async Task AddAccountAsync(Account account, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
@@ -545,6 +571,7 @@ namespace Tuvi.Core.Impl
         // TODO: move to Dec namespace
         public async Task<Account> NewDecentralizedAccountAsync(CancellationToken cancellationToken)
         {
+            CheckDisposed();
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
             var index = settings.DecentralizedAccountCounter;
             var accountName = $"{DecentralizedAccountIdentity} Demo #{index}";
@@ -564,6 +591,7 @@ namespace Tuvi.Core.Impl
 
         public async Task DeleteAccountAsync(Account account, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
@@ -596,10 +624,11 @@ namespace Tuvi.Core.Impl
         // TODO: create sync sheduler and remove this block flag
         // TVM-240
         private bool _isCheckingForNewMessages;
-        // TODO: Review and replace method with sheduler logic of requests with ignoring equal requests
+        // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
         // TVM-240
         public async Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             Debug.Assert(folder != null);
             if (_isCheckingForNewMessages)
             {
@@ -648,10 +677,11 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        // TODO: Review and replace method with sheduler logic of requests with ignoring equal requests
+        // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
         // TVM-240
         public async Task CheckForNewInboxMessagesAsync(CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (_isCheckingForNewMessages)
             {
                 return;
@@ -703,6 +733,7 @@ namespace Tuvi.Core.Impl
 
         public async Task CreateHybridEmailAsync(EmailAddress email, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
@@ -741,6 +772,7 @@ namespace Tuvi.Core.Impl
 
         public async Task UpdateAccountAsync(Account account, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             await DataStorage.UpdateAccountAsync(account, cancellationToken).ConfigureAwait(false);
 
             UpdateSchedulerInterval(account);
@@ -799,15 +831,15 @@ namespace Tuvi.Core.Impl
             {
                 return;
             }
-            foreach (var accountSceduler in AccountSchedulers)
+            foreach (var accountScheduler in AccountSchedulers)
             {
-                accountSceduler.Value.Cancel();
+                accountScheduler.Value.Cancel();
             }
             var tasks = AccountSchedulers.Select(x => x.Value.GetActionTask()).ToList();
             Task.WhenAll(tasks).Wait();
-            foreach (var accountSceduler in AccountSchedulers)
+            foreach (var accountScheduler in AccountSchedulers)
             {
-                accountSceduler.Value.Dispose();
+                accountScheduler.Value.Dispose();
             }
             DataStorage.Dispose();
             _isDisposed = true;
@@ -815,11 +847,13 @@ namespace Tuvi.Core.Impl
 
         public Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             return DataStorage.GetContactsAsync(cancellationToken);
         }
 
         public async Task SetContactAvatarAsync(EmailAddress contactEmail, byte[] avatarBytes, int avatarWidth, int avatarHeight, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (await DataStorage.ExistsContactWithEmailAddressAsync(contactEmail, cancellationToken).ConfigureAwait(false))
             {
                 await DataStorage.SetContactAvatarAsync(contactEmail, avatarBytes, avatarWidth, avatarHeight, cancellationToken).ConfigureAwait(false);
@@ -830,6 +864,7 @@ namespace Tuvi.Core.Impl
 
         public async Task RemoveContactAsync(EmailAddress contactEmail, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (await DataStorage.ExistsContactWithEmailAddressAsync(contactEmail, cancellationToken).ConfigureAwait(false))
             {
                 await DataStorage.RemoveContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
@@ -839,6 +874,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<IReadOnlyList<Message>> GetContactEarlierMessagesAsync(EmailAddress contactEmail, int count, Message lastMessage, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             var allFolder = await GetAllAccountsInboxAsync(cancellationToken).ConfigureAwait(false);
             return await GetFolderEarlierMessagesAsync(allFolder, count, lastMessage, (c, l, ct) => { return DataStorage.GetEarlierContactMessagesAsync(contactEmail, c, l, ct); }, cancellationToken).ConfigureAwait(false);
         }
@@ -847,12 +883,14 @@ namespace Tuvi.Core.Impl
 
         public async Task<IReadOnlyList<Message>> GetAllEarlierMessagesAsync(int count, Message lastMessage, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             var allFolder = await GetAllAccountsInboxAsync(cancellationToken).ConfigureAwait(true);
             return await GetFolderEarlierMessagesAsync(allFolder, count, lastMessage, cancellationToken).ConfigureAwait(true);
         }
 
         public async Task<IReadOnlyList<Message>> GetFolderEarlierMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (folder is null)
             {
                 throw new ArgumentNullException(nameof(folder));
@@ -865,6 +903,7 @@ namespace Tuvi.Core.Impl
 
         public Task<IReadOnlyList<Message>> GetFolderEarlierMessagesAsync(CompositeFolder folder, int count, Message lastMessage, CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             if (folder is null)
             {
                 throw new ArgumentNullException(nameof(folder));
@@ -874,7 +913,6 @@ namespace Tuvi.Core.Impl
         }
 
         delegate Task<IReadOnlyList<Message>> GetEarlierLocalMessages(int count, Message lastMessage, CancellationToken cancellationToken);
-
 
         private async Task<IReadOnlyList<Message>> GetFolderEarlierMessagesAsync(CompositeFolder folder, int count, Message lastMessage, GetEarlierLocalMessages func, CancellationToken cancellationToken)
         {
@@ -915,6 +953,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<int> GetUnreadCountForAllAccountsAsync(CancellationToken cancellationToken)
         {
+            CheckDisposed();
             var unreadCount = 0;
 
             var accounts = await GetCompositeAccountsAsync(cancellationToken).ConfigureAwait(false);
@@ -929,11 +968,13 @@ namespace Tuvi.Core.Impl
 
         public Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken = default)
         {
+            CheckDisposed();
             return DataStorage.GetUnreadMessagesCountByContactAsync(cancellationToken);
         }
 
         public async Task DeleteMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             // group messages by Folder
             var messageByFolder = messages.GroupBy(x => x.FolderId);
 
@@ -948,10 +989,11 @@ namespace Tuvi.Core.Impl
 
         public async Task RestoreFromBackupIfNeededAsync(Uri downloadUri)
         {
+            CheckDisposed();
             var accounts = await GetAccountsAsync(default).ConfigureAwait(true);
             var isSeedInitialized = await GetSecurityManager().IsSeedPhraseInitializedAsync().ConfigureAwait(true);
             if (accounts.Count == 0 && isSeedInitialized)
-            {                
+            {
                 var backupFileName = GetBackupManager().GetBackupKeyFingerprint() + DataIdentificators.BackupExtension;
 
                 using (var backup = await BackupServiceClient.DownloadAsync(downloadUri, backupFileName).ConfigureAwait(true))
@@ -1002,6 +1044,7 @@ namespace Tuvi.Core.Impl
 
         public Task<Message> GetMessageBodyAsync(Message message, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
@@ -1012,6 +1055,7 @@ namespace Tuvi.Core.Impl
 
         public async Task SendMessageAsync(Message message, bool encrypt, bool sign, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
@@ -1028,6 +1072,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<Message> CreateDraftMessageAsync(Message message, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             Debug.Assert(message != null);
             Debug.Assert(message.From.Count > 0);
             var accountService = await GetAccountServiceAsync(message.From.First(), cancellationToken).ConfigureAwait(false);
@@ -1036,6 +1081,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<Message> UpdateDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             Debug.Assert(message != null);
             Debug.Assert(message.From.Count > 0);
             var accountService = await GetAccountServiceAsync(message.From.First(), cancellationToken).ConfigureAwait(false);
@@ -1056,6 +1102,7 @@ namespace Tuvi.Core.Impl
         delegate Task MessageCommandAsync(IAccountService accountService, IEnumerable<Message> messages, CancellationToken cancellationToken);
         private async Task ApplyMessageCommandAsync(IEnumerable<Message> messages, MessageCommandAsync command, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             foreach (var groupMessages in messages.GroupBy(message => GetAccountService(message.Folder)))
             {
                 if (groupMessages.Key is null)

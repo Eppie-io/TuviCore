@@ -37,87 +37,58 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public async Task<bool> IsMasterKeyExistAsync(CancellationToken cancellationToken)
         {
-            try
-            {
-                string fileName = nameof(MasterKey);
-                var file = await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
-                return file != null;
-            }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+            var key = await GetMasterKeyImplAsync(cancellationToken).ConfigureAwait(false);
+            return key != null;
         }
 
         public async Task<MasterKey> GetMasterKeyAsync(CancellationToken cancellationToken)
         {
-            try
+            var file = await GetMasterKeyImplAsync(cancellationToken).ConfigureAwait(false);
+            if (file is null)
             {
-                const string fileName = nameof(MasterKey);
-                var file = await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
-                if (file is null)
-                {
-                    throw new CoreException("Master key is not found");
-                }
+                throw new CoreException("Master key is not found");
+            }
 
-                return KeySerialization.ToMasterKey(file.Data); ;
-            }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+            return KeySerialization.ToMasterKey(file.Data);
         }
 
-        public async Task<PgpPublicKeyBundle> GetPgpPublicKeysAsync(CancellationToken cancellationToken = default)
+        public async Task<PgpPublicKeyBundle> GetPgpPublicKeysAsync(CancellationToken cancellationToken)
         {
-            try
+            var file = await GetFilesAsync(nameof(PgpPublicKeyBundle), cancellationToken).ConfigureAwait(false);
+            if (file != null)
             {
-                string fileName = nameof(PgpPublicKeyBundle);
-                var file = await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
-
-                if (file != null)
-                {
-                    return new PgpPublicKeyBundle { Data = file.Data };
-                }
-
-                return null;
+                return new PgpPublicKeyBundle { Data = file.Data };
             }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+
+            return null;
         }
 
         public async Task<PgpSecretKeyBundle> GetPgpSecretKeysAsync(CancellationToken cancellationToken = default)
         {
-            try
+            var file = await GetFilesAsync(nameof(PgpSecretKeyBundle), cancellationToken).ConfigureAwait(false);
+            if (file != null)
             {
-                string fileName = nameof(PgpSecretKeyBundle);
-                var file = await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
-
-                if (file != null)
-                {
-                    return new PgpSecretKeyBundle { Data = file.Data };
-                }
-
-                return null;
+                return new PgpSecretKeyBundle { Data = file.Data };
             }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+
+            return null;
         }
 
-        public async Task InitializeMasterKeyAsync(MasterKey masterKey, CancellationToken cancellationToken)
+        public Task InitializeMasterKeyAsync(MasterKey masterKey, CancellationToken cancellationToken)
         {
-            try
+            return DoCancellableTaskAsync(async (ct) =>
             {
-                await Task.Run(() => SaveMasterKey(masterKey), cancellationToken).ConfigureAwait(false);
-            }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                try
+                {
+                    const string fileName = nameof(MasterKey);
+                    await Database.InsertAsync(new Files { Key = fileName, Name = fileName, Data = masterKey.ToByteBuffer() })
+                                  .ConfigureAwait(false);
+                }
+                catch (SQLite.SQLiteException exp)
+                {
+                    throw new DataBaseException(exp.Message, exp);
+                }
+            }, cancellationToken);
         }
 
         public void SavePgpPublicKeys(PgpPublicKeyBundle keyBundle)
@@ -125,30 +96,41 @@ namespace Tuvi.Core.DataStorage.Impl
             InsertOrUpdateFile(nameof(PgpPublicKeyBundle), keyBundle.Data);
         }
 
-
-
         public void SavePgpSecretKeys(PgpSecretKeyBundle keyBundle)
         {
             InsertOrUpdateFile(nameof(PgpSecretKeyBundle), keyBundle.Data);
+        }
+
+        private Task<Files> GetMasterKeyImplAsync(CancellationToken cancellationToken)
+        {
+            return GetFilesAsync(nameof(MasterKey), cancellationToken);
+        }
+
+        private Task<Files> GetFilesAsync(string fileName, CancellationToken cancellationToken)
+        {
+            return DoCancellableTaskAsync(async (ct) =>
+            {
+                try
+                {
+                    return await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
+                }
+                catch (SQLite.SQLiteException exp)
+                {
+                    throw new DataBaseException(exp.Message, exp);
+                }
+            }, cancellationToken);
         }
 
         private void InsertOrUpdateFile(string fileName, byte[] data)
         {
             try
             {
-
                 Database.GetConnection().InsertOrReplace(new Files { Key = fileName, Name = fileName, Data = data });
             }
             catch (SQLite.SQLiteException exp)
             {
                 throw new DataBaseException(exp.Message, exp);
             }
-        }
-
-        private async void SaveMasterKey(MasterKey masterKey)
-        {
-            string fileName = nameof(MasterKey);
-            await Database.InsertAsync(new Files { Key = fileName, Name = fileName, Data = masterKey.ToByteBuffer() }).ConfigureAwait(false);
         }
     }
 }

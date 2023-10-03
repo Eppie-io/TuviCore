@@ -1,14 +1,22 @@
-﻿using System.IO;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Konscious.Security.Cryptography;
+using SQLite;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Impl
 {
-    internal class PasswordProtectedStorage : IPasswordProtectedStorage
+    internal abstract class PasswordProtectedStorage : IPasswordProtectedStorage, IDisposable
     {
+        private CancellationTokenSource _rootCTS;
+        protected bool _isDisposed;
+
+        private SemaphoreSlim _cancellableTasksSemaphore = new SemaphoreSlim(1);
+        private int _cancellableTasksCount;
         private object _databaseLock = new object();
         protected SQLite.SQLiteAsyncConnection _database;
         protected SQLite.SQLiteAsyncConnection Database
@@ -29,56 +37,54 @@ namespace Tuvi.Core.DataStorage.Impl
         public PasswordProtectedStorage(string filePath)
         {
             Path = filePath;
+            _rootCTS = new CancellationTokenSource();
         }
 
         public Task<bool> IsStorageExistAsync(CancellationToken cancellationToken)
         {
             return Task.Run(() =>
             {
-                try
-                {
-                    // File.Exists() has been replaced with file size checking due to TVM-494
-                    return new FileInfo(Path).Length != 0;
-                }
-                catch (FileNotFoundException)
-                {
-                    return false;
-                }
+                return File.Exists(Path);
             });
         }
 
-        public async Task OpenAsync(string password, CancellationToken cancellationToken)
+        public Task OpenAsync(string password, CancellationToken cancellationToken)
         {
-            _ = cancellationToken;
-
-            if (await IsAlreadyOpenedAsync().ConfigureAwait(false))
+            return DoCancellableTaskAsync(async (ct) =>
             {
-                return;
-            }
-
-            await OpenAsync(password).ConfigureAwait(false);
-        }
-
-        public async Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
-        {
-            await OpenAsync(currentPassword, cancellationToken).ConfigureAwait(false);
-
-            try
-            {
-                if (!IsWasm())
+                if (await IsAlreadyOpenedAsync().ConfigureAwait(false))
                 {
-                    // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
-                    // so we temporary isolate the password hashing part
-                    // TVM-508
-                    newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
+                    return;
                 }
 
-                await Database.ExecuteAsync($"PRAGMA rekey = \"{newPassword}\";").ConfigureAwait(false);
-            }
-            catch (SQLite.SQLiteException exp)
+                await OpenImplAsync(password).ConfigureAwait(false);
+            }, cancellationToken);
+
+        }
+
+        public Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
+        {
+            return DoCancellableTaskAsync(async (ct) =>
             {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                await OpenImplAsync(currentPassword).ConfigureAwait(false);
+
+                try
+                {
+                    if (!IsWasm())
+                    {
+                        // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
+                        // so we temporary isolate the password hashing part
+                        // TVM-508
+                        newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
+                    }
+
+                    await Database.ExecuteAsync($"PRAGMA rekey = \"{newPassword}\";").ConfigureAwait(false);
+                }
+                catch (SQLite.SQLiteException exp)
+                {
+                    throw new DataBaseException(exp.Message, exp);
+                }
+            }, cancellationToken);
         }
 
         public async Task ResetAsync()
@@ -120,7 +126,7 @@ namespace Tuvi.Core.DataStorage.Impl
             }
         }
 
-        private async Task OpenAsync(string password)
+        private async Task OpenImplAsync(string password)
         {
             var db = Database;
             try
@@ -141,6 +147,8 @@ namespace Tuvi.Core.DataStorage.Impl
                 var options = new SQLite.SQLiteConnectionString(Path, true, key: password);
 
                 db = new SQLite.SQLiteAsyncConnection(options);
+                //db.Trace = true;
+                //db.Tracer = (s) => { Debug.WriteLine(s); };
 
                 await db.RunInTransactionAsync(t =>
                 {
@@ -192,10 +200,102 @@ namespace Tuvi.Core.DataStorage.Impl
         {
             if (Database != null)
             {
-                await Database.CloseAsync().ConfigureAwait(false);
+                _rootCTS?.Cancel();
+
+                await _cancellableTasksSemaphore.WaitAsync().ConfigureAwait(true);
+                try
+                {
+                    await Database.CloseAsync().ConfigureAwait(false);
+                    Database = null;
+                }
+                finally
+                {
+                    _cancellableTasksSemaphore.Release();
+                }
             }
 
             await Task.Run(() => File.Delete(Path)).ConfigureAwait(false);
+        }
+
+        protected async Task DoCancellableTaskAsync(Func<CancellationToken, Task> task, CancellationToken cancellationToken)
+        {
+            _rootCTS.Token.ThrowIfCancellationRequested();
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(_rootCTS.Token, cancellationToken))
+            {
+                var t = task(cts.Token);
+                if (Interlocked.Increment(ref _cancellableTasksCount) == 1)
+                {
+                    await _cancellableTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
+                }
+                try
+                {
+                    await t.ConfigureAwait(true);
+                }
+                finally
+                {
+                    if (Interlocked.Decrement(ref _cancellableTasksCount) == 0)
+                    {
+                        _cancellableTasksSemaphore.Release();
+                    }
+                }
+            }
+        }
+
+        protected async Task<TResult> DoCancellableTaskAsync<TResult>(Func<CancellationToken, Task<TResult>> task, CancellationToken cancellationToken)
+        {
+            _rootCTS.Token.ThrowIfCancellationRequested();
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(_rootCTS.Token, cancellationToken))
+            {
+                var t = task(cts.Token);
+                if (Interlocked.Increment(ref _cancellableTasksCount) == 1)
+                {
+                    await _cancellableTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
+                }
+                try
+                {
+                    return await t.ConfigureAwait(true);
+                }
+                finally
+                {
+                    if (Interlocked.Decrement(ref _cancellableTasksCount) == 0)
+                    {
+                        _cancellableTasksSemaphore.Release();
+                    }
+                }
+            }
+        }
+
+        protected void CheckDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(DataStorage));
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+            if (disposing)
+            {
+                // release managed resource(actually it holds unmanaged resources internally)
+                if (Database != null)
+                {
+                    SQLiteAsyncConnection.ResetPool();
+                }
+                _rootCTS?.Dispose();
+                _cancellableTasksSemaphore.Dispose();
+            }
+            _isDisposed = true;
         }
     }
 }

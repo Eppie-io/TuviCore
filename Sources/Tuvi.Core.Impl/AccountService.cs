@@ -368,7 +368,7 @@ namespace Tuvi.Core.Impl
 
             message.Folder = Account.DraftFolder;
             message = await MailBox.AppendDraftMessageAsync(message, cancellationToken).ConfigureAwait(false);
-            Debug.Assert(message.Folder != null);
+            message.Folder = Account.DraftFolder; // could be reset
             await DataStorage.AddMessageAsync(Account.Email, message, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
             return message;
