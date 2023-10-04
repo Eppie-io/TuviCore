@@ -301,6 +301,10 @@ namespace Tuvi.Core.Impl
         public async Task ResetApplicationAsync()
         {
             CheckDisposed();
+            if (await SecurityManager.IsNeverStartedAsync().ConfigureAwait(true))
+            {
+                return;
+            }
             // reset caches
             AccountGroupCache.Clear();
             AccountCache.Clear();
@@ -621,7 +625,7 @@ namespace Tuvi.Core.Impl
         }
 
 
-        // TODO: create sync sheduler and remove this block flag
+        // TODO: create sync scheduler and remove this block flag
         // TVM-240
         private bool _isCheckingForNewMessages;
         // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
