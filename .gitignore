@@ -20,3 +20,15 @@ Sources/Tuvi.Core.Dec/obj/
 Sources/Tuvi.Core.Dec/bin/
 Sources/Tuvi.Core.Dec.Web.Impl/obj/
 Sources/Tuvi.Core.Dec.Web.Impl/bin/
+Sources/Tuvi.Proton/obj/
+Sources/Tuvi.Proton.Impl/obj/
+Sources/Tuvi.Core.Mail.Impl/obj/
+Sources/Tuvi.Core.Impl/obj/
+Sources/Tuvi.Core.DataStorage.Impl/obj/
+Sources/ComponentBuilder/obj/
+Sources/Tuvi.Proton/bin/
+Sources/Tuvi.Proton.Impl/bin/
+Sources/Tuvi.Core.Mail.Impl/bin/
+Sources/Tuvi.Core.Impl/bin/
+Sources/Tuvi.Core.DataStorage.Impl/bin/
+Sources/ComponentBuilder/bin/

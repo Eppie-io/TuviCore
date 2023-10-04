@@ -20,15 +20,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.1.0" />
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.10" />
-    <PackageReference Include="System.Text.Json" Version="7.0.2" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\..\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj" />
-    <ProjectReference Include="..\Tuvi.Core\Tuvi.Core.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.DataStorage.Impl\Tuvi.Core.DataStorage.Impl.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Impl\Tuvi.Core.Impl.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Mail.Impl\Tuvi.Core.Mail.Impl.csproj" />
+    <ProjectReference Include="..\Tuvi.Proton.Impl\Tuvi.Proton.Impl.csproj" />
   </ItemGroup>
-  
+
 </Project>
