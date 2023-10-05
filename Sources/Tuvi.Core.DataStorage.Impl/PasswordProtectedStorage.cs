@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -44,7 +43,51 @@ namespace Tuvi.Core.DataStorage.Impl
         {
             return Task.Run(() =>
             {
-                return File.Exists(Path);
+                return IsStorageExist();
+            });
+        }
+
+        public Task CreateAsync(string password, CancellationToken cancellationToken)
+        {
+            return DoCancellableTaskAsync(async (ct) =>
+            {
+                if (IsStorageExist())
+                {
+                    throw new DataBaseAlreadyExistsException();
+                }
+
+                SQLiteAsyncConnection db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create).ConfigureAwait(false); ;
+                try
+                {
+                    await CreateOrMigrateTablesAsync(db).ConfigureAwait(false);
+                    Database = db;
+                }
+                catch (SQLite.SQLiteException ex)
+                {
+                    await db.CloseAsync().ConfigureAwait(false);
+                    File.Delete(Path);
+                    throw new DataBaseException(ex.Message, ex);
+                }
+            }, cancellationToken);
+        }
+
+        private static Task CreateOrMigrateTablesAsync(SQLiteAsyncConnection db)
+        {
+            return db.RunInTransactionAsync(t =>
+            {
+                t.CreateTable<Files>();
+                t.CreateTables<Contact, ImageInfo, LastMessageData>();
+                t.CreateTables<Account, EmailAddressData, BasicAuthData, OAuth2Data, Folder>();
+                t.CreateTables<Entities.Message, ProtectionInfo, SignatureInfo, Attachment, MessageEmailAddress>();
+                t.CreateTable<MessageContact>();
+                t.CreateTable<DecMessage>();
+                t.CreateTable<SettingsTable>();
+                t.CreateTable<AccountGroup>();
+                t.CreateTable<Proton.Message>();
+                t.CreateTable<ProtonMessageId>();
+                t.CreateTable<ProtonLabel>();
+                t.CreateTable<ProtonMessageLabel>();
+                t.CreateIndex(nameof(Message), new[] { nameof(Message.Path), nameof(Message.Id) }, unique: true); // A hack, SQLite.Net still doesn't allow several [Indexed] attributes per property
             });
         }
 
@@ -52,14 +95,8 @@ namespace Tuvi.Core.DataStorage.Impl
         {
             return DoCancellableTaskAsync(async (ct) =>
             {
-                if (await IsAlreadyOpenedAsync().ConfigureAwait(false))
-                {
-                    return;
-                }
-
                 await OpenImplAsync(password).ConfigureAwait(false);
             }, cancellationToken);
-
         }
 
         public Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
@@ -70,14 +107,7 @@ namespace Tuvi.Core.DataStorage.Impl
 
                 try
                 {
-                    if (!IsWasm())
-                    {
-                        // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
-                        // so we temporary isolate the password hashing part
-                        // TVM-508
-                        newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
-                    }
-
+                    newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
                     await Database.ExecuteAsync($"PRAGMA rekey = \"{newPassword}\";").ConfigureAwait(false);
                 }
                 catch (SQLite.SQLiteException exp)
@@ -112,6 +142,13 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private static async Task<string> GetPasswordHash(string password)
         {
+            if (IsWasm())
+            {
+                // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
+                // so we temporary isolate the password hashing part
+                // https://finebits.atlassian.net/browse/TVM-508
+                return password;
+            }
             using (var argon2 = new Argon2i(Encoding.UTF8.GetBytes(password))
             {
                 DegreeOfParallelism = 16,
@@ -128,53 +165,47 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private async Task OpenImplAsync(string password)
         {
-            var db = Database;
+            if (!IsStorageExist())
+            {
+                throw new DataBaseNotCreatedException();
+            }
+
+            var db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite).ConfigureAwait(false);
             try
             {
-                if (db != null)
-                {
-                    await db.CloseAsync().ConfigureAwait(false);
-                }
-
-                if (!IsWasm())
-                {
-                    // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
-                    // so we temporary isolate the password hashing part
-                    // TVM-508
-                    password = await GetPasswordHash(password).ConfigureAwait(false);
-                }
-
-                var options = new SQLite.SQLiteConnectionString(Path, true, key: password);
-
-                db = new SQLite.SQLiteAsyncConnection(options);
-                //db.Trace = true;
-                //db.Tracer = (s) => { Debug.WriteLine(s); };
-
-                await db.RunInTransactionAsync(t =>
-                {
-                    t.CreateTable<Files>();
-                    t.CreateTables<Contact, ImageInfo, LastMessageData>();
-                    t.CreateTables<Account, EmailAddressData, BasicAuthData, OAuth2Data, Folder>();
-                    t.CreateTables<Entities.Message, ProtectionInfo, SignatureInfo, Attachment, MessageEmailAddress>();
-                    t.CreateTable<MessageContact>();
-                    t.CreateTable<DecMessage>();
-                    t.CreateTable<SettingsTable>();
-                    t.CreateTable<AccountGroup>();
-                    t.CreateTable<Proton.Message>();
-                    t.CreateTable<ProtonMessageId>();
-                    t.CreateTable<ProtonLabel>();
-                    t.CreateTable<ProtonMessageLabel>();
-                    t.CreateIndex(nameof(Message), new[] { nameof(Message.Path), nameof(Message.Id) }, unique: true); // A hack, SQLite.Net still doesn't allow several [Intexed] attributes per property
-                }).ConfigureAwait(false);
+                await MigrateAsync(db).ConfigureAwait(false);
                 Database = db;
-                await IsDataStorageOpenedCorrectlyAsync().ConfigureAwait(false);
             }
-            catch (SQLite.SQLiteException exp)
+            catch (SQLite.SQLiteException ex)
             {
                 await db.CloseAsync().ConfigureAwait(false);
-                Database = null;
-                throw new DataBasePasswordException(exp.Message, exp);
+                if (ex.Result == SQLite3.Result.NonDBFile)
+                {
+                    throw new DataBasePasswordException(ex.Message, ex);
+                }
+                throw new DataBaseMigrationException(ex.Message, ex);
             }
+        }
+
+        private static async Task MigrateAsync(SQLiteAsyncConnection db)
+        {
+            // TODO: add version check and manual migration code if needed
+            // var version = GetCurrentVersion()
+            //switch(version)
+            //{
+            //case Version1:
+            //    MigrateToVersion1();
+            ////    ...
+            //case VersionN: 
+            //     MigrateToVersionN();
+            //     SetCurrentVersion(LastVersion);
+
+            //case LastVersion:
+            //    break;
+            //}
+
+            // Automatic migration
+            await CreateOrMigrateTablesAsync(db).ConfigureAwait(false);
         }
 
         private async Task<bool> IsDataStorageOpenedCorrectlyAsync()
@@ -296,6 +327,22 @@ namespace Tuvi.Core.DataStorage.Impl
                 _cancellableTasksSemaphore.Dispose();
             }
             _isDisposed = true;
+        }
+
+        private async Task<SQLiteAsyncConnection> CreateDBConnectionAsync(string password, SQLiteOpenFlags flags)
+        {
+            var hashedPassword = await GetPasswordHash(password).ConfigureAwait(false);
+            var options = new SQLite.SQLiteConnectionString(Path, flags, storeDateTimeAsTicks: true, key: hashedPassword);
+
+            var db = new SQLite.SQLiteAsyncConnection(options);
+            //db.Trace = true;
+            //db.Tracer = (s) => { Debug.WriteLine(s); };
+            return db;
+        }
+
+        private bool IsStorageExist()
+        {
+            return File.Exists(Path);
         }
     }
 }
