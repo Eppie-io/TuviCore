@@ -146,7 +146,7 @@ namespace Tuvi.Core.DataStorage.Impl
             {
                 // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
                 // so we temporary isolate the password hashing part
-                // https://finebits.atlassian.net/browse/TVM-508
+                // TVM-508
                 return password;
             }
             using (var argon2 = new Argon2i(Encoding.UTF8.GetBytes(password))
