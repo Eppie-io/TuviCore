@@ -1,8 +1,8 @@
-﻿using TuviPgpLib;
+﻿using KeyDerivation.Keys;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using KeyDerivation.Keys;
+using TuviPgpLib;
 using TuviPgpLib.Entities;
 
 namespace Tuvi.Core.Web.BackupService
@@ -51,26 +51,6 @@ namespace Tuvi.Core.Web.BackupService
         public Task<PgpSecretKeyBundle> GetPgpSecretKeysAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult(SecretKeyStorage);
-        }
-
-        public Task<bool> IsStorageExistAsync(CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task OpenAsync(string password, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task ResetAsync()
-        {
-            throw new NotImplementedException();
         }
     }
 }

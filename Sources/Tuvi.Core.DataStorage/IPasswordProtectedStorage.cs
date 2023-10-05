@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
 namespace Tuvi.Core.DataStorage
@@ -12,9 +11,17 @@ namespace Tuvi.Core.DataStorage
         Task<bool> IsStorageExistAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Creates data storage with specified <parameter name="password"/>.
+        /// </summary>
+        /// <exception cref="DataBaseAlreadyExistsException">Database is already created.</exception>
+        Task CreateAsync(string password, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Open data storage with specified <parameter name="password"/>.
         /// </summary>
         /// <exception cref="DataBasePasswordException">On incorrect storage password provided.</exception>
+        /// <exception cref="DataBaseNotExtistExistsException">Database is not created.</exception>
+        /// <exception cref="DataBaseMigrationException">Database is failed to migrate to newer version.</exception>
         Task OpenAsync(string password, CancellationToken cancellationToken = default);
 
         /// <summary>
