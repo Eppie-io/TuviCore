@@ -103,7 +103,15 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             try
             {
-                await DataStorage.OpenAsync(password, cancellationToken).ConfigureAwait(false);
+                if (await DataStorage.IsStorageExistAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    await DataStorage.OpenAsync(password, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DataStorage.CreateAsync(password, cancellationToken).ConfigureAwait(false);
+                }
+
                 await PgpContext.LoadContextAsync().ConfigureAwait(false);
 
                 if (await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
