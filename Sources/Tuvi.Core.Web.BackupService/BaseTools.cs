@@ -10,7 +10,7 @@ namespace Tuvi.Core.Web.BackupService
 {
     public static class BaseTools
     {
-        public static async Task<bool> IsUploadAllowedAsync(IFormFileCollection files, CloudBlobContainer cloudBlobContainer)
+        public static async Task<bool> IsUploadAllowedAsync(IFormFileCollection files, CloudBlobContainer cloudBlobContainer, string backupPgpKeyIdentity)
         {
             if (files is null)
             {
@@ -46,8 +46,8 @@ namespace Tuvi.Core.Web.BackupService
                     //The public key has already been saved, we check the signature with it.
                     //And also check the signature using a new key.
 
-                    var result1 = await VerifySignatureAsync(publicKeyCloudBlockBlob, signatureFile, backupFile).ConfigureAwait(false);
-                    var result2 = await VerifySignatureAsync(publicKeyFile, signatureFile, backupFile).ConfigureAwait(false);
+                    var result1 = await VerifySignatureAsync(publicKeyCloudBlockBlob, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
+                    var result2 = await VerifySignatureAsync(publicKeyFile, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
 
                     result = result1 && result2;
                 }
@@ -55,14 +55,14 @@ namespace Tuvi.Core.Web.BackupService
                 {
                     //The public key has not yet been saved, we check the signature only with the new key.
 
-                    result = await VerifySignatureAsync(publicKeyFile, signatureFile, backupFile).ConfigureAwait(false);
+                    result = await VerifySignatureAsync(publicKeyFile, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
                 }
             }
 
             return result;
         }
 
-        public static async Task<bool> VerifySignatureAsync(IFormFile publicKeyFile, IFormFile signatureFile, IFormFile backupFile)
+        public static async Task<bool> VerifySignatureAsync(IFormFile publicKeyFile, IFormFile signatureFile, IFormFile backupFile, string backupPgpKeyIdentity)
         {
             if (publicKeyFile is null)
             {
@@ -89,13 +89,13 @@ namespace Tuvi.Core.Web.BackupService
                 await signatureFile.CopyToAsync(signatureStream).ConfigureAwait(false);
                 await backupFile.CopyToAsync(backupStream).ConfigureAwait(false);
 
-                result = await SignatureChecker.IsValidSignatureAsync(newPublicKeyStream, signatureStream, backupStream).ConfigureAwait(false);
+                result = await SignatureChecker.IsValidSignatureAsync(newPublicKeyStream, signatureStream, backupStream, backupPgpKeyIdentity).ConfigureAwait(false);
             }
 
             return result;
         }
 
-        public static async Task<bool> VerifySignatureAsync(CloudBlockBlob publicKeyCloudBlockBlob, IFormFile signatureFile, IFormFile backupFile)
+        public static async Task<bool> VerifySignatureAsync(CloudBlockBlob publicKeyCloudBlockBlob, IFormFile signatureFile, IFormFile backupFile, string backupPgpKeyIdentity)
         {
             if (publicKeyCloudBlockBlob is null)
             {
@@ -122,7 +122,7 @@ namespace Tuvi.Core.Web.BackupService
                 await signatureFile.CopyToAsync(signatureStream).ConfigureAwait(false);
                 await backupFile.CopyToAsync(backupStream).ConfigureAwait(false);
 
-                result = await SignatureChecker.IsValidSignatureAsync(publicKeyStream, signatureStream, backupStream).ConfigureAwait(false);
+                result = await SignatureChecker.IsValidSignatureAsync(publicKeyStream, signatureStream, backupStream, backupPgpKeyIdentity).ConfigureAwait(false);
             }
 
             return result;

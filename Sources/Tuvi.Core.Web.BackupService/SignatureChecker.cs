@@ -9,7 +9,7 @@ namespace Tuvi.Core.Web.BackupService
 {
     public static class SignatureChecker
     {
-        public static async Task<bool> IsValidSignatureAsync(Stream publicKeyStream, Stream signatureStream, Stream backupStream)
+        public static async Task<bool> IsValidSignatureAsync(Stream publicKeyStream, Stream signatureStream, Stream backupStream, string backupPgpKeyIdentity)
         {
             if (publicKeyStream is null)
             {
@@ -39,7 +39,7 @@ namespace Tuvi.Core.Web.BackupService
                 verificationContext.Import(bundle);
 
                 var backupDataSignatureVerifier = BackupProtectorCreator.CreateBackupProtector(verificationContext);
-                backupDataSignatureVerifier.SetPgpKeyIdentity(ImplementationDetailsProvider.BackupPgpKeyIdentity);
+                backupDataSignatureVerifier.SetPgpKeyIdentity(backupPgpKeyIdentity);
 
                 return await backupDataSignatureVerifier.VerifySignatureAsync(backupStream, signatureStream).ConfigureAwait(false);
             }
