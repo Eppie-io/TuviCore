@@ -32,11 +32,11 @@ namespace Tuvi.Core.Mail
         Task<IReadOnlyList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Send <paramref name="messsage"/>.
+        /// Send <paramref name="message"/>.
         /// </summary>
         /// <exception cref="MailServiceIsNotConnectedException"/>
-        /// <exception cref="MailServiceIsNotAuthentificatedException"/>
-        Task SendMessageAsync(Message messsage, CancellationToken cancellationToken = default);
+        /// <exception cref="MailServiceIsNotAuthenticatedException"/>
+        Task SendMessageAsync(Message message, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get by <paramref name="id"/> message from <paramref name="folder"/>.
