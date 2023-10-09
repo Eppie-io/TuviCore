@@ -645,10 +645,10 @@ namespace Tuvi.Core.Impl
 
 
         // TODO: create sync scheduler and remove this block flag
-        // https://finebits.atlassian.net/browse/TVM-240
+        // TVM-240
         private bool _isCheckingForNewMessages;
         // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
-        // https://finebits.atlassian.net/browse/TVM-240
+        // TVM-240
         public async Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
