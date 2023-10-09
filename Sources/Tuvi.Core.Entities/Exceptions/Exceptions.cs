@@ -36,42 +36,66 @@ namespace Tuvi.Core.Entities
         }
     }
 
-    public class AuthentificationException : Exception
+    public class AuthenticationException : Exception
     {
         public EmailAddress Email { get; private set; }
 
-        public AuthentificationException(EmailAddress email, string message, Exception innerException)
+        public AuthenticationException(EmailAddress email, string message, Exception innerException)
             : base(message, innerException)
         {
             Email = email;
         }
 
-        public AuthentificationException()
+        public AuthenticationException()
         {
         }
 
-        public AuthentificationException(string message)
+        public AuthenticationException(string message)
             : base(message)
         {
         }
-        public AuthentificationException(string message, Exception innerException)
+        public AuthenticationException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
     }
 
-    public class MailServiceIsNotAuthentificatedException : Exception
+    public class AuthorizationException : Exception
     {
-        public MailServiceIsNotAuthentificatedException()
+        public EmailAddress Email { get; private set; }
+
+        public AuthorizationException(EmailAddress email, string message, Exception innerException)
+            : base(message, innerException)
+        {
+            Email = email;
+        }
+
+        public AuthorizationException()
         {
         }
 
-        public MailServiceIsNotAuthentificatedException(string message)
+        public AuthorizationException(string message)
+            : base(message)
+        {
+        }
+        public AuthorizationException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
+    public class MailServiceIsNotAuthenticatedException : Exception
+    {
+        public MailServiceIsNotAuthenticatedException()
+        {
+        }
+
+        public MailServiceIsNotAuthenticatedException(string message)
             : base(message)
         {
         }
 
-        public MailServiceIsNotAuthentificatedException(string message, Exception innerException)
+        public MailServiceIsNotAuthenticatedException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
@@ -130,7 +154,7 @@ namespace Tuvi.Core.Entities
 
     public class MessageIsNotExistException : Exception
     {
-       public MessageIsNotExistException()
+        public MessageIsNotExistException()
         {
         }
 
