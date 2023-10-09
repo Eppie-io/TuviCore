@@ -9,8 +9,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
     interface IService
     {
         Task ConnectAsync(CancellationToken cancellationToken);
-        Task AuthentificateAsync(System.Net.NetworkCredential credential, CancellationToken cancellationToken);
-        Task AuthentificateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken);
+        Task AuthenticateAsync(System.Net.NetworkCredential credential, CancellationToken cancellationToken);
+        Task AuthenticateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken);
         Task DisconnectAsync();
 
         bool IsConnected { get; }

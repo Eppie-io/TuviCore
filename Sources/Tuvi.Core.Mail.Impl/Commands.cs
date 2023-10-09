@@ -196,7 +196,7 @@ namespace Tuvi.Core.Mail.Impl
 
             if (!Service.IsAuthentificated)
             {
-                await Service.AuthentificateAsync(credentialsProvider, cancellationToken).ConfigureAwait(false);
+                await Service.AuthenticateAsync(credentialsProvider, cancellationToken).ConfigureAwait(false);
             }
         }
 

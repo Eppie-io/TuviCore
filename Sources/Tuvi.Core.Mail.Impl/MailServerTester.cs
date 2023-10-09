@@ -54,7 +54,7 @@ namespace Tuvi.Core.Mail.Impl
         private static async Task TestServiceAsync(Protocols.MailService service, ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
         {
             await service.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            await service.AuthentificateAsync(credentialsProvider, cancellationToken).ConfigureAwait(false);
+            await service.AuthenticateAsync(credentialsProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 }
