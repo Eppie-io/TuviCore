@@ -78,6 +78,14 @@ namespace Tuvi.Core
                     {
                         return await x.AccountService.ReceiveNewMessagesInFolderAsync(x.Folder, cancellationToken).ConfigureAwait(false);
                     }
+                    catch (AuthenticationException)
+                    {
+                        throw;
+                    }
+                    catch (AuthorizationException)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         throw new NewMessagesCheckFailedException(new List<EmailFolderError>() { new EmailFolderError(x.Folder.AccountEmail, x.Folder, ex) });
