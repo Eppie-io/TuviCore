@@ -253,6 +253,14 @@ namespace Tuvi.Core.Impl
                     {
                         throw; // if we have no connection there is no need to continue
                     }
+                    catch (AuthenticationException)
+                    {
+                        throw; // if we are not authenticated there is no need to continue
+                    }
+                    catch (AuthorizationException)
+                    {
+                        throw; // if we are not authorized there is no need to continue
+                    }
                     catch (OperationCanceledException)
                     {
                         break;
@@ -274,7 +282,17 @@ namespace Tuvi.Core.Impl
             }
             catch (ConnectionException)
             {
-                // TODO: store to account
+                HandleAccountProblems(account);
+            }
+            catch (AuthenticationException)
+            {
+                HandleAccountProblems(account);
+                throw;
+            }
+            catch (AuthorizationException)
+            {
+                HandleAccountProblems(account);
+                throw;
             }
             catch (ObjectDisposedException)
             {
@@ -282,6 +300,7 @@ namespace Tuvi.Core.Impl
             }
             catch (OperationCanceledException)
             {
+                // ignore
             }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
@@ -626,10 +645,10 @@ namespace Tuvi.Core.Impl
 
 
         // TODO: create sync scheduler and remove this block flag
-        // TVM-240
+        // https://finebits.atlassian.net/browse/TVM-240
         private bool _isCheckingForNewMessages;
         // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
-        // TVM-240
+        // https://finebits.atlassian.net/browse/TVM-240
         public async Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
@@ -647,7 +666,17 @@ namespace Tuvi.Core.Impl
             }
             catch (ConnectionException)
             {
-                // TODO: mark folder account as failed to connect
+                HandleFolderProblems(folder);
+            }
+            catch (AuthenticationException)
+            {
+                HandleFolderProblems(folder);
+                throw;
+            }
+            catch (AuthorizationException)
+            {
+                HandleFolderProblems(folder);
+                throw;
             }
             catch (OperationCanceledException)
             {
@@ -938,14 +967,27 @@ namespace Tuvi.Core.Impl
                 if (loadedItems.Count > 0 && messages.Count == 0)
                 {
                     // HACK this will allow us to detect that there are more items to load
-                    // this is the most sutable and easy way to let know that there are no more items, without breaking tests and changing a bunch of interfaces
+                    // this is the most suitable and easy way to let know that there are no more items, without breaking tests and changing a bunch of interfaces
                     messages.Add(null);
                 }
             }
-            catch (ConnectionException ex)
+            catch (ConnectionException)
             {
-                // log & ignore
-                this.Log().LogError($"Connection error: {ex}");
+                HandleFolderProblems(folder);
+            }
+            catch (AuthenticationException)
+            {
+                HandleFolderProblems(folder);
+                throw;
+            }
+            catch (AuthorizationException)
+            {
+                HandleFolderProblems(folder);
+                throw;
+            }
+            catch (ObjectDisposedException)
+            {
+                //ignore
             }
             catch (OperationCanceledException)
             {
@@ -1138,6 +1180,17 @@ namespace Tuvi.Core.Impl
             }
             Debug.Assert(email != null);
             return null;
+        }
+
+        private static void HandleAccountProblems(Account account)
+        {
+            // TODO: store to account and/or navigate to the account settings
+        }
+
+        private static void HandleFolderProblems(CompositeFolder folder)
+        {
+            // TODO: store to account and/or navigate to the account settings
+            // TODO: mark folder account as failed to connect
         }
     }
 }

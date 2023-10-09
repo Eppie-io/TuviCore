@@ -32,7 +32,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
             }
             catch (MailKit.ServiceNotAuthenticatedException exp)
             {
-                throw new MailServiceIsNotAuthentificatedException(exp.Message, exp);
+                throw new MailServiceIsNotAuthenticatedException(exp.Message, exp);
             }
         }
 

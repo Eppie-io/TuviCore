@@ -78,7 +78,7 @@ namespace Tuvi.Core.Impl.CredentialsManagement
             //}
             //catch (AuthProtocolErrorException e)
             //{
-            //    throw new AuthentificationException(account.Email, e.Message, e);
+            //    throw new AuthenticationException(account.Email, e.Message, e);
             //}
         }
 

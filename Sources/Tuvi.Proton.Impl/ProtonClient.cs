@@ -15,6 +15,7 @@ using Tuvi.Core.Entities;
 using Tuvi.Proton.Client;
 using Tuvi.Proton.Primitive.Headers;
 using Tuvi.Proton.Primitive.Messages.Payloads;
+using static Tuvi.Proton.Primitive.Messages.Payloads.CommonResponse;
 
 namespace Tuvi.Proton.Impl
 {
@@ -769,10 +770,7 @@ namespace Tuvi.Proton.Impl
             while (true)
             {
                 var response = await request.PostAsync<StaleFilterContent, PagedMessageFilter>("/mail/v4/messages").ConfigureAwait(false);
-                if (!response.Success)
-                {
-                    throw new CoreException("Proton: failed to fetch messages metadata");
-                }
+                CheckResponse(response, "fetch messages metadata");
                 if (response.Stale == 0)
                 {
                     return response.Messages;
@@ -800,10 +798,7 @@ namespace Tuvi.Proton.Impl
             var request = NewHttpRequest();
             var response = await request.GetAsync<MessageResponse>("/mail/v4/messages/" + messageId)
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to get message by ID");
-            }
+            CheckResponse(response, "get message by ID");
             return response.Message;
         }
 
@@ -828,10 +823,7 @@ namespace Tuvi.Proton.Impl
                                         .SetMultipartFormField("Signature", "blob", MIMETypes.AppOctetStream, req.Signature)
                                         .PostAsync<AttachmentRes>("/mail/v4/attachments")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to upload attachment");
-            }
+            CheckResponse(response, "upload attachment");
             return response.Attachment;
         }
 
@@ -841,10 +833,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetBody(req)
                                         .PostAsync<MessageResponse, CreateDraftReq>("/mail/v4/messages")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to create draft");
-            }
+            CheckResponse(response, "create draft");
             return response.Message;
         }
 
@@ -854,10 +843,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetBody(req)
                                         .PostAsync<MessageResponse, UpdateDraftReq>("/mail/v4/messages/" + draftId)
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to update draft");
-            }
+            CheckResponse(response, "update draft");
             return response.Message;
         }
 
@@ -867,10 +853,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetBody(req)
                                         .PostAsync<MessageResponse, SendDraftReq>("/mail/v4/messages/" + draftId)
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to send draft");
-            }
+            CheckResponse(response, "send draft");
             return response.Message;
         }
 
@@ -896,10 +879,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.AddQueryParam("Email", address)
                                         .GetAsync<KeysResponse>("/core/v4/keys")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to get address public keys");
-            }
+            CheckResponse(response, "get address pubic keys");
             return (response.Keys, response.RecipientType);
         }
 
@@ -908,10 +888,7 @@ namespace Tuvi.Proton.Impl
             var request = NewHttpRequest();
             var response = await request.GetAsync<SaltsResponse>("/core/v4/keys/salts")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to get salts");
-            }
+            CheckResponse(response, "get salts");
             return response.KeySalts;
         }
 
@@ -920,10 +897,7 @@ namespace Tuvi.Proton.Impl
             var request = NewHttpRequest();
             var response = await request.GetAsync<UserResponse>("/core/v4/users")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to get user");
-            }
+            CheckResponse(response, "get user");
             return response.User;
         }
 
@@ -947,10 +921,7 @@ namespace Tuvi.Proton.Impl
             var request = NewHttpRequest();
             var response = await request.GetAsync<AddressesResponse>("/core/v4/addresses")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to get addresses");
-            }
+            CheckResponse(response, "get addresses");
             return response.Addresses.OrderBy(x => x.Order).ToList();
         }
 
@@ -965,10 +936,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetBody(req)
                                         .PutAsync<LabelMessagesRes, LabelMessagesReq>("/mail/v4/messages/label")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to label messages");
-            }
+            CheckResponse(response, "label messages");
             return;
         }
 
@@ -983,16 +951,31 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetBody(req)
                                         .PutAsync<LabelMessagesRes, LabelMessagesReq>("/mail/v4/messages/unlabel")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton: failed to unlabel messages");
-            }
+            CheckResponse(response, "unlabel messages");
             return;
         }
 
         #endregion
 
         #region Helpers
+
+        private static void CheckResponse(CommonResponse response, string context)
+        {
+            if (!response.Success)
+            {
+                string errorMessage = $"Proton: failed to {context}, reason: {response.Error}";
+                if (ResponseCode.Unauthorized.SameAs(response.Code))
+                {
+                    // there is no mistake here 401 has name "unauthorized", but means "not authenticated"
+                    throw new AuthenticationException(errorMessage);
+                }
+                if (ResponseCode.Unlock.SameAs(response.Code))
+                {
+                    throw new AuthorizationException(errorMessage);
+                }
+                throw new CoreException(errorMessage);
+            }
+        }
 
         private async Task<IList<string>> GetMessageIDsImplAsync(string afterId, CancellationToken cancellationToken)
         {

@@ -25,12 +25,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             {
                 throw new ArgumentNullException(nameof(serverAddress));
             }
-
             if (serverPort < 0 || serverPort > 65535)
             {
-                // ToDo:
-                // if (serverPort < ushort.MinValue || ushort.MaxValue < serverPort)
-                // We can throw ArgumentOutOfRangeException
                 throw new ArgumentException($"{nameof(serverPort)} must be in [0,65535] range", nameof(serverPort));
             }
             ServerAddress = serverAddress;
@@ -62,7 +58,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
         }
 
-        public async Task AuthentificateAsync(NetworkCredential credential, CancellationToken cancellationToken)
+        public async Task AuthenticateAsync(NetworkCredential credential, CancellationToken cancellationToken)
         {
             try
             {
@@ -70,29 +66,28 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
             catch (MailKit.Security.SaslException exp)
             {
-                throw new AuthentificationException(exp.Message, exp);
+                throw new AuthenticationException(exp.Message, exp);
             }
             catch (MailKit.Security.AuthenticationException exp)
             {
-                throw new AuthentificationException(exp.Message, exp);
+                throw new AuthenticationException(exp.Message, exp);
             }
             catch (System.IO.IOException exp)
             {
-                throw new AuthentificationException(exp.Message, exp);
+                throw new AuthenticationException(exp.Message, exp);
             }
             catch (MailKit.ProtocolException exp)
             {
-                throw new AuthentificationException(exp.Message, exp);
+                throw new AuthenticationException(exp.Message, exp);
             }
         }
 
-        protected async Task AuthentificateAsync(CancellationToken cancellationToken)
+        protected async Task AuthenticateAsync(CancellationToken cancellationToken)
         {
-            await AuthentificateAsync(CredentialsProvider, cancellationToken).ConfigureAwait(false);
+            await AuthenticateAsync(CredentialsProvider, cancellationToken).ConfigureAwait(false);
         }
 
-
-        public async Task AuthentificateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
+        public async Task AuthenticateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
         {
             if (credentialsProvider is null)
             {
@@ -128,11 +123,11 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
             catch (MailKit.Security.SaslException exp)
             {
-                throw new AuthentificationException(new EmailAddress(userName), exp.Message, exp);
+                throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
             }
             catch (MailKit.Security.AuthenticationException exp)
             {
-                throw new AuthentificationException(new EmailAddress(userName), exp.Message, exp);
+                throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
             }
             catch (System.IO.IOException exp)
             {
@@ -140,11 +135,11 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                 {
                     throw exp.InnerException;
                 }
-                throw new AuthentificationException(new EmailAddress(userName), exp.Message, exp);
+                throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
             }
             catch (MailKit.ProtocolException exp)
             {
-                throw new AuthentificationException(new EmailAddress(userName), exp.Message, exp);
+                throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
             }
         }
 
@@ -161,7 +156,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
             if (IsConnected && !IsAuthentificated)
             {
-                await AuthentificateAsync(cancellationToken).ConfigureAwait(false);
+                await AuthenticateAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }
