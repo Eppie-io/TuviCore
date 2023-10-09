@@ -27,6 +27,9 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
             if (serverPort < 0 || serverPort > 65535)
             {
+                // ToDo:
+                // if (serverPort < ushort.MinValue || ushort.MaxValue < serverPort)
+                // We can throw ArgumentOutOfRangeException
                 throw new ArgumentException($"{nameof(serverPort)} must be in [0,65535] range", nameof(serverPort));
             }
             ServerAddress = serverAddress;
