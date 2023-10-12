@@ -13,6 +13,7 @@ namespace Tuvi.Core
         event EventHandler<MessagesAttributeChangedEventArgs> MessagesIsFlaggedChanged;
         event EventHandler<UnreadMessagesReceivedEventArgs> UnreadMessagesReceived;
         event EventHandler<FolderMessagesReceivedEventArgs> MessagesReceived;
+        event EventHandler<ExceptionEventArgs> ExceptionOccurred;
 
         /// <summary>
         /// Send <paramref name="message"/> via given service.
