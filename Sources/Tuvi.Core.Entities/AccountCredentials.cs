@@ -33,6 +33,13 @@ namespace Tuvi.Core.Entities
         public string AccessToken { get; set; }
     }
 
+    public class ProtonCredentials : AccountCredentials
+    {
+        public string UserId { get; set; }
+        public string RefreshToken { get; set; }
+        public string SaltedPassword { get; set; }
+    }
+
     public interface ICredentialsProvider
     {
         Task<AccountCredentials> GetCredentialsAsync(HashSet<string> supportedAuthMechanisms, CancellationToken cancellationToken = default);
