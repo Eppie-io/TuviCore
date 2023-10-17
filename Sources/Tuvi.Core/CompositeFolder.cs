@@ -31,6 +31,8 @@ namespace Tuvi.Core
         public IReadOnlyList<Folder> Folders => Children.Select(x => x.Folder).ToList();
         public int UnreadCount { get; private set; }
         public string FullName { get; private set; }
+        private List<Exception> _exceptions = new List<Exception>();
+        public IEnumerable<Exception> Exceptions => _exceptions;
 
         internal CompositeFolder(IReadOnlyList<Folder> children, Func<Folder, IAccountService> mapper)
         {
@@ -57,6 +59,7 @@ namespace Tuvi.Core
         {
             var tasks = Children.Select(x => x.AccountService.GetUnreadMessagesCountInFolderAsync(x.Folder, cancellationToken)).ToList();
             await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
+            CollectExceptions(tasks);
             return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result).Sum();
         }
 
@@ -65,53 +68,25 @@ namespace Tuvi.Core
             var tasks = Children.Select(x => x.AccountService.ReceiveEarlierMessagesAsync(x.Folder, count, cancellationToken)).ToList();
             await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
             var list = tasks.ToList();
+            CollectExceptions(tasks);
             return list.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
         }
 
         public async Task<IReadOnlyList<Message>> ReceiveNewMessagesAsync(CancellationToken cancellationToken = default)
         {
-            try
+            var tasks = Children.Select(async (x) =>
             {
-                var tasks = Children.Select(async (x) =>
-                {
-                    try
-                    {
-                        return await x.AccountService.ReceiveNewMessagesInFolderAsync(x.Folder, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (AuthenticationException)
-                    {
-                        throw;
-                    }
-                    catch (AuthorizationException)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new NewMessagesCheckFailedException(new List<EmailFolderError>() { new EmailFolderError(x.Folder.AccountEmail, x.Folder, ex) });
-                    }
-                });
-                await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
-                return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
-            }
-            catch (AggregateException aex)
-            {
-                var errors = aex.InnerExceptions.OfType<NewMessagesCheckFailedException>()
-                                                .Select(x => x.ErrorsCollection)
-                                                .SelectMany(x => x)
-                                                .ToList();
-                if (errors.Count == 0)
-                {
-                    throw;
-                }
-                // ignore all others if we have NewMessagesCheckFailedException
-                throw new NewMessagesCheckFailedException(errors.ToList());
-            }
+                return await x.AccountService.ReceiveNewMessagesInFolderAsync(x.Folder, cancellationToken).ConfigureAwait(false);
+            });
+            await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
+            CollectExceptions(tasks);
+            return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
         }
         public async Task UpdateFolderStructureAsync(CancellationToken cancellationToken = default)
         {
             var tasks = Children.Select(x => x.AccountService.UpdateFolderStructureAsync(cancellationToken));
             await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
+            CollectExceptions(tasks);
             // TODO: update children
         }
 
@@ -119,6 +94,14 @@ namespace Tuvi.Core
         {
             var tasks = Children.Select(x => x.AccountService.SynchronizeFolderAsync(x.Folder, full, cancellationToken));
             await tasks.DoWithLogAsync<CompositeFolder>().ConfigureAwait(false);
+            CollectExceptions(tasks);
+        }
+
+        private void CollectExceptions(IEnumerable<Task> tasks)
+        {
+            _exceptions.Clear();
+            _exceptions.AddRange(tasks.Where(x => x.Status == TaskStatus.Faulted)
+                                      .SelectMany(x => x.Exception.Flatten().InnerExceptions));
         }
     }
 
