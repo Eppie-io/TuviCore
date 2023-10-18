@@ -4,7 +4,8 @@
     {
         Unknown,
         Basic,
-        OAuth2
+        OAuth2,
+        Proton
     }
 
     public interface IAuthenticationData
@@ -75,6 +76,38 @@
         public override int GetHashCode()
         {
             return base.GetHashCode();
+        }
+    }
+
+    public class ProtonAuthData : AuthenticationData
+    {
+        [SQLite.PrimaryKey]
+        [SQLite.AutoIncrement]
+        public int Id { get; set; }
+
+        public int AccountId { get; set; }
+
+        public string UserId { get; set; }
+
+        public string RefreshToken { get; set; }
+
+        public string SaltedPassword { get; set; }
+
+        public ProtonAuthData()
+        {
+            Type = AuthenticationType.Proton;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is ProtonAuthData other &&
+                IsSame(RefreshToken, other.RefreshToken) &&
+                IsSame(UserId, other.UserId);
+        }
+
+        public override int GetHashCode()
+        {
+            return (UserId, RefreshToken).GetHashCode();
         }
     }
 }
