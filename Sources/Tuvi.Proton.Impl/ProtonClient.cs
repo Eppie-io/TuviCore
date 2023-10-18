@@ -12,6 +12,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Auth.Proton.Exceptions;
+using Tuvi.Auth.Proton.Messages.Payloads;
 using Tuvi.Core.Entities;
 using Tuvi.Proton.Client;
 using Tuvi.Proton.Client.Exceptions;
@@ -763,7 +764,7 @@ namespace Tuvi.Proton.Impl
 
         public string RefreshToken => _session.RefreshToken;
         public string UserId => _session.UserId;
-        public bool IsTwoPasswordMode => _session.PasswordMode > 0; 
+        public bool IsTwoPasswordMode => (PasswordMode)_session.PasswordMode == PasswordMode.TwoPasswordMode;
 
         #region Client API methods
 
