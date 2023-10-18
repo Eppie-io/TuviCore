@@ -31,6 +31,14 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                             AuthAssistantId = GetString(doc.RootElement, nameof(OAuth2Data.AuthAssistantId))
                         };
                         break;
+                    case nameof(AuthenticationType.Proton):
+                        result = new ProtonAuthData()
+                        {
+                            UserId = GetString(doc.RootElement, nameof(ProtonAuthData.UserId)),
+                            RefreshToken = GetString(doc.RootElement, nameof(ProtonAuthData.RefreshToken)),
+                            SaltedPassword = GetString(doc.RootElement, nameof(ProtonAuthData.SaltedPassword))
+                        };
+                        break;
                 };
 
                 return result;
@@ -58,6 +66,11 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                 case OAuth2Data oauth2Data:
                     writer.WriteString(nameof(OAuth2Data.RefreshToken), oauth2Data.RefreshToken);
                     writer.WriteString(nameof(OAuth2Data.AuthAssistantId), oauth2Data.AuthAssistantId);
+                    break;
+                case ProtonAuthData protonData:
+                    writer.WriteString(nameof(ProtonAuthData.UserId), protonData.UserId);
+                    writer.WriteString(nameof(ProtonAuthData.RefreshToken), protonData.RefreshToken);
+                    writer.WriteString(nameof(ProtonAuthData.SaltedPassword), protonData.SaltedPassword);
                     break;
             }
 
