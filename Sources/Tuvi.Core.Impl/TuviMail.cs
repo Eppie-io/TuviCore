@@ -10,6 +10,7 @@ using BackupServiceClientLibrary;
 using Microsoft.Extensions.Logging;
 using MimeKit;
 using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Bcpg.Sig;
 using Org.BouncyCastle.Crypto.Parameters;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
@@ -216,8 +217,7 @@ namespace Tuvi.Core.Impl
 
         private void OnSchedulerExceptionOccurred(object sender, ExceptionEventArgs args)
         {
-            //TODO: TVM-388 error messages disabled temporarily
-            //ExceptionOccurred?.Invoke(sender, args);
+            ExceptionOccurred?.Invoke(sender, args);
         }
 
         private Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken)
@@ -245,34 +245,7 @@ namespace Tuvi.Core.Impl
                 foreach (var folder in account.FoldersStructure.Where(x => folderPredicate(x)))
                 {
                     CheckDisposed();
-                    try
-                    {
-                        await LoadNewMessagesAsync(folder, accountService, cancellationToken).ConfigureAwait(true);
-                    }
-                    catch (ConnectionException)
-                    {
-                        throw; // if we have no connection there is no need to continue
-                    }
-                    catch (AuthenticationException)
-                    {
-                        throw; // if we are not authenticated there is no need to continue
-                    }
-                    catch (AuthorizationException)
-                    {
-                        throw; // if we are not authorized there is no need to continue
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-#pragma warning disable CA1031 // Do not catch general exception types
-                    catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
-                    {
-                        // Add to list and skip in order to check other folders
-                        this.Log().LogDebug(ex.Message);
-                        failedEmailFolders.Add(new EmailFolderError(account.Email, folder, ex));
-                    }
+                    await LoadNewMessagesAsync(folder, accountService, cancellationToken).ConfigureAwait(true);
                 }
                 if (!cancellationToken.IsCancellationRequested)
                 {
@@ -280,41 +253,12 @@ namespace Tuvi.Core.Impl
                     await accountService.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
                 }
             }
-            catch (ConnectionException)
-            {
-                HandleAccountProblems(account);
-            }
-            catch (AuthenticationException)
-            {
-                HandleAccountProblems(account);
-                throw;
-            }
-            catch (AuthorizationException)
-            {
-                HandleAccountProblems(account);
-                throw;
-            }
-            catch (ObjectDisposedException)
-            {
-                // ignore
-            }
-            catch (OperationCanceledException)
-            {
-                // ignore
-            }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                this.Log().LogDebug(ex.Message);
-                failedEmailFolders.Add(new EmailFolderError(account.Email, null, ex));
+                RegisterException(ex);
             }
-
-            //TODO: TVM-388 error messages disabled temporarily
-            //if (failedEmailFolders.Count > 0)
-            //{
-            //    throw new NewMessagesCheckFailedException(failedEmailFolders);
-            //}
         }
 
         public async Task ResetApplicationAsync()
@@ -539,10 +483,11 @@ namespace Tuvi.Core.Impl
                 throw new AccountAlreadyExistInDatabaseException();
             }
 
-            var mailBox = CreateMailBox(account);
-            await AccountService.TryToAccountUpdateFolderStructureAsync(account, mailBox, cancellationToken).ConfigureAwait(false);
-
-            await AddAccountToStorageAsync(account, cancellationToken).ConfigureAwait(false);
+            using (var mailBox = CreateMailBox(account))
+            {
+                await AccountService.TryToAccountUpdateFolderStructureAsync(account, mailBox, cancellationToken).ConfigureAwait(false);
+                await AddAccountToStorageAsync(account, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         private async Task AddAccountToStorageAsync(Account account, CancellationToken cancellationToken = default)
@@ -663,20 +608,7 @@ namespace Tuvi.Core.Impl
                 await folder.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
                 await LoadNewMessagesAsync(folder, cancellationToken).ConfigureAwait(true);
                 await folder.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
-            }
-            catch (ConnectionException)
-            {
-                HandleFolderProblems(folder);
-            }
-            catch (AuthenticationException)
-            {
-                HandleFolderProblems(folder);
-                throw;
-            }
-            catch (AuthorizationException)
-            {
-                HandleFolderProblems(folder);
-                throw;
+                RegisterExceptions(folder.Exceptions);
             }
             catch (OperationCanceledException)
             {
@@ -690,7 +622,8 @@ namespace Tuvi.Core.Impl
 
         private async Task LoadNewMessagesAsync(Folder folder, IAccountService accountService, CancellationToken cancellationToken)
         {
-            var messages = await accountService.ReceiveNewMessagesInFolderAsync(folder, cancellationToken).ConfigureAwait(true);
+            var messages = await accountService.ReceiveNewMessagesInFolderAsync(folder, cancellationToken)
+                                               .ConfigureAwait(true);
             var receivedMessages = new List<ReceivedMessageInfo>(messages.Select(m => new ReceivedMessageInfo(folder.AccountEmail, m)));
 
             if (receivedMessages.Count > 0)
@@ -744,8 +677,27 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
+                RegisterException(ex);
             }
+        }
+
+        private void RegisterExceptions(IEnumerable<Exception> exceptions)
+        {
+            foreach(var ex in exceptions)
+            {
+                RegisterException(ex);
+            }
+        }
+
+        private void RegisterException(Exception ex)
+        {
+            if (ex is OperationCanceledException ||
+                ex is ObjectDisposedException)
+            {
+                return;
+            }
+            this.Log().LogDebug(ex.Message);
+            ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
         }
 
         private async Task RestoreAccountFromBackupAsync(Account account)
@@ -961,6 +913,7 @@ namespace Tuvi.Core.Impl
             try
             {
                 var loadedItems = await folder.ReceiveEarlierMessagesAsync(_receiveBatchSize, cancellationToken).ConfigureAwait(false);
+                RegisterExceptions(folder.Exceptions);
                 var lastStoredMessage = storedMessagesCount == 0 ? lastMessage : storedMessages[storedMessagesCount - 1];
                 messages.AddRange(await func(count - messages.Count, lastStoredMessage, cancellationToken).ConfigureAwait(true));
 
@@ -970,20 +923,6 @@ namespace Tuvi.Core.Impl
                     // this is the most suitable and easy way to let know that there are no more items, without breaking tests and changing a bunch of interfaces
                     messages.Add(null);
                 }
-            }
-            catch (ConnectionException)
-            {
-                HandleFolderProblems(folder);
-            }
-            catch (AuthenticationException)
-            {
-                HandleFolderProblems(folder);
-                throw;
-            }
-            catch (AuthorizationException)
-            {
-                HandleFolderProblems(folder);
-                throw;
             }
             catch (ObjectDisposedException)
             {
@@ -1180,17 +1119,6 @@ namespace Tuvi.Core.Impl
             }
             Debug.Assert(email != null);
             return null;
-        }
-
-        private static void HandleAccountProblems(Account account)
-        {
-            // TODO: store to account and/or navigate to the account settings
-        }
-
-        private static void HandleFolderProblems(CompositeFolder folder)
-        {
-            // TODO: store to account and/or navigate to the account settings
-            // TODO: mark folder account as failed to connect
         }
     }
 }

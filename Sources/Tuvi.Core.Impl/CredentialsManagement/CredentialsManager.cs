@@ -71,6 +71,20 @@ namespace Tuvi.Core.Impl.CredentialsManagement
                     };
 
                     break;
+
+                    case ProtonAuthData protonData:
+
+                        provider = new ProtonCredentialsProvider()
+                        {
+                            Credentials = new ProtonCredentials()
+                            {
+                                UserName = account.Email.Address,
+                                UserId = protonData.UserId,
+                                RefreshToken = protonData.RefreshToken,
+                                SaltedPassword = protonData.SaltedPassword
+                            }
+                        };
+                        break;
             }
 
             return provider;
@@ -147,5 +161,16 @@ namespace Tuvi.Core.Impl.CredentialsManagement
             //    public string RefreshToken { get; set; }
             //}
         }
+
+        internal class ProtonCredentialsProvider : ICredentialsProvider
+        {
+            public ProtonCredentials Credentials { get; set; }
+
+            public Task<AccountCredentials> GetCredentialsAsync(HashSet<string> supportedAuthMechanisms, CancellationToken cancellationToken = default)
+            {
+                return Task.FromResult((AccountCredentials)Credentials);
+            }
+        }
+
     }
 }

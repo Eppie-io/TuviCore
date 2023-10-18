@@ -24,8 +24,6 @@ namespace Tuvi.Core.Impl
         public event EventHandler<MessagesAttributeChangedEventArgs> MessagesIsFlaggedChanged;
         public event EventHandler<UnreadMessagesReceivedEventArgs> UnreadMessagesReceived;
         public event EventHandler<FolderMessagesReceivedEventArgs> MessagesReceived;
-
-
         public AccountService(Account account, IDataStorage dataStorage, IMailBox mailBox, IMessageProtector messageProtector)
         {
             Account = account;
@@ -270,6 +268,7 @@ namespace Tuvi.Core.Impl
             {
                 await AddMessagesToDataStorageOnSyncAsync(folder, newMessages, cancellationToken).ConfigureAwait(false);
             }
+
             return newMessages;
         }
 
