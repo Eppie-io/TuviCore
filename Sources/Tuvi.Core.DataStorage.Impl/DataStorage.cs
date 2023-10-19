@@ -243,14 +243,11 @@ namespace Tuvi.Core.DataStorage.Impl
             {
                 return;
             }
+            DeleteAccountAuthData(connection, accountId);
             switch (authData.Type)
             {
                 case AuthenticationType.Basic:
                     {
-                        var prev = connection.Find<BasicAuthData>(x => x.AccountId == accountId);
-                        if (prev != null)
-                            connection.Delete(prev);
-
                         var data = (BasicAuthData)authData;
                         data.AccountId = accountId;
                         connection.Insert(data);
@@ -258,11 +255,14 @@ namespace Tuvi.Core.DataStorage.Impl
                     break;
                 case AuthenticationType.OAuth2:
                     {
-                        var prev = connection.Find<OAuth2Data>(x => x.AccountId == accountId);
-                        if (prev != null)
-                            connection.Delete(prev);
-
                         var data = (OAuth2Data)authData;
+                        data.AccountId = accountId;
+                        connection.Insert(data);
+                    }
+                    break;
+                case AuthenticationType.Proton:
+                    {
+                        var data = (ProtonAuthData)authData;
                         data.AccountId = accountId;
                         connection.Insert(data);
                     }
@@ -363,11 +363,17 @@ namespace Tuvi.Core.DataStorage.Impl
                 var item = FindAccountStrict(connection, accountEmail);
 
                 connection.Table<Folder>().Delete(x => x.AccountId == item.Id);
-                connection.Table<BasicAuthData>().Delete(x => x.AccountId == item.Id);
-                connection.Table<OAuth2Data>().Delete(x => x.AccountId == item.Id);
+                DeleteAccountAuthData(connection, item.Id);
 
                 connection.Delete(item);
             }, cancellationToken);
+        }
+
+        private static void DeleteAccountAuthData(SQLiteConnection connection, int accountId)
+        {
+            connection.Table<BasicAuthData>().Delete(x => x.AccountId == accountId);
+            connection.Table<OAuth2Data>().Delete(x => x.AccountId == accountId);
+            connection.Table<ProtonAuthData>().Delete(x => x.AccountId == accountId);
         }
 
         public Task UpdateAccountAsync(Account account, CancellationToken cancellationToken)
@@ -401,6 +407,7 @@ namespace Tuvi.Core.DataStorage.Impl
         {
             account.AuthData = account.AuthData ?? connection.Find<BasicAuthData>(x => x.AccountId == account.Id);
             account.AuthData = account.AuthData ?? connection.Find<OAuth2Data>(x => x.AccountId == account.Id);
+            account.AuthData = account.AuthData ?? connection.Find<ProtonAuthData>(x => x.AccountId == account.Id);
         }
 
         private static void BuildAccountFolders(SQLiteConnection connection, Account account)
@@ -424,6 +431,7 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task<Account> GetAccountAsync(EmailAddress accountEmail, CancellationToken cancellationToken)
         {
+            Debug.Assert(accountEmail != null);
             return ReadDatabaseAsync((connection, ct) =>
             {
                 var account = FindAccountStrict(connection, accountEmail);

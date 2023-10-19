@@ -11,8 +11,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Auth.Proton.Exceptions;
+using Tuvi.Auth.Proton.Messages.Payloads;
 using Tuvi.Core.Entities;
 using Tuvi.Proton.Client;
+using Tuvi.Proton.Client.Exceptions;
 using Tuvi.Proton.Primitive.Headers;
 using Tuvi.Proton.Primitive.Messages.Payloads;
 using static Tuvi.Proton.Primitive.Messages.Payloads.CommonResponse;
@@ -709,19 +712,42 @@ namespace Tuvi.Proton.Impl
         private const int MaxPageSize = 150;
         private HttpClient _httpClient;
         private Session _session;
-        public static async Task<Client> CreateWithLoginAsync(Func<HttpClient> httpClientCreator, string userName, string password, CancellationToken cancellationToken)
+        public static async Task<Client> CreateWithLoginAsync(Func<HttpClient> httpClientCreator,
+                                                              string userName,
+                                                              string password,
+                                                              Func<CancellationToken, Task<string>> twoFactorProvider,
+                                                              CancellationToken cancellationToken)
         {
-            var client = new Client(httpClientCreator);
-            await client._session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
-            return client;
+            try
+            {
+                var client = new Client(httpClientCreator);
+                await client._session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
+                if (client._session.IsTwoFactor && client._session.IsTOTP)
+                {
+                    var code = await twoFactorProvider(cancellationToken).ConfigureAwait(false);
+                    await client._session.ProvideTwoFactorCodeAsync(code, cancellationToken).ConfigureAwait(false);
+                }
+                return client;
+            }
+            catch (AuthProtonException ex)
+            {
+                throw MakeException((int)ResponseCode.WrongPassword, "login", ex.Message);
+            }
         }
 
-        //public static async Task<Client> CreateFromRefreshAsync(string uid, string refresh, CancellationToken cancellationToken)
-        //{
-        //    var client = new Client();
-        //    await client._session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
-        //    return client;
-        //}
+        public static async Task<Client> CreateFromRefreshAsync(Func<HttpClient> httpClientCreator, string uid, string refresh, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var client = new Client(httpClientCreator);
+                await client._session.RefreshAsync(uid, refresh, cancellationToken).ConfigureAwait(false);
+                return client;
+            }
+            catch (ProtonSessionRequestException ex)
+            {
+                throw MakeException(ex.ErrorInfo.Code, "refresh token", ex.ErrorInfo.Error);
+            }
+        }
 
         private Client(Func<HttpClient> httpClientCreator)
         {
@@ -735,6 +761,10 @@ namespace Tuvi.Proton.Impl
                 RedirectUri = new Uri("https://protonmail.ch")
             };
         }
+
+        public string RefreshToken => _session.RefreshToken;
+        public string UserId => _session.UserId;
+        public bool IsTwoPasswordMode => (PasswordMode)_session.PasswordMode == PasswordMode.TwoPasswordMode;
 
         #region Client API methods
 
@@ -963,18 +993,25 @@ namespace Tuvi.Proton.Impl
         {
             if (!response.Success)
             {
-                string errorMessage = $"Proton: failed to {context}, reason: {response.Error}";
-                if (ResponseCode.Unauthorized.SameAs(response.Code))
-                {
-                    // there is no mistake here 401 has name "unauthorized", but means "not authenticated"
-                    throw new AuthenticationException(errorMessage);
-                }
-                if (ResponseCode.Unlock.SameAs(response.Code))
-                {
-                    throw new AuthorizationException(errorMessage);
-                }
-                throw new CoreException(errorMessage);
+                throw MakeException(response.Code, context, response.Error);
             }
+        }
+
+        private static Exception MakeException(int code, string context, string message)
+        {
+            string errorMessage = $"Proton: failed to {context}. Reason: {message}";
+            if (ResponseCode.Unauthorized.SameAs(code) ||
+                ResponseCode.RefreshTokenInvalid.SameAs(code) ||
+                ResponseCode.WrongPassword.SameAs(code))
+            {
+                // there is no mistake here 401 has name "unauthorized", but means "not authenticated"
+                throw new AuthenticationException(errorMessage);
+            }
+            if (ResponseCode.Unlock.SameAs(code))
+            {
+                throw new AuthorizationException(errorMessage);
+            }
+            throw new CoreException(errorMessage);
         }
 
         private async Task<IList<string>> GetMessageIDsImplAsync(string afterId, CancellationToken cancellationToken)
@@ -988,16 +1025,13 @@ namespace Tuvi.Proton.Impl
             var response = await request.AddQueryParam("Limit", MaxMessageIDs)
                                         .GetAsync<IDsResponse>("/mail/v4/messages/ids")
                                         .ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton failed to get message IDs");
-            }
+            CheckResponse(response, "get message IDs");
             return response.IDs;
         }
 
         private async Task<long> CountMessagesImplAsync(MessageFilter filter, CancellationToken cancellationToken)
         {
-            // TODO: shold we do the same way as proton api does? This is ineffective way to get message count 
+            // TODO: should we do the same way as proton api does? This is ineffective way to get message count 
             var request = NewHttpRequest();
             var countFilter = new CountMessageFilter(filter)
             {
@@ -1006,10 +1040,7 @@ namespace Tuvi.Proton.Impl
             var response = await request.SetHeader("X-HTTP-Method-Override", "GET")
                                         .SetBody(countFilter)
                                         .PostAsync<FilterContent, CountMessageFilter>("/mail/v4/messages").ConfigureAwait(false);
-            if (!response.Success)
-            {
-                throw new CoreException("Proton failed to count messages");
-            }
+            CheckResponse(response, "count messages");
             return response.Total;
         }
 

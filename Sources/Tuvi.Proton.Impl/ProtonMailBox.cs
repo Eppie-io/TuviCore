@@ -21,14 +21,64 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities.Encoders;
 using Org.BouncyCastle.Utilities.IO;
+using Tuvi.Auth.Proton.Exceptions;
+using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
+using Tuvi.Proton.Client.Exceptions;
 using Tuvi.Proton.Impl;
 using TuviSRPLib;
 
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
 namespace Tuvi.Proton
 {
+    public static class ClientAuth
+    {
+        public static async Task<(string, string, string)> LoginFullAsync(string userName,
+                                                                          string password,
+                                                                          Func<CancellationToken, Task<string>> twoFactorProvider,
+                                                                          Func<CancellationToken, Task<string>> mailboxPasswordProvider,
+                                                                          CancellationToken cancellationToken)
+        {
+            Debug.Assert(twoFactorProvider != null);
+            using (var client = await Impl.Client.CreateWithLoginAsync(() => new HttpClient(),
+                                                                       userName,
+                                                                       password,
+                                                                       twoFactorProvider,
+                                                                       cancellationToken)
+                                          .ConfigureAwait(false)) 
+            {
+                var userTask = client.GetUserAsync(cancellationToken);
+                var saltsTask = client.GetSaltsAsync(cancellationToken);
+                await Task.WhenAll(userTask, saltsTask).ConfigureAwait(false);
+
+                var user = userTask.Result;
+                var salts = saltsTask.Result;
+
+                var primaryKey = user.Keys.Where(x=>x.Primary > 0).First();
+                var salt = salts.FirstOrDefault(x => x.ID == primaryKey.ID);
+
+                var keyPass = password;
+                if (client.IsTwoPasswordMode)
+                {
+                    Debug.Assert(mailboxPasswordProvider != null);
+                    keyPass = await mailboxPasswordProvider(cancellationToken).ConfigureAwait(false);
+                }
+                var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
+                var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
+
+                return (client.UserId, client.RefreshToken, saltedKeyPass);
+            }
+        }
+
+        private static byte[] SaltForKey(string salt, byte[] keyPass)
+        {
+            var decodedSalt = Base64.Decode(salt);
+            var hashed = ProtonSRPUtilities.GetMailboxPassword(keyPass, decodedSalt);
+            // Cut off last 31 bytes
+            return hashed.AsSpan((hashed.Length - 31), 31).ToArray();
+        }
+    }
     public static class MailBoxCreator
     {
         public static IMailBox Create(Account account, ICredentialsProvider credentialsProvider, IStorage storage)
@@ -586,7 +636,7 @@ namespace Tuvi.Proton
             Debug.Assert(folder != null);
             return TranslateExceptions<IReadOnlyList<Core.Entities.Message>>(async () =>
             {
-                await SyncronizedMessagesAsync(cancellationToken).ConfigureAwait(false);
+                await SynchronizedMessagesAsync(cancellationToken).ConfigureAwait(false);
                 await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false);
                 string labelId = GetMessageLabelId(folder);
                 uint knownMessageId = lastMessage != null ? lastMessage.Id : 0;
@@ -598,7 +648,7 @@ namespace Tuvi.Proton
             });
         }
 
-        private static async Task<T> TranslateExceptions<T>(Func<Task<T>> func)
+        private async Task<T> TranslateExceptions<T>(Func<Task<T>> func)
         {
             try
             {
@@ -608,9 +658,21 @@ namespace Tuvi.Proton
             {
                 throw new ConnectionException("Proton: Failed to connect", ex);
             }
+            catch (AuthProtonException ex) 
+            {
+                throw new Core.Entities.AuthenticationException(this._account.Email, ex.Message, ex);
+            }
+            catch (Core.Entities.AuthenticationException ex)
+            {
+                throw new Core.Entities.AuthenticationException(this._account.Email, ex.Message, ex);
+            }
+            catch (Core.Entities.AuthorizationException ex)
+            {
+                throw new Core.Entities.AuthorizationException(this._account.Email, ex.Message, ex);
+            }
         }
 
-        private async Task SyncronizedMessagesAsync(CancellationToken cancellationToken)
+        private async Task SynchronizedMessagesAsync(CancellationToken cancellationToken)
         {
             const int SyncPageSize = 150;
             const int SyncIntervalSeconds = 20;
@@ -823,22 +885,35 @@ namespace Tuvi.Proton
                     return _client;
                 }
 #pragma warning restore CA1508 // Avoid dead conditional code
+                var dataStorage = _storage as IDataStorage;
 
-                var credentials = await _credentialsProvider.GetCredentialsAsync(new HashSet<string> { }, cancellationToken).ConfigureAwait(false);
-                var basicCredentials = credentials as BasicCredentials;
-                if (basicCredentials is null)
-                {
-                    throw new CoreException("Invalid Proton credentials");
-                }
-                var client = await Impl.Client.CreateWithLoginAsync(_httpClientCreator, basicCredentials.UserName, basicCredentials.Password, cancellationToken)
-                                              .ConfigureAwait(false);
-                // TODO: add two factor
-                //if (proton.IsTwoFactor && proton.IsTOTP)
-                //{
-                //    await proton.ProvideTwoFactorCodeAsync(code: "<123456>");
-                //}
+                bool needToUpdateAuthData = true;
                 try
                 {
+                    // Update credentials if account already exists in storage
+                    var account = await dataStorage.GetAccountAsync(_account.Email, cancellationToken).ConfigureAwait(false);
+                    _account.AuthData = account.AuthData;
+                }
+                catch (AccountIsNotExistInDatabaseException)
+                {
+                    needToUpdateAuthData = false;
+                }
+                var authData = _account.AuthData as ProtonAuthData;
+                if (authData is null)
+                {
+                    throw new AuthenticationException("Proton: there is no authentication data");
+                }
+                var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, cancellationToken)
+                                              .ConfigureAwait(false);
+
+                authData.RefreshToken = client.RefreshToken;
+                authData.UserId = client.UserId;
+                try
+                {
+                    if (needToUpdateAuthData)
+                    {
+                        await dataStorage.UpdateAccountAsync(_account, cancellationToken).ConfigureAwait(false);
+                    }
                     _context = await GetCryptoContextAsync(client, _account, cancellationToken).ConfigureAwait(false);
                     _client = client;
                     client = null;
@@ -863,42 +938,31 @@ namespace Tuvi.Proton
             return _client;
         }
 
-        private static byte[] SaltForKey(string salt, byte[] keyPass)
-        {
-            var decodedSalt = Base64.Decode(salt);
-            var hashed = ProtonSRPUtilities.GetMailboxPassword(keyPass, decodedSalt);
-            // Cut off last 31 bytes
-            return hashed.AsSpan((hashed.Length - 31), 31).ToArray();
-        }
-
         private static async Task<MyOpenPgpContext> GetCryptoContextAsync(Impl.Client client, Account account, CancellationToken cancellationToken)
         {
             var userTask = client.GetUserAsync(cancellationToken);
-            var saltsTask = client.GetSaltsAsync(cancellationToken);
             var addressesTask = client.GetAddressesAsync(cancellationToken);
-            await Task.WhenAll(userTask, saltsTask, addressesTask).ConfigureAwait(false);
+            await Task.WhenAll(userTask, addressesTask).ConfigureAwait(false);
 
             var user = userTask.Result;
-            var salts = saltsTask.Result;
             var addresses = addressesTask.Result;
-
+            var saltedKeyPass = (account.AuthData as ProtonAuthData).SaltedPassword;
+            var primaryKey = user.Keys.Where(x=>x.Primary > 0).First();
             var context = new MyOpenPgpContext();
-            foreach (var key in user.Keys)
+            context.AddKey(primaryKey.PrivateKey, saltedKeyPass);
+
+            try
             {
-                var primaryKey = key;
-                var salt = salts.FirstOrDefault(x => x.ID == primaryKey.ID);
-
-                var keyPass = (account.AuthData as BasicAuthData).Password;
-                var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
-                var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
-
-                context.AddKey(primaryKey.PrivateKey, saltedKeyPass);
-            }
-
-            foreach (var address in addresses)
+                foreach (var address in addresses)
+                {
+                    var key = address.Keys.Where(x => x.Active == 1).First();
+                    context.AddKey(key.PrivateKey, Crypto.DecryptArmored(context, key.Token));
+                }
+            } 
+            catch(System.UnauthorizedAccessException)
             {
-                var key = address.Keys.Where(x => x.Active == 1).First();
-                context.AddKey(key.PrivateKey, Crypto.DecryptArmored(context, key.Token));
+                // invalid password
+                throw new AuthorizationException("Proton: invalid mailbox password");
             }
             return context;
         }
