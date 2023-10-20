@@ -303,6 +303,12 @@ namespace Tuvi.Core.DataStorage.Impl
             }
 
             var toAdd = account.FoldersStructure.Where(x => !prev.Exists(y => y.Equals(x))).ToList();
+            foreach(var folder in toAdd)
+            {
+                // explicitly zero this counter, because user can pass any value from the external code.
+                // this value should be changed only in storage code, and saved in db
+                folder.LocalCount = 0;
+            }
             connection.InsertAll(toAdd);
 
             if (account.DefaultInboxFolder != null)

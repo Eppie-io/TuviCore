@@ -167,9 +167,9 @@ namespace Tuvi.Core.Impl.BackupManagement
             return BackupProtector.GetBackupKeyFingerprint();
         }
 
-        public Task CreateDeatachedSignatureDataAsync(Stream dataToSign, Stream deatachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken)
+        public Task CreateDetachedSignatureDataAsync(Stream dataToSign, Stream detachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken)
         {
-            return BackupProtector.CreateDeatachedSignatureDataAsync(dataToSign, deatachedSignatureData, publicKeyData, cancellationToken);
+            return BackupProtector.CreateDetachedSignatureDataAsync(dataToSign, detachedSignatureData, publicKeyData, cancellationToken);
         }
 
         private void SetupBackupFactory()

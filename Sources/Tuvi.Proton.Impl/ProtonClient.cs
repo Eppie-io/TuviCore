@@ -764,7 +764,7 @@ namespace Tuvi.Proton.Impl
 
         public string RefreshToken => _session.RefreshToken;
         public string UserId => _session.UserId;
-        public bool IsTwoPasswordMode => (PasswordMode)_session.PasswordMode == PasswordMode.TwoPasswordMode;
+        public bool IsTwoPasswordMode => (PasswordMode)_session.PasswordMode == PasswordMode.TwoPasswordMode; 
 
         #region Client API methods
 
