@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 
 namespace Tuvi.Core.Entities
 {
@@ -46,6 +47,7 @@ namespace Tuvi.Core.Entities
         /// <summary>
         /// Number of locally stored messages
         /// </summary>
+        [JsonIgnore]
         public int LocalCount { get; set; }
 
         [SQLite.Indexed]

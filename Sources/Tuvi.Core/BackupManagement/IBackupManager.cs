@@ -43,7 +43,7 @@ namespace Tuvi.Core
         /// <param name="publicKeyData">Output public key data stream.</param>
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="BackupDataProtectionException"/>
-        Task CreateDeatachedSignatureDataAsync(Stream dataToSign, Stream deatachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken = default);
+        Task CreateDetachedSignatureDataAsync(Stream dataToSign, Stream deatachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken = default);
         
         /// <summary>
         /// Raised when account restored from backup.
