@@ -52,7 +52,7 @@ namespace Tuvi.Core.Backup.Impl
     internal class BackupPgpBasedProtector : IBackupProtector
     {
         private readonly OpenPgpContext PgpContext;
-        private readonly DigestAlgorithm PreferedDigestAlgorithm = DigestAlgorithm.Sha512;
+        private readonly DigestAlgorithm PreferredDigestAlgorithm = DigestAlgorithm.Sha512;
         private string BackupKeyIdentity;
 
         public BackupPgpBasedProtector(OpenPgpContext pgpContext)
@@ -131,15 +131,15 @@ namespace Tuvi.Core.Backup.Impl
             return StringHelper.BytesToHex(ownerPk.GetFingerprint());
         }
 
-        public Task CreateDeatachedSignatureDataAsync(Stream dataToSign, Stream deatachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken)
+        public Task CreateDetachedSignatureDataAsync(Stream dataToSign, Stream detachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken)
         {
             if (dataToSign is null)
             {
                 throw new ArgumentNullException(nameof(dataToSign));
             }
-            if (deatachedSignatureData is null)
+            if (detachedSignatureData is null)
             {
-                throw new ArgumentNullException(nameof(deatachedSignatureData));
+                throw new ArgumentNullException(nameof(detachedSignatureData));
             }
 
             try
@@ -147,7 +147,7 @@ namespace Tuvi.Core.Backup.Impl
                 var publicKey = GetBackupSecretKey().PublicKey;
                 publicKey.Encode(publicKeyData);
 
-                return DoSignAsync(dataToSign, deatachedSignatureData, cancellationToken);
+                return DoSignAsync(dataToSign, detachedSignatureData, cancellationToken);
             }
             catch (Exception exception)
             {
@@ -155,20 +155,20 @@ namespace Tuvi.Core.Backup.Impl
             }
         }
 
-        public Task<bool> VerifySignatureAsync(Stream data, Stream deatachedSignatureData, CancellationToken cancellationToken)
+        public Task<bool> VerifySignatureAsync(Stream data, Stream detachedSignatureData, CancellationToken cancellationToken)
         {
             if (data is null)
             {
                 throw new ArgumentNullException(nameof(data));
             }
-            if (deatachedSignatureData is null)
+            if (detachedSignatureData is null)
             {
-                throw new ArgumentNullException(nameof(deatachedSignatureData));
+                throw new ArgumentNullException(nameof(detachedSignatureData));
             }
 
             try
             {
-                return DoVerifySignatureAsync(data, deatachedSignatureData, cancellationToken);
+                return DoVerifySignatureAsync(data, detachedSignatureData, cancellationToken);
             }
             catch (Exception exception)
             {
@@ -184,7 +184,7 @@ namespace Tuvi.Core.Backup.Impl
             MimeEntity mimeEncodedProtectedData =
                 await Task.Run(() => PgpContext.SignAndEncrypt(
                     signerSk,
-                    PreferedDigestAlgorithm,
+                    PreferredDigestAlgorithm,
                     new List<PgpPublicKey> { ownerPk },
                     dataToProtect))
                 .ConfigureAwait(false);
@@ -221,19 +221,19 @@ namespace Tuvi.Core.Backup.Impl
             }
         }
 
-        private async Task DoSignAsync(Stream data, Stream deatachedSignatureData, CancellationToken cancellationToken)
+        private async Task DoSignAsync(Stream data, Stream detachedSignatureData, CancellationToken cancellationToken)
         {
             PgpSecretKey signerSk = GetBackupSecretKey();
 
             data.Position = 0;
-            var deatachedSignature = await PgpContext.SignAsync(signerSk, PreferedDigestAlgorithm, data, cancellationToken).ConfigureAwait(false);
+            var detachedSignature = await PgpContext.SignAsync(signerSk, PreferredDigestAlgorithm, data, cancellationToken).ConfigureAwait(false);
 
-            await deatachedSignature.WriteToAsync(deatachedSignatureData, cancellationToken).ConfigureAwait(false);
+            await detachedSignature.WriteToAsync(detachedSignatureData, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task<bool> DoVerifySignatureAsync(Stream data, Stream deatachedSignatureData, CancellationToken cancellationToken)
+        private async Task<bool> DoVerifySignatureAsync(Stream data, Stream detachedSignatureData, CancellationToken cancellationToken)
         {
-            var signatures = await PgpContext.VerifyAsync(data, deatachedSignatureData, cancellationToken).ConfigureAwait(false);
+            var signatures = await PgpContext.VerifyAsync(data, detachedSignatureData, cancellationToken).ConfigureAwait(false);
 
             var signature = signatures?.FirstOrDefault(IsSignatureBelongsToContext()) ?? throw new BackupVerificationException("Backup data has no signature.");
 
