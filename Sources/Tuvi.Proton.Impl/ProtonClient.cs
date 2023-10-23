@@ -871,7 +871,7 @@ namespace Tuvi.Proton.Impl
         {
             var request = NewHttpRequest();
             var response = await request.SetBody(req)
-                                        .PostAsync<MessageResponse, UpdateDraftReq>("/mail/v4/messages/" + draftId)
+                                        .PutAsync<MessageResponse, UpdateDraftReq>("/mail/v4/messages/" + draftId)
                                         .ConfigureAwait(false);
             CheckResponse(response, "update draft");
             return response.Message;

@@ -6,6 +6,7 @@ namespace Tuvi.Core.Impl
     {
         public static void CopyInitialParameters(this Message message, Message destination)
         {
+            destination.Pk = message.Pk;
             destination.Id = message.Id;
             destination.IsMarkedAsRead = message.IsMarkedAsRead;
             destination.PreviewText = message.PreviewText;
