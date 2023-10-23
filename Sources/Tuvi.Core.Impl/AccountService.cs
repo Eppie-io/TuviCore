@@ -375,13 +375,12 @@ namespace Tuvi.Core.Impl
 
         public async Task<Message> UpdateDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken)
         {
-            message = await MailBox.ReplaceDraftMessageAsync(id, message, cancellationToken).ConfigureAwait(false);
-
-            // TODO: TVM-316 need to add the ability to update the Id of the message
-            //await DataStorage.UpdateMessageAsync(Account.Email.Address, message, cancellationToken).ConfigureAwait(false);
-            // while this option is not available, I add a new message and delete the old one
-            await DataStorage.AddMessageAsync(Account.Email, message, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
-            await DataStorage.DeleteMessageAsync(Account.Email, message.Folder.FullName, id, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
+            Debug.Assert(message != null);
+            Debug.Assert(message.Id == id);
+            var newMessage = await MailBox.ReplaceDraftMessageAsync(id, message, cancellationToken).ConfigureAwait(false);
+            var existingMessage = await DataStorage.GetMessageAsync(Account.Email, message.Folder.FullName, id, false, cancellationToken).ConfigureAwait(false);
+            newMessage.Pk = existingMessage.Pk;
+            await DataStorage.UpdateMessageAsync(Account.Email, newMessage, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
             return message;
         }
@@ -577,7 +576,7 @@ namespace Tuvi.Core.Impl
                     Debug.Assert(messages.Count > 0);
                     sw.Start();
                     this.Log().LogDebug($"Adding messages {messages.Count}");
-                    // divide into continuous intrervals
+                    // divide into continuous intervals
                     var copy = new List<Message>(messages);
                     copy.Sort((left, right) => -left.Id.CompareTo(right.Id)); // descending
                     var intervals = new List<KeyValuePair<Message, int>>();
@@ -719,8 +718,8 @@ namespace Tuvi.Core.Impl
                 IReadOnlyList<Message> remoteMessages = null;
                 if (latestRemoteMessage.Id > earliestMessage.Id)
                 {
-                    uint aproxCount = latestRemoteMessage.Id - earliestMessage.Id;
-                    int countToLoad = (int)Math.Min(aproxCount, (uint)BatchSize);
+                    uint approxCount = latestRemoteMessage.Id - earliestMessage.Id;
+                    int countToLoad = (int)Math.Min(approxCount, (uint)BatchSize);
                     remoteMessages = await LoadRemoteMessagesAsync(latestRemoteMessage,
                                                                    countToLoad,
                                                                    cancellationToken).ConfigureAwait(false);

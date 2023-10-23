@@ -855,14 +855,18 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task UpdateMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
+            Debug.Assert(message != null);
+            Debug.Assert(message.Pk != 0);
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
                 message.Path = CreatePath(accountEmail, message.Folder.FullName);
 
-                var item = connection.Find<Entities.Message>(x => x.Path == message.Path && x.Id == message.Id);
-                message.Pk = item.Pk;
-
+                var item = connection.Find<Entities.Message>(message.Pk);
+                if (item is null)
+                {
+                    throw new DataBaseException($"There is no message with primary key: {message.Pk}");
+                }
                 InitMessageFolder(connection, accountEmail, message.Folder.FullName, message, item);
 
                 connection.Update(message);
