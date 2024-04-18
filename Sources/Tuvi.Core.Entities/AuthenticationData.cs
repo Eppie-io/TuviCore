@@ -59,7 +59,7 @@
         public int AccountId { get; set; }
 
         public string RefreshToken { get; set; }
-        public string AuthAssistantId { get; set; }
+        public string AuthAssistantId { get; set; } // ToDo: may be: rename it
 
         public OAuth2Data()
         {
