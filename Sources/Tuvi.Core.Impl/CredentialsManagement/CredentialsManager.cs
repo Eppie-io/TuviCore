@@ -2,41 +2,33 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-// ToDo: Auth-old
-//using Auth.Interfaces;
-//using Auth.Interfaces.Types.Exceptions;
+
+using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.Impl.CredentialsManagement
 {
     public static class CredentialsManagerCreator
     {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "<Pending>")]
-        // ToDo: Auth-old
-        public static ICredentialsManager GetCredentialsProvider(/*IAuthProvider authProvider*/)
+        public static ICredentialsManager GetCredentialsProvider(IDataStorage storage, ITokenResolver tokenResolver)
         {
-            return new CredentialsManager(/*authProvider*/);
+            return new CredentialsManager(storage, tokenResolver);
         }
     }
 
-    internal class CredentialsManager : ICredentialsManager, IDisposable
+    internal class CredentialsManager : ICredentialsManager
     {
-        // ToDo: Auth-old
-        //private readonly IAuthProvider _authProvider;
-        //private readonly Dictionary<string, IAuthCredential> _cacheAuthCredentials = new Dictionary<string, IAuthCredential>();
-        private readonly SemaphoreSlim _cacheSemaphore = new SemaphoreSlim(1);
+        private readonly ITokenResolver _tokenResolver;
+        private readonly IDataStorage _storage;
 
-        // ToDo: Auth-old
-        //public CredentialsManager(IAuthProvider authProvider)
-        //{
-        //    _authProvider = authProvider;
-        //}
+        internal CredentialsManager(IDataStorage storage, ITokenResolver tokenResolver)
+        {
+            _tokenResolver = tokenResolver;
+            _storage = storage;
+        }
 
         public ICredentialsProvider CreateCredentialsProvider(Account account)
         {
-            // ToDo: Auth-old
-            //try
-            //{
             ICredentialsProvider provider = null;
             switch (account?.AuthData)
             {
@@ -52,83 +44,34 @@ namespace Tuvi.Core.Impl.CredentialsManagement
                     };
 
                     break;
-                case OAuth2Data oauth2Data:
+                case OAuth2Data data:
 
-                    provider = new OAuth2CredentialsProvider()
+                    _tokenResolver.AddOrUpdateToken(account.Email, data.AuthAssistantId, data.RefreshToken);
+
+                    provider = new OAuth2CredentialsProvider(_storage, account, data)
                     {
-                        OAuth2Credentials = new OAuth2Credentials()
-                        {
-                            UserName = account.Email.Address,
-                        },
-                        // ToDo: Auth-old
-                        TokenResolver = /*async*/ (CancellationToken ct) =>
-                        {
-                            //var authCredentials = await FindAuthCredentials(account.Email.Address, oauth2Data, ct).ConfigureAwait(false);
-                            //var accessToken = await authCredentials.GetAccessTokenForRequestAsync(ct).ConfigureAwait(false);
-                            //return accessToken;
-                            return Task.FromResult("fake-token");
-                        }
+                        TokenResolver = (EmailAddress address, CancellationToken ct) =>_tokenResolver.GetAccessTokenAsync(address, ct)
                     };
 
                     break;
 
-                    case ProtonAuthData protonData:
+                case ProtonAuthData protonData:
 
-                        provider = new ProtonCredentialsProvider()
+                    provider = new ProtonCredentialsProvider()
+                    {
+                        Credentials = new ProtonCredentials()
                         {
-                            Credentials = new ProtonCredentials()
-                            {
-                                UserName = account.Email.Address,
-                                UserId = protonData.UserId,
-                                RefreshToken = protonData.RefreshToken,
-                                SaltedPassword = protonData.SaltedPassword
-                            }
-                        };
-                        break;
+                            UserName = account.Email.Address,
+                            UserId = protonData.UserId,
+                            RefreshToken = protonData.RefreshToken,
+                            SaltedPassword = protonData.SaltedPassword
+                        }
+                    };
+                    break;
             }
 
             return provider;
-            // ToDo: Auth-old
-            //}
-            //catch (AuthProtocolErrorException e)
-            //{
-            //    throw new AuthenticationException(account.Email, e.Message, e);
-            //}
         }
-
-        public void Dispose()
-        {
-            _cacheSemaphore.Dispose();
-        }
-
-        // ToDo: Auth-old
-        //private async Task<IAuthCredential> FindAuthCredentials(string userId, OAuth2Data oauth2Data, CancellationToken cancellationToken)
-        //{
-        //    await _cacheSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-
-        //    try
-        //    {
-        //        if (_cacheAuthCredentials.TryGetValue(userId, out var cache))
-        //        {
-        //            return cache;
-        //        }
-
-        //        var id = oauth2Data.AuthAssistantId;
-        //        var data = new OAuth2CredentialsProvider.AuthStoredData()
-        //        {
-        //            RefreshToken = oauth2Data.RefreshToken
-        //        };
-
-        //        var authCredentials = await _authProvider.GetAuthAssistant(id).RestoreAsync(data, cancellationToken).ConfigureAwait(false);
-        //        _cacheAuthCredentials.Add(userId, authCredentials);
-
-        //        return authCredentials;
-        //    }
-        //    finally
-        //    {
-        //        _cacheSemaphore.Release();
-        //    }
-        //}
 
         internal class BasicCredentialsProvider : ICredentialsProvider
         {
@@ -142,24 +85,82 @@ namespace Tuvi.Core.Impl.CredentialsManagement
 
         internal class OAuth2CredentialsProvider : ICredentialsProvider
         {
-            public OAuth2Credentials OAuth2Credentials { get; set; }
-            public Func<CancellationToken, Task<string>> TokenResolver { get; set; }
+            private readonly IDataStorage _storage;
+            private readonly EmailAddress _emailAddress;
+
+            private Account _newAccount;
+            private string _refreshToken;
+
+            internal Func<EmailAddress, CancellationToken, Task<(string accessToken, string newRefreshToken)>> TokenResolver { get; set; }
+
+            public OAuth2CredentialsProvider(IDataStorage storage, Account newAccount, OAuth2Data data)
+            {
+                if (data == null)
+                {
+                    throw new ArgumentNullException(nameof(data));
+                }
+
+                _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+                _newAccount = newAccount ?? throw new ArgumentNullException(nameof(newAccount));
+                _emailAddress = _newAccount.Email;
+                _refreshToken = data.RefreshToken;
+            }
 
             public async Task<AccountCredentials> GetCredentialsAsync(HashSet<string> supportedAuthMechanisms, CancellationToken cancellationToken = default)
             {
-                if (TokenResolver != null)
+                return new OAuth2Credentials()
                 {
-                    OAuth2Credentials.AccessToken = await TokenResolver(cancellationToken).ConfigureAwait(true);
-                }
-
-                return OAuth2Credentials;
+                    UserName = _emailAddress.Address,
+                    AccessToken = await GetAccessTokenAsync(cancellationToken).ConfigureAwait(false)
+                };
             }
 
-            // ToDo: Auth-old
-            //internal class AuthStoredData : IAuthStoredData
-            //{
-            //    public string RefreshToken { get; set; }
-            //}
+            private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken = default)
+            {
+                (string accessToken, string refreshToken) = await TokenResolver(_emailAddress, cancellationToken).ConfigureAwait(false);
+
+                string oldRefreshToken = _refreshToken;
+                _refreshToken = refreshToken;
+
+                if (_newAccount != null || !_refreshToken.Equals(oldRefreshToken, StringComparison.Ordinal))
+                {
+                    await UpdateAccount(_refreshToken, cancellationToken).ConfigureAwait(false);
+                }
+
+                return accessToken;
+            }
+
+            private async Task UpdateAccount(string refreshToken, CancellationToken cancellationToken = default)
+            {
+                try
+                {
+                    Account account = await _storage.GetAccountAsync(_emailAddress, cancellationToken).ConfigureAwait(false);
+                    UpdateAccount(account, refreshToken);
+                    await _storage.UpdateAccountAsync(account, cancellationToken).ConfigureAwait(false);
+                    _newAccount = null;
+                }
+                catch (Exception exception) when (exception is AccountIsNotExistInDatabaseException)
+                {
+                    // The account is not in storage at the time of creation
+                    UpdateAccount(_newAccount, refreshToken);
+                }
+            }
+
+            private void UpdateAccount(Account account, string refreshToken)
+            {
+                if (account?.AuthData is OAuth2Data oauth2Data)
+                {
+                    oauth2Data.RefreshToken = refreshToken;
+                }
+                else if (account != null)
+                {
+                    throw new AuthenticationException(account.Email, "Account doesn't have authentication data", null);
+                }
+                else
+                {
+                    throw new AuthenticationException(_emailAddress, "Account not found", null);
+                }
+            }
         }
 
         internal class ProtonCredentialsProvider : ICredentialsProvider
@@ -171,6 +172,5 @@ namespace Tuvi.Core.Impl.CredentialsManagement
                 return Task.FromResult((AccountCredentials)Credentials);
             }
         }
-
     }
 }

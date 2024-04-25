@@ -1,7 +1,4 @@
 ﻿using System;
-// ToDo: Auth-old
-//using System.Threading.Tasks;
-//using Auth.Interfaces;
 using MimeKit;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -34,13 +31,13 @@ namespace ComponentBuilder
     }
     public static class Components
     {
-        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider/*, IAuthProvider authProvider*/)
+        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenResolver tokenResolver)
         {
             var dataStorage = GetDataStorage(filePath);
             var securityManager = GetSecurityManager(dataStorage);
             var backupProtector = securityManager.GetBackupProtector();
             var backupManager = GetBackupManager(dataStorage, backupProtector, new JsonUtf8SerializationFactory(backupProtector), securityManager);
-            var credentialsManager = GetCredentialsManager(/*authProvider*/);
+            var credentialsManager = GetCredentialsManager(dataStorage, tokenResolver);
             var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, securityManager);
             var mailServerTester = GetMailServerTester();
 
@@ -95,16 +92,9 @@ namespace ComponentBuilder
             return BackupManagerCreator.GetBackupManager(storage, backupProtector, backupFactory, security);
         }
 
-        // ToDo: Auth-old
-        private static ICredentialsManager GetCredentialsManager(/*IAuthProvider authProvider*/)
+        private static ICredentialsManager GetCredentialsManager(IDataStorage storage, ITokenResolver tokenResolver)
         {
-            return CredentialsManagerCreator.GetCredentialsProvider(/*authProvider*/);
+            return CredentialsManagerCreator.GetCredentialsProvider(storage, tokenResolver);
         }
-
-        // ToDo: Auth-old
-        //public static IAuthToolkit CreateAuthToolkit(Func<Uri, Task<bool>> launcher)
-        //{
-        //    return new AuthToolkit(launcher);
-        //}
     }
 }
