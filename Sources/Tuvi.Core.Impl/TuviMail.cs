@@ -1041,14 +1041,13 @@ namespace Tuvi.Core.Impl
         public async Task SendMessageAsync(Message message, bool encrypt, bool sign, CancellationToken cancellationToken)
         {
             CheckDisposed();
-
             if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
             if (message.From.Count == 0)
             {
-                throw new ArgumentException("'Message.From' property should contain at least on address", nameof(message));
+                throw new ArgumentException($"{nameof(message.From)} property should contain at least on address", nameof(message));
             }
             var from = message.From.First();
             var subAddresses = SplitAddress(from);
