@@ -826,6 +826,7 @@ namespace Tuvi.Core.Impl
             {
                 accountScheduler.Value.Dispose();
             }
+            CredentialsManager.Dispose();
             DataStorage.Dispose();
             _isDisposed = true;
         }

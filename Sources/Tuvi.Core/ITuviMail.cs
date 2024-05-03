@@ -7,7 +7,7 @@ using Tuvi.Core.Utils;
 
 namespace Tuvi.Core
 {
-    public interface ITuviMail
+    public interface ITuviMail : IDisposable
     {
         ISecurityManager GetSecurityManager();
         IBackupManager GetBackupManager();
