@@ -10,20 +10,21 @@ namespace Tuvi.Core.Impl.CredentialsManagement
 {
     public static class CredentialsManagerCreator
     {
-        public static ICredentialsManager GetCredentialsProvider(IDataStorage storage, ITokenResolver tokenResolver)
+        public static ICredentialsManager GetCredentialsProvider(IDataStorage storage, ITokenRefresher tokenRefresher)
         {
-            return new CredentialsManager(storage, tokenResolver);
+            return new CredentialsManager(storage, tokenRefresher);
         }
     }
 
-    internal class CredentialsManager : ICredentialsManager
+    internal class CredentialsManager : ICredentialsManager, IDisposable
     {
-        private readonly ITokenResolver _tokenResolver;
+        private readonly TokenResolver _tokenResolver;
         private readonly IDataStorage _storage;
+        private bool disposedValue;
 
-        internal CredentialsManager(IDataStorage storage, ITokenResolver tokenResolver)
+        internal CredentialsManager(IDataStorage storage, ITokenRefresher tokenRefresher)
         {
-            _tokenResolver = tokenResolver;
+            _tokenResolver = new TokenResolver(tokenRefresher);
             _storage = storage;
         }
 
@@ -171,6 +172,35 @@ namespace Tuvi.Core.Impl.CredentialsManagement
             {
                 return Task.FromResult((AccountCredentials)Credentials);
             }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    _tokenResolver.Dispose();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        // ~CredentialsManager()
+        // {
+        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

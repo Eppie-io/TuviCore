@@ -31,13 +31,13 @@ namespace ComponentBuilder
     }
     public static class Components
     {
-        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenResolver tokenResolver)
+        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher)
         {
             var dataStorage = GetDataStorage(filePath);
             var securityManager = GetSecurityManager(dataStorage);
             var backupProtector = securityManager.GetBackupProtector();
             var backupManager = GetBackupManager(dataStorage, backupProtector, new JsonUtf8SerializationFactory(backupProtector), securityManager);
-            var credentialsManager = GetCredentialsManager(dataStorage, tokenResolver);
+            var credentialsManager = GetCredentialsManager(dataStorage, tokenRefresher);
             var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, securityManager);
             var mailServerTester = GetMailServerTester();
 
@@ -92,9 +92,9 @@ namespace ComponentBuilder
             return BackupManagerCreator.GetBackupManager(storage, backupProtector, backupFactory, security);
         }
 
-        private static ICredentialsManager GetCredentialsManager(IDataStorage storage, ITokenResolver tokenResolver)
+        private static ICredentialsManager GetCredentialsManager(IDataStorage storage, ITokenRefresher tokenRefresher)
         {
-            return CredentialsManagerCreator.GetCredentialsProvider(storage, tokenResolver);
+            return CredentialsManagerCreator.GetCredentialsProvider(storage, tokenRefresher);
         }
     }
 }
