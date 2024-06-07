@@ -23,7 +23,7 @@ namespace Tuvi.Core.Mail.Impl
             : base(account, credentialsProvider)
         {
             DataStorage = dataStorage;
-            DecClient = DecStorageBuilder.CreateAzureClient(new Uri("https://decsimulator.azurewebsites.net/api"));
+            DecClient = DecStorageBuilder.CreateAzureClient(new Uri("https://testnet2.eppie.io/api"));
         }
 
         private static uint Hash2Id(string hash)

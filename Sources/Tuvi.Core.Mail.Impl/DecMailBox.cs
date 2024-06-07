@@ -25,7 +25,7 @@ namespace Tuvi.Core.Dec.Impl
         {
             return new DecMailBox(account,
                                   storage,
-                                  DecStorageBuilder.CreateAzureClient(new Uri("https://decsimulator.azurewebsites.net/api")),
+                                  DecStorageBuilder.CreateAzureClient(new Uri("https://testnet2.eppie.io/api")),
                                   new PgpDecProtector(storage));
         }
     }
