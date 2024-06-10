@@ -583,7 +583,7 @@ namespace Tuvi.Proton.Impl
 
         public Task<TResponse> GetAsync<TResponse>(string uri) where TResponse : new()
         {
-            return ExecuteAsync<TResponse, RestClient.EmptyRequest>(uri, HttpMethod.Get);
+            return ExecuteAsync<TResponse>(uri, HttpMethod.Get);
         }
 
         public Task PutAsync<TRequest>(string uri)
@@ -613,6 +613,15 @@ namespace Tuvi.Proton.Impl
                 endpoint: uri,
                 method: method,
                 payload: (TBody)_body,
+                headers: new RestClient.HeaderCollection(_headers));
+        }
+
+        private Task<TResponse> ExecuteAsync<TResponse>(string uriStr, HttpMethod method) where TResponse : new()
+        {
+            var uri = new Uri(uriStr + (_queryParams.Count > 0 ? ("?" + _queryParams.ToString()) : ""), UriKind.Relative);
+            return _session.RequestAsync<TResponse>(
+                endpoint: uri,
+                method: method,
                 headers: new RestClient.HeaderCollection(_headers));
         }
 
