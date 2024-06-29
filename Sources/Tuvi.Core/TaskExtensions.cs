@@ -10,14 +10,25 @@ namespace Tuvi.Core
     {
         public static async Task DoWithLogAsync<T>(this IEnumerable<Task> tasks)
         {
-            var task = await Task.WhenAny(Task.WhenAll(tasks)).ConfigureAwait(false);
-            if (task.Exception is null)
+            try
             {
-                return;
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
-            foreach (var ex in task.Exception.Flatten().InnerExceptions)
+            catch (Exception ex)
             {
-                LogException(LoggingExtension.Log<T>(), ex);
+                if (ex is AggregateException aggregateException)
+                {
+                    foreach (var innerEx in aggregateException.Flatten().InnerExceptions)
+                    {
+                        LogException(LoggingExtension.Log<T>(), innerEx);
+                    }
+                }
+                else
+                {
+                    LogException(LoggingExtension.Log<T>(), ex);
+                }
+
+                throw;
             }
         }
 
