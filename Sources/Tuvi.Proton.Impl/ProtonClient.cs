@@ -24,40 +24,41 @@ namespace Tuvi.Proton.Impl
 {
     #region Enums
 
-    [Flags]
-    internal enum MessageFlag : int
-    {
-        Received = 1 << 0,
-        Sent = 1 << 1,
-        Internal = 1 << 2,
-        E2E = 1 << 3,
-        Auto = 1 << 4,
-        Replied = 1 << 5,
-        RepliedAll = 1 << 6,
-        Forwarded = 1 << 7,
-        AutoReplied = 1 << 8,
-        Imported = 1 << 9,
-        Opened = 1 << 10,
-        ReceiptSent = 1 << 11,
-        Notified = 1 << 12,
-        Touched = 1 << 13,
-        Receipt = 1 << 14,
-        ReceiptRequest = 1 << 16,
-        PublicKey = 1 << 17,
-        Sign = 1 << 18,
-        Unsubscribed = 1 << 19,
-        ScheduledSend = 1 << 20,
-        Alias = 1 << 21,
-        DMARCPass = 1 << 23,
-        SPFFail = 1 << 24,
-        DKIMFail = 1 << 25,
-        DMARCFail = 1 << 26,
-        HamManual = 1 << 27,
-        SpamAuto = 1 << 28,
-        SpamManual = 1 << 29,
-        PhishingAuto = 1 << 30,
-        PhishingManual = 1 << 31,
-    }
+    // TODO: failed to deserialize, flag values do not coincide with Proton's flag values
+    //[Flags]
+    //internal enum MessageFlag : int
+    //{
+    //    Received = 1 << 0,
+    //    Sent = 1 << 1,
+    //    Internal = 1 << 2,
+    //    E2E = 1 << 3,
+    //    Auto = 1 << 4,
+    //    Replied = 1 << 5,
+    //    RepliedAll = 1 << 6,
+    //    Forwarded = 1 << 7,
+    //    AutoReplied = 1 << 8,
+    //    Imported = 1 << 9,
+    //    Opened = 1 << 10,
+    //    ReceiptSent = 1 << 11,
+    //    Notified = 1 << 12,
+    //    Touched = 1 << 13,
+    //    Receipt = 1 << 14,
+    //    ReceiptRequest = 1 << 16,
+    //    PublicKey = 1 << 17,
+    //    Sign = 1 << 18,
+    //    Unsubscribed = 1 << 19,
+    //    ScheduledSend = 1 << 20,
+    //    Alias = 1 << 21,
+    //    DMARCPass = 1 << 23,
+    //    SPFFail = 1 << 24,
+    //    DKIMFail = 1 << 25,
+    //    DMARCFail = 1 << 26,
+    //    HamManual = 1 << 27,
+    //    SpamAuto = 1 << 28,
+    //    SpamManual = 1 << 29,
+    //    PhishingAuto = 1 << 30,
+    //    PhishingManual = 1 << 31,
+    //}
 
     internal enum RecipientType : int
     {
@@ -164,7 +165,7 @@ namespace Tuvi.Proton.Impl
         public IReadOnlyList<EmailAddress> CCList { get; set; }
         public IReadOnlyList<EmailAddress> BCCList { get; set; }
         public IReadOnlyList<EmailAddress> ReplyTos { get; set; }
-        public MessageFlag Flags { get; set; }
+        //public MessageFlag Flags { get; set; }// TODO: failed to deserialize, flag values do not coincide with Proton's flag values
         public long Time { get; set; }
         public int Size { get; set; }
         public int Unread { get; set; }
