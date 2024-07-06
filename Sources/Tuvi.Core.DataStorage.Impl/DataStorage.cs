@@ -611,8 +611,16 @@ namespace Tuvi.Core.DataStorage.Impl
             foreach (var contact in contacts)
             {
                 contact.UnreadCount += delta;
+                
                 Debug.Assert(contact.UnreadCount >= 0);
-                connection.Update(contact);
+                if(contact.UnreadCount < 0)
+                {
+                    throw new InvalidOperationException("contact.UnreadCount must be greater than zero");
+                }
+                else
+                {
+                    connection.Update(contact);
+                }                
             }
         }
 
