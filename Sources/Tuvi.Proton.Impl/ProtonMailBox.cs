@@ -25,7 +25,7 @@ using Tuvi.Auth.Proton.Exceptions;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
-using Tuvi.Proton.Client.Exceptions;
+using Tuvi.Proton.Client;
 using Tuvi.Proton.Impl;
 using TuviSRPLib;
 
@@ -45,6 +45,7 @@ namespace Tuvi.Proton
                                                                        userName,
                                                                        password,
                                                                        twoFactorProvider,
+                                                                       null,
                                                                        cancellationToken)
                                           .ConfigureAwait(false)) 
             {
@@ -887,7 +888,6 @@ namespace Tuvi.Proton
 #pragma warning restore CA1508 // Avoid dead conditional code
                 var dataStorage = _storage as IDataStorage;
 
-                bool needToUpdateAuthData = true;
                 try
                 {
                     // Update credentials if account already exists in storage
@@ -896,24 +896,17 @@ namespace Tuvi.Proton
                 }
                 catch (AccountIsNotExistInDatabaseException)
                 {
-                    needToUpdateAuthData = false;
                 }
                 var authData = _account.AuthData as ProtonAuthData;
                 if (authData is null)
                 {
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
-                var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, cancellationToken)
+                var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
 
-                authData.RefreshToken = client.RefreshToken;
-                authData.UserId = client.UserId;
                 try
                 {
-                    if (needToUpdateAuthData)
-                    {
-                        await dataStorage.UpdateAccountAsync(_account, cancellationToken).ConfigureAwait(false);
-                    }
                     _context = await GetCryptoContextAsync(client, _account, cancellationToken).ConfigureAwait(false);
                     _client = client;
                     client = null;
@@ -936,6 +929,24 @@ namespace Tuvi.Proton
             }
 
             return _client;
+        }
+
+        private async Task OnRefreshAsync(Session session, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var dataStorage = _storage as IDataStorage;
+
+                if (_account.AuthData is ProtonAuthData authData)
+                {
+                    authData.RefreshToken = session.RefreshToken;
+                    authData.UserId = session.UserId;
+                    await dataStorage.UpdateAccountAsync(_account, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (AccountIsNotExistInDatabaseException)
+            {
+            }
         }
 
         private static async Task<MyOpenPgpContext> GetCryptoContextAsync(Impl.Client client, Account account, CancellationToken cancellationToken)

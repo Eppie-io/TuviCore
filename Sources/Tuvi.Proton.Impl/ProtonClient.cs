@@ -499,7 +499,7 @@ namespace Tuvi.Proton.Impl
                 writer?.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
     }
 
-    internal struct MutipartFieldData
+    internal struct MultipartFieldData
     {
         public string Name { get; set; }
         public string FileName { get; set; }
@@ -515,7 +515,7 @@ namespace Tuvi.Proton.Impl
         private NameValueCollection _queryParams = System.Web.HttpUtility.ParseQueryString(string.Empty);
         private HttpContent _content;
         private object _body;
-        private List<MutipartFieldData> _multiparts = new List<MutipartFieldData>();
+        private readonly List<MultipartFieldData> _multiparts = new List<MultipartFieldData>();
 
         public Request(Session session, HttpClient client)
         {
@@ -550,7 +550,7 @@ namespace Tuvi.Proton.Impl
 
         public Request SetMultipartFormField(string name, string filename, string contentType, byte[] data)
         {
-            _multiparts.Add(new MutipartFieldData()
+            _multiparts.Add(new MultipartFieldData()
             {
                 Name = name,
                 FileName = filename,
@@ -697,7 +697,7 @@ namespace Tuvi.Proton.Impl
             return content;
         }
 
-        private static HttpContent GetHttpContent(MutipartFieldData field)
+        private static HttpContent GetHttpContent(MultipartFieldData field)
         {
             if (String.IsNullOrEmpty(field.ContentType))
             {
@@ -719,17 +719,21 @@ namespace Tuvi.Proton.Impl
     internal class Client : IDisposable
     {
         private const int MaxPageSize = 150;
-        private HttpClient _httpClient;
-        private Session _session;
+        private readonly HttpClient _httpClient;
+        private readonly Session _session;
+        private readonly Func<Session, CancellationToken, Task> _refreshCallback;
+        private readonly SemaphoreSlim _refreshSemaphore = new SemaphoreSlim(1);
+
         public static async Task<Client> CreateWithLoginAsync(Func<HttpClient> httpClientCreator,
                                                               string userName,
                                                               string password,
                                                               Func<CancellationToken, Task<string>> twoFactorProvider,
+                                                              Func<Session, CancellationToken, Task> refreshCallback,
                                                               CancellationToken cancellationToken)
         {
             try
             {
-                var client = new Client(httpClientCreator);
+                var client = new Client(httpClientCreator, refreshCallback);
                 await client._session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
                 if (client._session.IsTwoFactor && client._session.IsTOTP)
                 {
@@ -744,12 +748,12 @@ namespace Tuvi.Proton.Impl
             }
         }
 
-        public static async Task<Client> CreateFromRefreshAsync(Func<HttpClient> httpClientCreator, string uid, string refresh, CancellationToken cancellationToken)
+        public static async Task<Client> CreateFromRefreshAsync(Func<HttpClient> httpClientCreator, string uid, string refresh, Func<Session, CancellationToken, Task> refreshCallback, CancellationToken cancellationToken)
         {
             try
             {
-                var client = new Client(httpClientCreator);
-                await client._session.RefreshAsync(uid, refresh, cancellationToken).ConfigureAwait(false);
+                var client = new Client(httpClientCreator, refreshCallback);
+                await client.RestoreSessionAsync(uid, refresh, cancellationToken).ConfigureAwait(false);
                 return client;
             }
             catch (ProtonSessionRequestException ex)
@@ -758,9 +762,10 @@ namespace Tuvi.Proton.Impl
             }
         }
 
-        private Client(Func<HttpClient> httpClientCreator)
+        private Client(Func<HttpClient> httpClientCreator, Func<Session, CancellationToken, Task> refreshCallback)
         {
             _httpClient = httpClientCreator();
+            _refreshCallback = refreshCallback;
             _session = new Session(
                 httpClient: _httpClient,
                 host: new Uri("https://mail-api.proton.me"))
@@ -797,7 +802,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<IList<MessageMetadata>> GetMessageMetadataPagedAsync(int page, int pageSize, MessageFilter filter, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             request.SetHeader("X-HTTP-Method-Override", "GET")
                    .SetBody(new PagedMessageFilter(filter)
                    {
@@ -834,7 +839,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Message> GetMessageAsync(string messageId, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.GetAsync<MessageResponse>("/mail/v4/messages/" + messageId)
                                         .ConfigureAwait(false);
             CheckResponse(response, "get message by ID");
@@ -843,7 +848,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Stream> GetAttachmentAsync(string attachmentId, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.GetAsync("/mail/v4/attachments/" + attachmentId)
                                         .ConfigureAwait(false);
             return response;
@@ -851,7 +856,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Attachment> UploadAttachmentAsync(CreateAttachmentReq req, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.SetMultipartFormField("MessageID", req.MessageID)
                                         .SetMultipartFormField("Filename", req.Filename)
                                         .SetMultipartFormField("MIMEType", req.MIMEType)
@@ -868,7 +873,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Message> CreateDraftAsync(CreateDraftReq req, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.SetBody(req)
                                         .PostAsync<MessageResponse, CreateDraftReq>("/mail/v4/messages")
                                         .ConfigureAwait(false);
@@ -878,7 +883,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Message> UpdateDraftAsync(string draftId, UpdateDraftReq req, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.SetBody(req)
                                         .PutAsync<MessageResponse, UpdateDraftReq>("/mail/v4/messages/" + draftId)
                                         .ConfigureAwait(false);
@@ -888,7 +893,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<Message> SendDraftAsync(string draftId, SendDraftReq req, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.SetBody(req)
                                         .PostAsync<MessageResponse, SendDraftReq>("/mail/v4/messages/" + draftId)
                                         .ConfigureAwait(false);
@@ -899,7 +904,7 @@ namespace Tuvi.Proton.Impl
         public async Task<IList<Label>> GetLabelsAsync(IEnumerable<LabelType> labelTypes, CancellationToken cancellationToken)
         {
             var labels = new List<Label>();
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             foreach (var label in labelTypes)
             {
                 var response = await request.AddQueryParam("Type", ((int)label).ToString(CultureInfo.InvariantCulture))
@@ -914,7 +919,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<(IList<PublicKey>, RecipientType)> GetPublicKeysAsync(string address, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.AddQueryParam("Email", address)
                                         .GetAsync<KeysResponse>("/core/v4/keys")
                                         .ConfigureAwait(false);
@@ -924,7 +929,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<IEnumerable<Salt>> GetSaltsAsync(CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.GetAsync<SaltsResponse>("/core/v4/keys/salts")
                                         .ConfigureAwait(false);
             CheckResponse(response, "get salts");
@@ -933,7 +938,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<User> GetUserAsync(CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.GetAsync<UserResponse>("/core/v4/users")
                                         .ConfigureAwait(false);
             CheckResponse(response, "get user");
@@ -957,7 +962,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task<IEnumerable<Address>> GetAddressesAsync(CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var response = await request.GetAsync<AddressesResponse>("/core/v4/addresses")
                                         .ConfigureAwait(false);
             CheckResponse(response, "get addresses");
@@ -966,7 +971,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task LabelMessagesAsync(IEnumerable<string> messagesIDs, string labelId, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var req = new LabelMessagesReq()
             {
                 IDs = messagesIDs.ToList(),
@@ -981,7 +986,7 @@ namespace Tuvi.Proton.Impl
 
         public async Task UnlabelMessagesAsync(IEnumerable<string> messagesIDs, string labelId, CancellationToken cancellationToken)
         {
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var req = new LabelMessagesReq()
             {
                 IDs = messagesIDs.ToList(),
@@ -1026,7 +1031,7 @@ namespace Tuvi.Proton.Impl
         private async Task<IList<string>> GetMessageIDsImplAsync(string afterId, CancellationToken cancellationToken)
         {
             const string MaxMessageIDs = "1000";
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             if (!String.IsNullOrEmpty(afterId))
             {
                 request.AddQueryParam("AfterID", afterId);
@@ -1041,7 +1046,7 @@ namespace Tuvi.Proton.Impl
         private async Task<long> CountMessagesImplAsync(MessageFilter filter, CancellationToken cancellationToken)
         {
             // TODO: should we do the same way as proton api does? This is ineffective way to get message count 
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(cancellationToken).ConfigureAwait(false);
             var countFilter = new CountMessageFilter(filter)
             {
                 Limit = 0
@@ -1057,20 +1062,72 @@ namespace Tuvi.Proton.Impl
         {
             var req = new MessageActionReq();
             req.IDs.AddRange(messageIDs);
-            var request = NewHttpRequest();
+            var request = await CreateHttpRequestAsync(CancellationToken.None).ConfigureAwait(false);
             await request.SetBody(req)
                          .PutAsync<MessageActionReq>(endpoint)
                          .ConfigureAwait(false);
         }
 
-        private Request NewHttpRequest()
+        private async Task<Request> CreateHttpRequestAsync(CancellationToken cancellationToken)
         {
+            await TryRefreshSessionAsync(cancellationToken).ConfigureAwait(false);
+
             return new Request(_session, _httpClient);
+        }
+
+        private async Task<bool> TryRefreshSessionAsync(CancellationToken cancellationToken)
+        {
+            const int reserveSeconds = 60;
+            if (!_session.IsExpired(reserveSeconds))
+            {
+                return false;
+            }
+
+            await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (!_session.IsExpired(reserveSeconds))
+                {
+                    return false;
+                }
+
+                await _session.RefreshAsync(cancellationToken).ConfigureAwait(false);
+
+                if (_refreshCallback != null)
+                {
+                    await _refreshCallback(_session, cancellationToken).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            finally
+            {
+                _refreshSemaphore.Release();
+            }
+        }
+
+        private async Task RestoreSessionAsync(string uid, string refreshToken, CancellationToken cancellationToken)
+        {
+            await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _session.RestoreAsync(uid, refreshToken, cancellationToken).ConfigureAwait(false);
+
+                if (_refreshCallback != null)
+                {
+                    await _refreshCallback(_session, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _refreshSemaphore.Release();
+            }
         }
 
         public void Dispose()
         {
             _httpClient.Dispose();
+            _refreshSemaphore.Dispose();
         }
         #endregion
     }
