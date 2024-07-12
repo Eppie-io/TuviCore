@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -31,8 +32,13 @@ namespace ComponentBuilder
     }
     public static class Components
     {
-        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher)
+        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher, ILoggerFactory loggerFactory = null)
         {
+            if(loggerFactory != null)
+            {
+                Tuvi.Core.Logging.LoggingExtension.LoggerFactory = loggerFactory;
+            }
+
             var dataStorage = GetDataStorage(filePath);
             var securityManager = GetSecurityManager(dataStorage);
             var backupProtector = securityManager.GetBackupProtector();
