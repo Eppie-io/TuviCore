@@ -41,6 +41,12 @@ namespace Tuvi.Core.DataStorage
         Task UpdateAccountAsync(Account accountData, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Update account folder structure in storage if it exist.
+        /// </summary>
+        /// <exception cref="DataBaseException"/>
+        Task UpdateAccountFolderStructureAsync(Account accountData, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get account by email address from storage.
         /// </summary>
         /// <returns>Account</returns>

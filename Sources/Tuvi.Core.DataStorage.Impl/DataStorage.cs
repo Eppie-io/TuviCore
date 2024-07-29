@@ -409,6 +409,29 @@ namespace Tuvi.Core.DataStorage.Impl
             }, cancellationToken);
         }
 
+        public Task UpdateAccountFolderStructureAsync(Account account, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                var emailData = FindEmailAddress(connection, account.Email);
+                if (emailData == null)
+                {
+                    return;
+                }
+                var item = connection.Find<Account>(x => x.EmailId == emailData.Id);
+                if (item == null)
+                {
+                    return;
+                }
+                                                
+                AddAccountFolders(db, item.Id, account, ct);
+
+                connection.Update(item);
+            }, cancellationToken);
+        }
+
+
         private static void BuildAccountAuthData(SQLiteConnection connection, Account account)
         {
             account.AuthData = account.AuthData ?? connection.Find<BasicAuthData>(x => x.AccountId == account.Id);

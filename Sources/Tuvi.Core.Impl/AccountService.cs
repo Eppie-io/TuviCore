@@ -479,7 +479,7 @@ namespace Tuvi.Core.Impl
                 return;
             }
             await TryToAccountUpdateFolderStructureAsync(Account, MailBox, cancellationToken).ConfigureAwait(false);
-            await DataStorage.UpdateAccountAsync(Account, cancellationToken).ConfigureAwait(false);
+            await DataStorage.UpdateAccountFolderStructureAsync(Account, cancellationToken).ConfigureAwait(false);
         }
 
         public static async Task TryToAccountUpdateFolderStructureAsync(Account account, IMailBox mailBox, CancellationToken cancellationToken)
