@@ -744,7 +744,7 @@ namespace Tuvi.Proton.Impl
             }
             catch (AuthProtonException ex)
             {
-                throw MakeException((int)ResponseCode.WrongPassword, "login", ex.Message);
+                throw MakeException((int)ResponseCode.WrongPassword, "login", ex.Message, ex);
             }
         }
 
@@ -758,7 +758,7 @@ namespace Tuvi.Proton.Impl
             }
             catch (ProtonSessionRequestException ex)
             {
-                throw MakeException(ex.ErrorInfo.Code, "refresh token", ex.ErrorInfo.Error);
+                throw MakeException(ex.ErrorInfo.Code, "refresh token", ex.ErrorInfo.Error, ex);
             }
         }
 
@@ -1007,11 +1007,11 @@ namespace Tuvi.Proton.Impl
         {
             if (!response.Success)
             {
-                throw MakeException(response.Code, context, response.Error);
+                throw MakeException(response.Code, context, response.Error, null);
             }
         }
 
-        private static Exception MakeException(int code, string context, string message)
+        private static Exception MakeException(int code, string context, string message, Exception innerException)
         {
             string errorMessage = $"Proton: failed to {context}. Reason: {message}";
             if (ResponseCode.Unauthorized.SameAs(code) ||
@@ -1019,13 +1019,13 @@ namespace Tuvi.Proton.Impl
                 ResponseCode.WrongPassword.SameAs(code))
             {
                 // there is no mistake here 401 has name "unauthorized", but means "not authenticated"
-                throw new AuthenticationException(errorMessage);
+                throw new AuthenticationException(errorMessage, innerException);
             }
             if (ResponseCode.Unlock.SameAs(code))
             {
-                throw new AuthorizationException(errorMessage);
+                throw new AuthorizationException(errorMessage, innerException);
             }
-            throw new CoreException(errorMessage);
+            throw new CoreException(errorMessage, innerException);
         }
 
         private async Task<IList<string>> GetMessageIDsImplAsync(string afterId, CancellationToken cancellationToken)
