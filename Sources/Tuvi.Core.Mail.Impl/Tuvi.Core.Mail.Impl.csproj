@@ -29,8 +29,8 @@
     <ProjectReference Include="..\Tuvi.Core.DataStorage\Tuvi.Core.DataStorage.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Impl\Tuvi.Core.Impl.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj" />
-    <ProjectReference Include="..\..\..\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj" />
-    <ProjectReference Include="..\..\..\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
   </ItemGroup>
   
   
