@@ -24,9 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\TuviBase32EConverterLib\TuviBytesToEmailConverterLib\TuviBase32EConverterLib\TuviBase32EConverterLib.csproj" />
-    <ProjectReference Include="..\..\..\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj" />
-    <ProjectReference Include="..\..\..\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviBase32EConverterLib\TuviBytesToEmailConverterLib\TuviBase32EConverterLib\TuviBase32EConverterLib.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Backup\Tuvi.Core.Backup.csproj" />
