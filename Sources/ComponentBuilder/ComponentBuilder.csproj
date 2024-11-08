@@ -20,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj" />
     <ProjectReference Include="..\Tuvi.Core.DataStorage.Impl\Tuvi.Core.DataStorage.Impl.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Impl\Tuvi.Core.Impl.csproj" />
