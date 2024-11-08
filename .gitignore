@@ -32,3 +32,12 @@ Sources/Tuvi.Core.Mail.Impl/bin/
 Sources/Tuvi.Core.Impl/bin/
 Sources/Tuvi.Core.DataStorage.Impl/bin/
 Sources/ComponentBuilder/bin/
+Sources/Tests/Tuvi.Core.Mail.Impl.Tests/obj/
+Sources/Tests/Tuvi.Core.Mail.Impl.Tests/bin/
+Sources/Tests/Tuvi.Core.Entities.Tests/obj/
+Sources/Tests/Tuvi.Core.Entities.Tests/bin/
+Sources/Tests/Tuvi.Core.DataStorage.Impl.Tests/obj/
+Sources/Tests/Tuvi.Core.DataStorage.Impl.Tests/bin/
+Sources/Tests/SecurityManagementTests/obj/
+Sources/Tests/SecurityManagementTests/bin/
+Sources/Tests/.vs/

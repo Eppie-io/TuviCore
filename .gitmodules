@@ -1,0 +1,3 @@
+[submodule "gitmodules/TuviPgpLib"]
+	path = gitmodules/TuviPgpLib
+	url = https://github.com/Eppie-io/TuviPgpLib.git
