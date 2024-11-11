@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\proton-cs-client\source\proton-cs-client\proton-cs-client.csproj" />
+    <ProjectReference Include="..\..\gitmodules\proton-cs-client\source\proton-cs-client\proton-cs-client.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj" />
     <ProjectReference Include="..\Tuvi.Core\Tuvi.Core.csproj" />
     <ProjectReference Include="..\Tuvi.Proton\Tuvi.Proton.csproj" />

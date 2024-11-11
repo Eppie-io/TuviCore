@@ -57,6 +57,24 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec.Web.Impl", ".
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec", "..\Tuvi.Core.Dec\Tuvi.Core.Dec.csproj", "{AEE23DEA-0B7C-469E-A366-3E0059D27322}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Tests", "Tuvi.Core.Tests\Tuvi.Core.Tests.csproj", "{F66E8490-AA8F-4F5F-BE6E-52C258425705}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComponentBuilder", "..\ComponentBuilder\ComponentBuilder.csproj", "{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Proton.Impl", "..\Tuvi.Proton.Impl\Tuvi.Proton.Impl.csproj", "{38599A1D-79A2-444F-B77C-55AC95C7F344}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "proton-cs-client", "..\..\gitmodules\proton-cs-client\source\proton-cs-client\proton-cs-client.csproj", "{60D3D6D0-1A62-4B0F-8862-35ADB8929131}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviAuthProtonLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviAuthProtonLib\TuviAuthProtonLib.csproj", "{6863948B-C111-4CA6-8BA4-E210799F55C7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviProtonPrimitiveLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviProtonPrimitiveLib\TuviProtonPrimitiveLib.csproj", "{A5D6305C-D81B-4F4B-8A24-01949964034B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviRestClientLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviRestClientLib\source\TuviRestClientLib\TuviRestClientLib.csproj", "{7D09133E-FA9B-4517-A606-766233A3F58E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviSRPLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\TuviSRPLib\TuviSRPLib.csproj", "{FE47D33E-43CE-46A6-BB33-05BCEE62B892}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtonBase64Lib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\ProtonBase64Lib\ProtonBase64Lib.csproj", "{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -159,6 +177,42 @@ Global
 		{AEE23DEA-0B7C-469E-A366-3E0059D27322}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AEE23DEA-0B7C-469E-A366-3E0059D27322}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AEE23DEA-0B7C-469E-A366-3E0059D27322}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F66E8490-AA8F-4F5F-BE6E-52C258425705}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F66E8490-AA8F-4F5F-BE6E-52C258425705}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F66E8490-AA8F-4F5F-BE6E-52C258425705}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F66E8490-AA8F-4F5F-BE6E-52C258425705}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38599A1D-79A2-444F-B77C-55AC95C7F344}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38599A1D-79A2-444F-B77C-55AC95C7F344}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38599A1D-79A2-444F-B77C-55AC95C7F344}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38599A1D-79A2-444F-B77C-55AC95C7F344}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60D3D6D0-1A62-4B0F-8862-35ADB8929131}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60D3D6D0-1A62-4B0F-8862-35ADB8929131}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60D3D6D0-1A62-4B0F-8862-35ADB8929131}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60D3D6D0-1A62-4B0F-8862-35ADB8929131}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6863948B-C111-4CA6-8BA4-E210799F55C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6863948B-C111-4CA6-8BA4-E210799F55C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6863948B-C111-4CA6-8BA4-E210799F55C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6863948B-C111-4CA6-8BA4-E210799F55C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5D6305C-D81B-4F4B-8A24-01949964034B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5D6305C-D81B-4F4B-8A24-01949964034B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5D6305C-D81B-4F4B-8A24-01949964034B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5D6305C-D81B-4F4B-8A24-01949964034B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D09133E-FA9B-4517-A606-766233A3F58E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D09133E-FA9B-4517-A606-766233A3F58E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D09133E-FA9B-4517-A606-766233A3F58E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D09133E-FA9B-4517-A606-766233A3F58E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE47D33E-43CE-46A6-BB33-05BCEE62B892}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE47D33E-43CE-46A6-BB33-05BCEE62B892}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE47D33E-43CE-46A6-BB33-05BCEE62B892}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE47D33E-43CE-46A6-BB33-05BCEE62B892}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -188,6 +242,15 @@ Global
 		{B2473344-D098-4745-B0E8-5BDC89299944} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
 		{21F86C19-364F-4EB3-86F5-3B0576DF67A9} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
 		{AEE23DEA-0B7C-469E-A366-3E0059D27322} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
+		{F66E8490-AA8F-4F5F-BE6E-52C258425705} = {1664D779-F6AC-49DF-A496-EB9276FCE90A}
+		{AA3E3DBB-1458-48F5-871F-A2A907FBB33E} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
+		{38599A1D-79A2-444F-B77C-55AC95C7F344} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
+		{60D3D6D0-1A62-4B0F-8862-35ADB8929131} = {84300297-036B-4D32-8969-B485498BA9C5}
+		{6863948B-C111-4CA6-8BA4-E210799F55C7} = {84300297-036B-4D32-8969-B485498BA9C5}
+		{A5D6305C-D81B-4F4B-8A24-01949964034B} = {84300297-036B-4D32-8969-B485498BA9C5}
+		{7D09133E-FA9B-4517-A606-766233A3F58E} = {84300297-036B-4D32-8969-B485498BA9C5}
+		{FE47D33E-43CE-46A6-BB33-05BCEE62B892} = {84300297-036B-4D32-8969-B485498BA9C5}
+		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898} = {84300297-036B-4D32-8969-B485498BA9C5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {211859C9-0E4B-4012-AD5F-1C071A6EDD38}
