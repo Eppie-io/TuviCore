@@ -41,3 +41,5 @@ Sources/Tests/Tuvi.Core.DataStorage.Impl.Tests/bin/
 Sources/Tests/SecurityManagementTests/obj/
 Sources/Tests/SecurityManagementTests/bin/
 Sources/Tests/.vs/
+Sources/Tests/Tuvi.Core.Tests/obj/
+Sources/Tests/Tuvi.Core.Tests/bin/
