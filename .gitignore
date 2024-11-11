@@ -43,3 +43,7 @@ Sources/Tests/SecurityManagementTests/bin/
 Sources/Tests/.vs/
 Sources/Tests/Tuvi.Core.Tests/obj/
 Sources/Tests/Tuvi.Core.Tests/bin/
+Sources/Tests/Tuvi.Dec.Web.Impl.Tests/bin/
+Sources/Tests/Tuvi.Dec.Web.Impl.Tests/obj/
+Sources/Tests/Tuvi.Core.Backup.Impl.Tests/obj/
+Sources/Tests/Tuvi.Core.Backup.Impl.Tests/bin/
