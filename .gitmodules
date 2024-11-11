@@ -4,3 +4,6 @@
 [submodule "gitmodules/TuviBase32EConverterLib"]
 	path = gitmodules/TuviBase32EConverterLib
 	url = https://github.com/Eppie-io/TuviBase32EConverterLib.git
+[submodule "gitmodules/proton-cs-client"]
+	path = gitmodules/proton-cs-client
+	url = https://github.com/Eppie-io/proton-cs-client.git
