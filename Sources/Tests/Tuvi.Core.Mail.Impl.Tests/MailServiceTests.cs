@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Tuvi.Core.Mail.Impl.Protocols;
 using Tuvi.Core.Mail.Impl.Protocols.IMAP;
 
-namespace Tuvi.Core.Mail.Impl.Test
+namespace Tuvi.Core.Mail.Impl.Tests
 {
     public class MailServiceTests
     {
