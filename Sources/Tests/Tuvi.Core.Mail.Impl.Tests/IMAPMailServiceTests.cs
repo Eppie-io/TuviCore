@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 
-namespace Tuvi.Core.Mail.Impl.Test
+namespace Tuvi.Core.Mail.Impl.Tests
 {
     public class IMAPMailServiceTests
     {
