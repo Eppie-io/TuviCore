@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Tuvi.Core.DataStorage.Impl\Tuvi.Core.DataStorage.Impl.csproj" />
     <ProjectReference Include="..\..\Tuvi.Core.Mail.Impl\Tuvi.Core.Mail.Impl.csproj" />
+    <ProjectReference Include="..\SecurityManagementTests\SecurityManagement.Test.csproj" />
   </ItemGroup>
 
 </Project>
