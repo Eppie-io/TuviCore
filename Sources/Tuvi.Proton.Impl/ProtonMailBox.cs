@@ -30,6 +30,7 @@ using Tuvi.Proton.Impl;
 using TuviSRPLib;
 
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
+[assembly: InternalsVisibleTo("Tuvi.Core.Mail.Impl.Tests")]
 namespace Tuvi.Proton
 {
     public static class ClientAuth
