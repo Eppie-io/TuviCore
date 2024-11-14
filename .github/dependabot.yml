@@ -16,6 +16,9 @@ updates:
     commit-message:
       prefix: "build"
       include: "scope"
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.Http.Features"
+        versions: ["5.*"]                     # This package [version 5] has been deprecated
     groups:
       Microsoft:
         patterns:
