@@ -3,81 +3,81 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail.Impl.Tests", "Tuvi.Core.Mail.Impl.Tests\Tuvi.Core.Mail.Impl.Tests.csproj", "{863C3FA5-47BC-43D0-8651-C0EA90B72182}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail.Impl.Tests", "Tests\Tuvi.Core.Mail.Impl.Tests\Tuvi.Core.Mail.Impl.Tests.csproj", "{863C3FA5-47BC-43D0-8651-C0EA90B72182}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Entities.Tests", "Tuvi.Core.Entities.Tests\Tuvi.Core.Entities.Tests.csproj", "{DE15D03F-99D4-4075-A203-986FC639944D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Entities.Tests", "Tests\Tuvi.Core.Entities.Tests\Tuvi.Core.Entities.Tests.csproj", "{DE15D03F-99D4-4075-A203-986FC639944D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage.Impl.Tests", "Tuvi.Core.DataStorage.Impl.Tests\Tuvi.Core.DataStorage.Impl.Tests.csproj", "{58137816-47C2-4F9F-BC8F-9AA25819E7CD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage.Impl.Tests", "Tests\Tuvi.Core.DataStorage.Impl.Tests\Tuvi.Core.DataStorage.Impl.Tests.csproj", "{58137816-47C2-4F9F-BC8F-9AA25819E7CD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecurityManagement.Test", "SecurityManagementTests\SecurityManagement.Test.csproj", "{4A5D48AD-A56A-4ACF-B47F-3F1CD1281281}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecurityManagement.Test", "Tests\SecurityManagementTests\SecurityManagement.Test.csproj", "{4A5D48AD-A56A-4ACF-B47F-3F1CD1281281}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1664D779-F6AC-49DF-A496-EB9276FCE90A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{11AC4318-911E-4679-A7DD-5FAC465C37F1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail.Impl", "..\Tuvi.Core.Mail.Impl\Tuvi.Core.Mail.Impl.csproj", "{1AA8FA79-2F87-471A-A2FE-A9D556FA8ADD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail.Impl", "Tuvi.Core.Mail.Impl\Tuvi.Core.Mail.Impl.csproj", "{1AA8FA79-2F87-471A-A2FE-A9D556FA8ADD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Entities", "..\Tuvi.Core.Entities\Tuvi.Core.Entities.csproj", "{360A0E38-4FA4-48ED-A513-9C7492AE4211}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Entities", "Tuvi.Core.Entities\Tuvi.Core.Entities.csproj", "{360A0E38-4FA4-48ED-A513-9C7492AE4211}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage", "..\Tuvi.Core.DataStorage\Tuvi.Core.DataStorage.csproj", "{CBD0145A-CF40-4A14-B7AB-42123203755C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage", "Tuvi.Core.DataStorage\Tuvi.Core.DataStorage.csproj", "{CBD0145A-CF40-4A14-B7AB-42123203755C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage.Impl", "..\Tuvi.Core.DataStorage.Impl\Tuvi.Core.DataStorage.Impl.csproj", "{EDAB384B-69A5-4A10-9A64-2E1F0DE7E87A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.DataStorage.Impl", "Tuvi.Core.DataStorage.Impl\Tuvi.Core.DataStorage.Impl.csproj", "{EDAB384B-69A5-4A10-9A64-2E1F0DE7E87A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core", "..\Tuvi.Core\Tuvi.Core.csproj", "{CC0A6089-6698-4F7B-A906-C9F96986382B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core", "Tuvi.Core\Tuvi.Core.csproj", "{CC0A6089-6698-4F7B-A906-C9F96986382B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Impl", "..\Tuvi.Core.Impl\Tuvi.Core.Impl.csproj", "{242CE6E2-DC82-4377-858F-8004B4A77CB9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Impl", "Tuvi.Core.Impl\Tuvi.Core.Impl.csproj", "{242CE6E2-DC82-4377-858F-8004B4A77CB9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviPgpLibImpl", "..\..\gitmodules\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj", "{2F0CD627-9D5E-48E3-AB3E-F59ECED9B662}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviPgpLibImpl", "..\gitmodules\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj", "{2F0CD627-9D5E-48E3-AB3E-F59ECED9B662}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules", "Modules", "{84300297-036B-4D32-8969-B485498BA9C5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviPgpLib", "..\..\gitmodules\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj", "{5DE94D38-83F4-41EA-B871-433AD9521802}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviPgpLib", "..\gitmodules\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj", "{5DE94D38-83F4-41EA-B871-433AD9521802}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KeyDerivation", "..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationInterface\KeyDerivation.csproj", "{6828D106-26EE-488F-A404-BE4C0B0631E2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KeyDerivation", "..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationInterface\KeyDerivation.csproj", "{6828D106-26EE-488F-A404-BE4C0B0631E2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KeyDerivationLib", "..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj", "{DEF9C92B-86DE-4FF3-9671-ADB51D654D2C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KeyDerivationLib", "..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj", "{DEF9C92B-86DE-4FF3-9671-ADB51D654D2C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviBase32EConverterLib", "..\..\gitmodules\TuviBase32EConverterLib\TuviBytesToEmailConverterLib\TuviBase32EConverterLib\TuviBase32EConverterLib.csproj", "{E57420C3-F944-430E-A25B-D366671FAB3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviBase32EConverterLib", "..\gitmodules\TuviBase32EConverterLib\TuviBytesToEmailConverterLib\TuviBase32EConverterLib\TuviBase32EConverterLib.csproj", "{E57420C3-F944-430E-A25B-D366671FAB3A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup", "..\Tuvi.Core.Backup\Tuvi.Core.Backup.csproj", "{14698900-B9C5-44A1-B3C4-CB071BB2EAC4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup", "Tuvi.Core.Backup\Tuvi.Core.Backup.csproj", "{14698900-B9C5-44A1-B3C4-CB071BB2EAC4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Logging", "..\Tuvi.Core.Logging\Tuvi.Core.Logging.csproj", "{4FDD71E3-9145-4957-805E-7598E0FA63EB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Logging", "Tuvi.Core.Logging\Tuvi.Core.Logging.csproj", "{4FDD71E3-9145-4957-805E-7598E0FA63EB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail", "..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj", "{19909120-A6DC-4138-BE5B-D70A840918CE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Mail", "Tuvi.Core.Mail\Tuvi.Core.Mail.csproj", "{19909120-A6DC-4138-BE5B-D70A840918CE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Proton", "..\Tuvi.Proton\Tuvi.Proton.csproj", "{B094C94D-B2A1-47EE-9E8B-286F92A9B012}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Proton", "Tuvi.Proton\Tuvi.Proton.csproj", "{B094C94D-B2A1-47EE-9E8B-286F92A9B012}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Web.BackupService", "..\Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj", "{0B61E3FD-B0FE-4B88-A1A6-5DC06FC347F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Web.BackupService", "Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj", "{0B61E3FD-B0FE-4B88-A1A6-5DC06FC347F6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Web.BackupServiceClient", "..\Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj", "{9F4F6391-D77F-4F15-807E-714833D3287E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Web.BackupServiceClient", "Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj", "{9F4F6391-D77F-4F15-807E-714833D3287E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup.Impl", "..\Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj", "{B2473344-D098-4745-B0E8-5BDC89299944}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup.Impl", "Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj", "{B2473344-D098-4745-B0E8-5BDC89299944}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec.Web.Impl", "..\Tuvi.Core.Dec.Web.Impl\Tuvi.Core.Dec.Web.Impl.csproj", "{21F86C19-364F-4EB3-86F5-3B0576DF67A9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec.Web.Impl", "Tuvi.Core.Dec.Web.Impl\Tuvi.Core.Dec.Web.Impl.csproj", "{21F86C19-364F-4EB3-86F5-3B0576DF67A9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec", "..\Tuvi.Core.Dec\Tuvi.Core.Dec.csproj", "{AEE23DEA-0B7C-469E-A366-3E0059D27322}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Dec", "Tuvi.Core.Dec\Tuvi.Core.Dec.csproj", "{AEE23DEA-0B7C-469E-A366-3E0059D27322}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Tests", "Tuvi.Core.Tests\Tuvi.Core.Tests.csproj", "{F66E8490-AA8F-4F5F-BE6E-52C258425705}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Tests", "Tests\Tuvi.Core.Tests\Tuvi.Core.Tests.csproj", "{F66E8490-AA8F-4F5F-BE6E-52C258425705}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComponentBuilder", "..\ComponentBuilder\ComponentBuilder.csproj", "{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComponentBuilder", "ComponentBuilder\ComponentBuilder.csproj", "{AA3E3DBB-1458-48F5-871F-A2A907FBB33E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Proton.Impl", "..\Tuvi.Proton.Impl\Tuvi.Proton.Impl.csproj", "{38599A1D-79A2-444F-B77C-55AC95C7F344}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Proton.Impl", "Tuvi.Proton.Impl\Tuvi.Proton.Impl.csproj", "{38599A1D-79A2-444F-B77C-55AC95C7F344}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "proton-cs-client", "..\..\gitmodules\proton-cs-client\source\proton-cs-client\proton-cs-client.csproj", "{60D3D6D0-1A62-4B0F-8862-35ADB8929131}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "proton-cs-client", "..\gitmodules\proton-cs-client\source\proton-cs-client\proton-cs-client.csproj", "{60D3D6D0-1A62-4B0F-8862-35ADB8929131}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviAuthProtonLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviAuthProtonLib\TuviAuthProtonLib.csproj", "{6863948B-C111-4CA6-8BA4-E210799F55C7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviAuthProtonLib", "..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviAuthProtonLib\TuviAuthProtonLib.csproj", "{6863948B-C111-4CA6-8BA4-E210799F55C7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviProtonPrimitiveLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviProtonPrimitiveLib\TuviProtonPrimitiveLib.csproj", "{A5D6305C-D81B-4F4B-8A24-01949964034B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviProtonPrimitiveLib", "..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\source\TuviProtonPrimitiveLib\TuviProtonPrimitiveLib.csproj", "{A5D6305C-D81B-4F4B-8A24-01949964034B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviRestClientLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviRestClientLib\source\TuviRestClientLib\TuviRestClientLib.csproj", "{7D09133E-FA9B-4517-A606-766233A3F58E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviRestClientLib", "..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviRestClientLib\source\TuviRestClientLib\TuviRestClientLib.csproj", "{7D09133E-FA9B-4517-A606-766233A3F58E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviSRPLib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\TuviSRPLib\TuviSRPLib.csproj", "{FE47D33E-43CE-46A6-BB33-05BCEE62B892}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TuviSRPLib", "..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\TuviSRPLib\TuviSRPLib.csproj", "{FE47D33E-43CE-46A6-BB33-05BCEE62B892}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtonBase64Lib", "..\..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\ProtonBase64Lib\ProtonBase64Lib.csproj", "{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtonBase64Lib", "..\gitmodules\proton-cs-client\gitmodules\TuviAuthProtonLib\gitmodules\TuviSRPLib\TuviSRPLib\ProtonBase64Lib\ProtonBase64Lib.csproj", "{FB10E7EC-1D86-4316-94F9-9DB0B12EB898}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Dec.Web.Impl.Tests", "Tuvi.Dec.Web.Impl.Tests\Tuvi.Dec.Web.Impl.Tests.csproj", "{20E2C608-6BFC-4098-AD56-5EF6DD9C0ACE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Dec.Web.Impl.Tests", "Tests\Tuvi.Dec.Web.Impl.Tests\Tuvi.Dec.Web.Impl.Tests.csproj", "{20E2C608-6BFC-4098-AD56-5EF6DD9C0ACE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup.Impl.Tests", "Tuvi.Core.Backup.Impl.Tests\Tuvi.Core.Backup.Impl.Tests.csproj", "{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup.Impl.Tests", "Tests\Tuvi.Core.Backup.Impl.Tests\Tuvi.Core.Backup.Impl.Tests.csproj", "{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
