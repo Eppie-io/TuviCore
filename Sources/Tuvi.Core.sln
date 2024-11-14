@@ -79,6 +79,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Dec.Web.Impl.Tests", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tuvi.Core.Backup.Impl.Tests", "Tests\Tuvi.Core.Backup.Impl.Tests\Tuvi.Core.Backup.Impl.Tests.csproj", "{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{807B2A75-F2F8-4635-BA00-8A9BA2896D69}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
