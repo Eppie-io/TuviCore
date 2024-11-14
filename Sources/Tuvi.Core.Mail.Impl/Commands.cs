@@ -164,7 +164,7 @@ namespace Tuvi.Core.Mail.Impl
                         // upwrap inner exception
                         throw ex.InnerException;
                     }
-                    this.Log().LogError(ex, "");
+                    this.Log().LogError(ex, "An error occurred while executing the command");
                     throw;
                 }
                 finally

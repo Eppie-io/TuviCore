@@ -24,17 +24,17 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public void LogClient(byte[] buffer, int offset, int count)
         {
-            this.Log().LogTrace($"IMAP Client: {Encoding.ASCII.GetString(buffer, offset, count)}");
+            this.Log().LogTrace("IMAP Client: {Data}", Encoding.ASCII.GetString(buffer, offset, count));
         }
 
         public void LogConnect(Uri uri)
         {
-            this.Log().LogTrace($"IMAP connect: {uri}");
+            this.Log().LogTrace("IMAP connect: {URI}", uri);
         }
 
         public void LogServer(byte[] buffer, int offset, int count)
         {
-            this.Log().LogTrace($"IMAP Server: {Encoding.ASCII.GetString(buffer, offset, count)}");
+            this.Log().LogTrace("IMAP Server: {Data}", Encoding.ASCII.GetString(buffer, offset, count));
         }
     }
 
