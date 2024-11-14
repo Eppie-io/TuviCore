@@ -353,7 +353,7 @@ namespace Tuvi.Core.Impl
 
         private void RaiseMessageDeleted(Folder folder, uint uid)
         {
-            this.Log().LogDebug($"MessageDeleted {folder.FullName}, uid = {uid}");
+            this.Log().LogDebug("MessageDeleted {Folder}, {UID}", folder.FullName, uid);
             Debug.Assert(MessageDeleted != null);
             MessageDeleted.Invoke(null, new MessageDeletedEventArgs(Account.Email, folder, uid));
         }
@@ -494,7 +494,7 @@ namespace Tuvi.Core.Impl
 
         public async Task SynchronizeAsync(bool full, CancellationToken cancellationToken)
         {
-            this.Log().LogDebug($"Synchronization({full}): {Account.Email.Address}");
+            this.Log().LogDebug("Synchronization({Full}): {Email}", full, Account.Email.Address);
             var sw = new Stopwatch();
             sw.Start();
             try
@@ -504,11 +504,11 @@ namespace Tuvi.Core.Impl
                     await SynchronizeFolderAsync(folder, full, cancellationToken).ConfigureAwait(false);
                 }
                 sw.Stop();
-                this.Log().LogDebug($"Synchronization({full}) {Account.Email.Address} completed in {sw.Elapsed}");
+                this.Log().LogDebug("Synchronization({Full}): {Email} completed in {Time}", full, Account.Email.Address, sw.Elapsed);
             }
             catch
             {
-                this.Log().LogDebug($"Synchronization({full}) {Account.Email.Address} interrupted by exception");
+                this.Log().LogDebug("Synchronization({Full}): {Email} interrupted by exception", full, Account.Email.Address);
                 throw;
             }
         }
@@ -549,7 +549,7 @@ namespace Tuvi.Core.Impl
             protected override async Task DeleteMessagesAsync(IReadOnlyList<Message> messages,
                                                               CancellationToken cancellationToken)
             {
-                this.Log().LogDebug($"Deleting messages {messages.Count}");
+                this.Log().LogDebug("Deleting messages {Count}", messages.Count);
                 await _accountService.DeleteLocalMessagesAsync(_folder,
                                                                messages,
                                                                updateUnreadAndTotal: !MailBox.HasFolderCounters,
@@ -558,7 +558,7 @@ namespace Tuvi.Core.Impl
             protected override async Task UpdateMessagesAsync(IReadOnlyList<Message> messages,
                                                               CancellationToken cancellationToken)
             {
-                this.Log().LogDebug($"Updating messages {messages.Count}");
+                this.Log().LogDebug("Updating messages {Count}", messages.Count);
                 await DataStorage.UpdateMessagesFlagsAsync(Account.Email,
                                                            messages,
                                                            updateUnreadAndTotal: !MailBox.HasFolderCounters,
@@ -575,7 +575,7 @@ namespace Tuvi.Core.Impl
                 {
                     Debug.Assert(messages.Count > 0);
                     sw.Start();
-                    this.Log().LogDebug($"Adding messages {messages.Count}");
+                    this.Log().LogDebug("Adding messages {Count}", messages.Count);
                     // divide into continuous intervals
                     var copy = new List<Message>(messages);
                     copy.Sort((left, right) => -left.Id.CompareTo(right.Id)); // descending
@@ -614,27 +614,27 @@ namespace Tuvi.Core.Impl
                     }
 
                     await UpdateMessageListAsync(updatedMessages, cancellationToken).ConfigureAwait(false);
-                    this.Log().LogDebug($"{updatedMessages.Count} updated messages stored");
+                    this.Log().LogDebug("{Count} updated messages stored", updatedMessages.Count);
                 }
                 catch
                 {
-                    this.Log().LogDebug($"Storing interrupted, exception was thrown");
+                    this.Log().LogDebug("Storing interrupted, exception was thrown");
                     throw;
                 }
                 finally
                 {
                     sw.Stop();
-                    this.Log().LogDebug($"Adding messages took {sw.Elapsed}");
+                    this.Log().LogDebug("Adding messages took {Time}", sw.Elapsed);
                 }
             }
 
             private async Task UpdateMessageListAsync(List<Message> updatedMessages, CancellationToken cancellationToken)
             {
-                this.Log().LogDebug($"Storing {updatedMessages.Count} updated messages...");
+                this.Log().LogDebug("Storing {Count} updated messages...", updatedMessages.Count);
                 await _accountService.AddMessagesToDataStorageOnSyncAsync(_folder,
                                                                           updatedMessages,
                                                                           cancellationToken).ConfigureAwait(false);
-                this.Log().LogDebug($"{updatedMessages.Count} updated messages stored");
+                this.Log().LogDebug("{Count} updated messages stored", updatedMessages.Count);
                 updatedMessages.Clear();
             }
         }
@@ -646,7 +646,7 @@ namespace Tuvi.Core.Impl
                 return;
             }
 
-            this.Log().LogDebug($"Sync({full}) {folder?.AccountEmail.Address} folder {folder?.FullName} started...");
+            this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} started...", full, folder?.AccountEmail.Address, folder?.FullName);
             var sw = new Stopwatch();
             sw.Start();
             try
@@ -681,12 +681,12 @@ namespace Tuvi.Core.Impl
             }
             catch (OperationCanceledException)
             {
-                this.Log().LogDebug($"Sync({full}) {folder?.AccountEmail.Address} folder {folder?.FullName} is interrupted");
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} is interrupted", full, folder?.AccountEmail.Address, folder?.FullName);
             }
             finally
             {
                 sw.Stop();
-                this.Log().LogDebug($"Sync({full}) {folder?.AccountEmail.Address} folder {folder?.FullName} took {sw.Elapsed}");
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} took {Time}", full, folder?.AccountEmail.Address, folder?.FullName, sw.Elapsed);
             }
         }
     }

@@ -89,7 +89,7 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                this.Log().LogError(ex.Message);
+                this.Log().LogError(ex, "An error occurred while executing the action");
                 ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
             }
             finally

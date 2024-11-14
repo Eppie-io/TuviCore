@@ -188,7 +188,7 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                this.Log().LogDebug(ex.Message);
+                this.Log().LogError(ex, "An error occurred while initializing and starting all account scheduler");
             }
         }
 
@@ -257,7 +257,7 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                RegisterException(ex);
+                RegisterException(ex, "An error occurred while checking for new messages");
             }
         }
 
@@ -608,7 +608,7 @@ namespace Tuvi.Core.Impl
                 await folder.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
                 await LoadNewMessagesAsync(folder, cancellationToken).ConfigureAwait(true);
                 await folder.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
-                RegisterExceptions(folder.Exceptions);
+                RegisterExceptions(folder.Exceptions, "An error occurred while checking for new messages in folder");
             }
             catch (OperationCanceledException)
             {
@@ -670,33 +670,33 @@ namespace Tuvi.Core.Impl
         {
             try
             {
-                this.Log().LogDebug($"OnMessageDeleted {args.Folder.FullName}, uid = {args.MessageID}");
+                this.Log().LogDebug("OnMessageDeleted {Folder}, uid = {MessageID}", args.Folder.FullName, args.MessageID);
                 MessageDeleted?.Invoke(sender, args);
             }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                RegisterException(ex);
+                RegisterException(ex, "An error occurred while deleting the message");
             }
         }
 
-        private void RegisterExceptions(IEnumerable<Exception> exceptions)
+        private void RegisterExceptions(IEnumerable<Exception> exceptions, string message)
         {
             foreach(var ex in exceptions)
             {
-                RegisterException(ex);
+                RegisterException(ex, message);
             }
         }
 
-        private void RegisterException(Exception ex)
+        private void RegisterException(Exception ex, string message)
         {
             if (ex is OperationCanceledException ||
                 ex is ObjectDisposedException)
             {
                 return;
             }
-            this.Log().LogDebug(ex.Message);
+            this.Log().LogError(ex, "Error details: {Details}", message);
             ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
         }
 
@@ -914,7 +914,7 @@ namespace Tuvi.Core.Impl
             try
             {
                 var loadedItems = await folder.ReceiveEarlierMessagesAsync(_receiveBatchSize, cancellationToken).ConfigureAwait(false);
-                RegisterExceptions(folder.Exceptions);
+                RegisterExceptions(folder.Exceptions, "An error occurred while retrieving earlier messages");
                 var lastStoredMessage = storedMessagesCount == 0 ? lastMessage : storedMessages[storedMessagesCount - 1];
                 messages.AddRange(await func(count - messages.Count, lastStoredMessage, cancellationToken).ConfigureAwait(true));
 

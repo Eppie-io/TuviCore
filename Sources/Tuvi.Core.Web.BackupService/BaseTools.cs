@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.WindowsAzure.Storage.Blob;
+﻿using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.IO;
 using System.Text;
@@ -10,16 +10,16 @@ namespace Tuvi.Core.Web.BackupService
 {
     public static class BaseTools
     {
-        public static async Task<bool> IsUploadAllowedAsync(IFormFileCollection files, CloudBlobContainer cloudBlobContainer, string backupPgpKeyIdentity)
+        public static async Task<bool> IsUploadAllowedAsync(IFormFileCollection files, BlobContainerClient blobContainerClient, string backupPgpKeyIdentity)
         {
             if (files is null)
             {
                 throw new ArgumentNullException(nameof(files));
             }
 
-            if (cloudBlobContainer is null)
+            if (blobContainerClient is null)
             {
-                throw new ArgumentNullException(nameof(cloudBlobContainer));
+                throw new ArgumentNullException(nameof(blobContainerClient));
             }
 
             var result = false;
@@ -38,15 +38,15 @@ namespace Tuvi.Core.Web.BackupService
                 var backupFile = GetIFormFile(backupName, files);
 
                 var publicKeyBlobName = publicKeyName;
-                var publicKeyCloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(publicKeyBlobName);
-                var publicKeyExists = await publicKeyCloudBlockBlob.ExistsAsync().ConfigureAwait(false);
+                var publicKeyBlobClient = blobContainerClient.GetBlobClient(publicKeyBlobName);
+                var publicKeyExists = await publicKeyBlobClient.ExistsAsync().ConfigureAwait(false);
 
                 if (publicKeyExists)
                 {
                     //The public key has already been saved, we check the signature with it.
                     //And also check the signature using a new key.
 
-                    var result1 = await VerifySignatureAsync(publicKeyCloudBlockBlob, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
+                    var result1 = await VerifySignatureAsync(publicKeyBlobClient, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
                     var result2 = await VerifySignatureAsync(publicKeyFile, signatureFile, backupFile, backupPgpKeyIdentity).ConfigureAwait(false);
 
                     result = result1 && result2;
@@ -95,11 +95,11 @@ namespace Tuvi.Core.Web.BackupService
             return result;
         }
 
-        public static async Task<bool> VerifySignatureAsync(CloudBlockBlob publicKeyCloudBlockBlob, IFormFile signatureFile, IFormFile backupFile, string backupPgpKeyIdentity)
+        public static async Task<bool> VerifySignatureAsync(BlobClient publicKeyBlobClient, IFormFile signatureFile, IFormFile backupFile, string backupPgpKeyIdentity)
         {
-            if (publicKeyCloudBlockBlob is null)
+            if (publicKeyBlobClient is null)
             {
-                throw new ArgumentNullException(nameof(publicKeyCloudBlockBlob));
+                throw new ArgumentNullException(nameof(publicKeyBlobClient));
             }
 
             if (signatureFile is null)
@@ -118,7 +118,7 @@ namespace Tuvi.Core.Web.BackupService
             using (var signatureStream = new MemoryStream())
             using (var backupStream = new MemoryStream())
             {
-                await publicKeyCloudBlockBlob.DownloadToStreamAsync(publicKeyStream).ConfigureAwait(false);
+                await publicKeyBlobClient.DownloadToAsync(publicKeyStream).ConfigureAwait(false);
                 await signatureFile.CopyToAsync(signatureStream).ConfigureAwait(false);
                 await backupFile.CopyToAsync(backupStream).ConfigureAwait(false);
 
@@ -128,21 +128,21 @@ namespace Tuvi.Core.Web.BackupService
             return result;
         }
 
-        public static async Task<string> GetFileCidAsync(string name, CloudBlobContainer cloudBlobContainer)
+        public static async Task<string> GetFileCidAsync(string name, BlobContainerClient blobContainerClient)
         {
-            if (cloudBlobContainer is null)
+            if (blobContainerClient is null)
             {
-                throw new ArgumentNullException(nameof(cloudBlobContainer));
+                throw new ArgumentNullException(nameof(blobContainerClient));
             }
 
             var fingerprint = Path.GetFileNameWithoutExtension(name);
-            var cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(fingerprint + DataIdentificators.CidExtension);
+            var blobClient = blobContainerClient.GetBlobClient(fingerprint + DataIdentificators.CidExtension);
 
-            if (await cloudBlockBlob.ExistsAsync().ConfigureAwait(false))
+            if (await blobClient.ExistsAsync().ConfigureAwait(false))
             {
                 using (var ms = new MemoryStream())
                 {
-                    await cloudBlockBlob.DownloadToStreamAsync(ms).ConfigureAwait(false);
+                    await blobClient.DownloadToAsync(ms).ConfigureAwait(false);
 
                     var cid = Encoding.UTF8.GetString(ms.ToArray());
 
@@ -158,21 +158,21 @@ namespace Tuvi.Core.Web.BackupService
             public string cid { get; set; }
         }
 
-        public static async Task SaveFileCidAsync(CloudBlobContainer cloudBlobContainer, string name, string json)
+        public static async Task SaveFileCidAsync(BlobContainerClient blobContainerClient, string name, string json)
         {
-            if (cloudBlobContainer is null)
+            if (blobContainerClient is null)
             {
-                throw new ArgumentNullException(nameof(cloudBlobContainer));
+                throw new ArgumentNullException(nameof(blobContainerClient));
             }
 
             var jsonCid = new JsonCid();
             jsonCid = JsonSerializer.Deserialize<JsonCid>(json);
 
             var fingerprint = Path.GetFileNameWithoutExtension(name);
-            var cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(fingerprint + DataIdentificators.CidExtension);
+            var blobClient = blobContainerClient.GetBlobClient(fingerprint + DataIdentificators.CidExtension);
 
             var array = Encoding.UTF8.GetBytes(jsonCid.cid);
-            await cloudBlockBlob.UploadFromByteArrayAsync(array, 0, array.Length).ConfigureAwait(false);
+            await blobClient.UploadAsync(BinaryData.FromBytes(array)).ConfigureAwait(false);
         }
 
         public static IFormFile GetIFormFile(string name, IFormFileCollection files)
