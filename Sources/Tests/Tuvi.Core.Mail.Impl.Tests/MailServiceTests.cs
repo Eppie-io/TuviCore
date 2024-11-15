@@ -52,7 +52,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             imapClientMock.Setup(a => a.IsConnected).Returns(true);
             using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, ServerPort);
             await service.ConnectAsync(default).ConfigureAwait(false);
-            Assert.IsTrue(service.IsConnected);
+            Assert.That(service.IsConnected, Is.True);
         }
 
         [Test]

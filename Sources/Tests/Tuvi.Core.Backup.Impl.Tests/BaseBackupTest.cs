@@ -35,7 +35,7 @@ namespace BackupTests
 
             Fingerprint = context.GetSigningKey(mailbox).PublicKey.CreatePgpKeyInfo().Fingerprint;
 
-            Assert.IsNotEmpty(Fingerprint);
+            Assert.That(Fingerprint, Is.Not.Empty);
 
             BackupDataProtector = BackupProtectorCreator.CreateBackupProtector(context);
             BackupDataProtector.SetPgpKeyIdentity(TestData.BackupPgpKeyIdentity);
@@ -53,12 +53,12 @@ namespace BackupTests
 
                 PublicKey = context.GetSigningKey(mailbox).PublicKey;
 
-                Assert.IsTrue(!PublicKey.IsMasterKey);
-                Assert.IsTrue(!PublicKey.IsEncryptionKey);
+                Assert.That(!PublicKey.IsMasterKey, Is.True);
+                Assert.That(!PublicKey.IsEncryptionKey, Is.True);
                 
                 var fingerprint = PublicKey.CreatePgpKeyInfo().Fingerprint;
-                Assert.IsNotEmpty(fingerprint);
-                Assert.IsTrue(Fingerprint == fingerprint);
+                Assert.That(fingerprint, Is.Not.Empty);
+                Assert.That(Fingerprint == fingerprint, Is.True);
 
                 var identities = new List<UserIdentity> { TestData.GetAccount().GetUserIdentity() };
 
@@ -69,8 +69,8 @@ namespace BackupTests
 
                 var verificationPublicKey = verificationContext.EnumeratePublicKeys().Where(key => key.IsMasterKey == false && key.IsEncryptionKey == false).First();
                 var verificationPublicKeyFingerprint = verificationPublicKey.CreatePgpKeyInfo().Fingerprint;
-                Assert.IsNotEmpty(verificationPublicKeyFingerprint);
-                Assert.IsTrue(Fingerprint == verificationPublicKeyFingerprint);
+                Assert.That(verificationPublicKeyFingerprint, Is.Not.Empty);
+                Assert.That(Fingerprint == verificationPublicKeyFingerprint, Is.True);
 
                 BackupDataSignatureVerifier = BackupProtectorCreator.CreateBackupProtector(verificationContext);
                 BackupDataSignatureVerifier.SetPgpKeyIdentity(TestData.BackupPgpKeyIdentity);
@@ -108,11 +108,11 @@ namespace BackupTests
             await parser.ParseBackupAsync(backup).ConfigureAwait(true);
 
             var version = await parser.GetVersionAsync().ConfigureAwait(true);
-            Assert.AreEqual(TestData.ProtocolVersion, version);
+            Assert.That(TestData.ProtocolVersion, Is.EqualTo(version));
 
             var accounts = await parser.GetAccountsAsync().ConfigureAwait(true);
-            Assert.AreEqual(TestData.Account1, accounts[0]);
-            Assert.AreEqual(TestData.Account2, accounts[1]);
+            Assert.That(TestData.Account1, Is.EqualTo(accounts[0]));
+            Assert.That(TestData.Account2, Is.EqualTo(accounts[1]));
         }
     }
 }

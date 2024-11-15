@@ -101,7 +101,7 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 storage.CreateAsync(Password).Wait();
                 storage.ResetAsync().Wait();
-                Assert.IsFalse(DatabaseFileExists());
+                Assert.That(DatabaseFileExists(), Is.False);
             }
         }
 

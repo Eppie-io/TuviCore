@@ -444,7 +444,7 @@ namespace Tuvi.Core.Tests
             await accountService.AddMessagesToDataStorageAsync(account.DefaultInboxFolder, messages, default).ConfigureAwait(true);
 
             var counts = await core.GetUnreadMessagesCountByContactAsync().ConfigureAwait(true);
-            Assert.AreEqual(messages.Count, counts.Select(x => x.Value).Sum());
+            Assert.That(messages.Count, Is.EqualTo(counts.Select(x => x.Value).Sum()));
         }
 
         private static List<Message> GenerateTestMessages(Account account, int ContactCount, int MessageCount, List<EmailAddress> contacts)

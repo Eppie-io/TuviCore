@@ -7,13 +7,13 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void AreEmailsEqualOneArgumentIsNull()
         {
-            Assert.IsFalse(StringHelper.AreEmailsEqual("some@email.com", null));
+            Assert.That(StringHelper.AreEmailsEqual("some@email.com", null), Is.False);
         }
 
         [Test]
         public void AreEmailsEqualTwoArgumentsAreNull()
         {
-            Assert.IsTrue(StringHelper.AreEmailsEqual(null, null));
+            Assert.That(StringHelper.AreEmailsEqual(null, null), Is.True);
         }
     }
 }

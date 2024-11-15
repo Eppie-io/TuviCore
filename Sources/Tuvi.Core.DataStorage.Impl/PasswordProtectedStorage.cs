@@ -108,7 +108,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 try
                 {
                     newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
-                    await Database.ExecuteAsync($"PRAGMA rekey = \"{newPassword}\";").ConfigureAwait(false);
+                    await Database.ReKeyAsync(newPassword).ConfigureAwait(false);                   
                 }
                 catch (SQLite.SQLiteException exp)
                 {

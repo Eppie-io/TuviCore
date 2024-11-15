@@ -27,15 +27,15 @@ namespace Tuvi.Core.DataStorage.Tests
         public async Task AddContactToDataStorage()
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
-            Assert.IsFalse(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true));
+            Assert.That(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true), Is.False);
 
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
             var contact = await db.GetContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(ContactsAreEqual(contact, TestData.Contact));
-            Assert.AreEqual(contact.Email, TestData.Contact.Email);
+            Assert.That(ContactsAreEqual(contact, TestData.Contact), Is.True);
+            Assert.That(contact.Email, Is.EqualTo(TestData.Contact.Email));
         }
 
         [Test]
@@ -51,7 +51,7 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.CatchAsync<DataBaseException>(async () => await db.AddContactAsync(contact, default).ConfigureAwait(true), "no email");
             contact.Email = new EmailAddress("contact@address1.io");
             Assert.DoesNotThrowAsync(async () => await db.AddContactAsync(contact, default).ConfigureAwait(true));
-            Assert.IsTrue(await db.ExistsContactWithEmailAddressAsync(contact.Email, default).ConfigureAwait(true));
+            Assert.That(await db.ExistsContactWithEmailAddressAsync(contact.Email, default).ConfigureAwait(true), Is.True);
         }
 
         [Test]
@@ -59,14 +59,14 @@ namespace Tuvi.Core.DataStorage.Tests
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
 
-            Assert.IsFalse(await db.ExistsContactWithEmailAddressAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true));
+            Assert.That(await db.ExistsContactWithEmailAddressAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true), Is.False);
 
             await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
 
             var contact = await db.GetContactAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(ContactsAreEqual(contact, TestData.ContactWithAvatar));
+            Assert.That(ContactsAreEqual(contact, TestData.ContactWithAvatar), Is.True);
         }
 
         private static bool ContactsAreEqual(Contact c1, Contact c2)
@@ -99,18 +99,18 @@ namespace Tuvi.Core.DataStorage.Tests
         public async Task SetContactAvatar()
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
-            Assert.IsFalse(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true));
+            Assert.That(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true), Is.False);
 
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
 
             Assert.CatchAsync<DataBaseException>(async () => await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(true), "Duplicate contacts are prohibited");
 
             await db.SetContactAvatarAsync(TestData.Contact.Email, TestData.ContactAvatar.Bytes, TestData.ContactAvatar.Width, TestData.ContactAvatar.Height, default).ConfigureAwait(true);
             var contact = await db.GetContactAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(ImageInfosAreEqual(contact.AvatarInfo, TestData.ContactAvatar));
+            Assert.That(ImageInfosAreEqual(contact.AvatarInfo, TestData.ContactAvatar), Is.True);
         }
 
         [Test]
@@ -120,13 +120,13 @@ namespace Tuvi.Core.DataStorage.Tests
 
             await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
 
             await db.RemoveContactAvatarAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
 
             var contact = await db.GetContactAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(contact.AvatarInfo.IsEmpty);
+            Assert.That(contact.AvatarInfo.IsEmpty, Is.True);
         }
 
         [Test]
@@ -136,7 +136,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
 
             var contact = await db.GetContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
             contact.FullName = "Updated name";
@@ -144,7 +144,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var updatedContact = await db.GetContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(ContactsAreEqual(contact, updatedContact));
+            Assert.That(ContactsAreEqual(contact, updatedContact), Is.True);
         }
 
         [Test]
@@ -154,13 +154,13 @@ namespace Tuvi.Core.DataStorage.Tests
 
             await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(true);
             var isAdded = await db.ExistsContactWithEmailAddressAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
-            Assert.IsTrue(isAdded);
+            Assert.That(isAdded, Is.True);
 
             var updatedAvatarInfo = new ImageInfo(360, 360, new byte[] { 25, 182, 137, 59, 46, 78, 69, 214 });
             await db.SetContactAvatarAsync(TestData.ContactWithAvatar.Email, updatedAvatarInfo.Bytes, updatedAvatarInfo.Width, updatedAvatarInfo.Height, default).ConfigureAwait(true);
             var contact = await db.GetContactAsync(TestData.ContactWithAvatar.Email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(ImageInfosAreEqual(contact.AvatarInfo, updatedAvatarInfo));
+            Assert.That(ImageInfosAreEqual(contact.AvatarInfo, updatedAvatarInfo), Is.True);
         }
 
         [Test]
@@ -170,7 +170,7 @@ namespace Tuvi.Core.DataStorage.Tests
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(true);
 
             await db.RemoveContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsFalse(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true));
+            Assert.That(await db.ExistsContactWithEmailAddressAsync(TestData.Contact.Email, default).ConfigureAwait(true), Is.False);
         }
 
         [Test]
@@ -180,17 +180,17 @@ namespace Tuvi.Core.DataStorage.Tests
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(true);
 
             var contact = await db.GetContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsNull(contact.LastMessageData);
-            Assert.IsTrue(contact.LastMessageDataId == 0);
+            Assert.That(contact.LastMessageData, Is.Null);
+            Assert.That(contact.LastMessageDataId == 0, Is.True);
 
             contact.LastMessageData = new LastMessageData(TestData.Account.Email, TestData.Message.Id, System.DateTimeOffset.Now);
 
             await db.UpdateContactAsync(contact, default).ConfigureAwait(true);
 
             contact = await db.GetContactAsync(TestData.Contact.Email, default).ConfigureAwait(true);
-            Assert.IsNotNull(contact.LastMessageData);
-            Assert.IsTrue(contact.LastMessageData.MessageId == TestData.Message.Id);
-            Assert.IsTrue(contact.LastMessageData.Date > System.DateTimeOffset.MinValue);
+            Assert.That(contact.LastMessageData, Is.Not.Null);
+            Assert.That(contact.LastMessageData.MessageId == TestData.Message.Id, Is.True);
+            Assert.That(contact.LastMessageData.Date > System.DateTimeOffset.MinValue, Is.True);
             Assert.That(contact.LastMessageData.AccountEmail, Is.EqualTo(TestData.Account.Email));
         }
 
@@ -199,8 +199,8 @@ namespace Tuvi.Core.DataStorage.Tests
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
 
-            Assert.IsTrue(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true));
-            Assert.IsFalse(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true));
+            Assert.That(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true), Is.True);
+            Assert.That(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true), Is.False);
         }
 
         [Test]
@@ -216,10 +216,10 @@ namespace Tuvi.Core.DataStorage.Tests
             await db.AddMessageAsync(accountEmail, message2).ConfigureAwait(true);
 
             var contacts = await db.GetContactsWithLastMessageIdAsync(accountEmail, message.Id, default).ConfigureAwait(true);
-            Assert.IsFalse(contacts.Any());
+            Assert.That(contacts.Any(), Is.False);
 
             var contacts2 = await db.GetContactsWithLastMessageIdAsync(accountEmail, message2.Id, default).ConfigureAwait(true);
-            Assert.IsTrue(contacts2.Count() == 1);
+            Assert.That(contacts2.Count() == 1, Is.True);
         }
 
         [Test]

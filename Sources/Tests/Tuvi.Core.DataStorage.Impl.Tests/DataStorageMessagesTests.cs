@@ -1,9 +1,9 @@
-﻿using System;
+﻿using NUnit.Framework;
+using NUnit.Framework.Internal;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using NUnit.Framework.Internal;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -38,10 +38,10 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.AddMessageAsync(accountEmail, message).ConfigureAwait(true);
             }
 
-            Assert.IsTrue(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true));
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.True);
 
             await db.DeleteMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
-            Assert.IsFalse(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true));
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.False);
         }
 
         [Test]
@@ -60,13 +60,13 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, 0).ConfigureAwait(true);
 
-            Assert.AreEqual(addMessageList.Count, receivedMessageList.Count);
+            Assert.That(addMessageList.Count, Is.EqualTo(receivedMessageList.Count));
 
             await db.DeleteMessagesAsync(accountEmail, TestData.Folder, addMessageList.ConvertAll(x => x.Id)).ConfigureAwait(true);
 
             foreach (var message in addMessageList)
             {
-                Assert.IsFalse(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true));
+                Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.False);
             }
         }
 
@@ -82,11 +82,11 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.DeleteMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
             }
 
-            Assert.IsFalse(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true));
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.False);
 
             await db.AddMessageAsync(accountEmail, message).ConfigureAwait(true);
 
-            Assert.IsTrue(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true));
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.True);
             Assert.That(message.Folder, Is.Not.Null);
             Assert.That(message.FolderId, Is.Not.EqualTo(0));
             Assert.That(message.Folder.AccountEmail, Is.Not.Null);
@@ -128,7 +128,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var newMessage = await db.GetMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
 
-            Assert.IsTrue(message.TextBody == newMessage.TextBody);
+            Assert.That(message.TextBody == newMessage.TextBody, Is.True);
         }
 
         [Test]
@@ -142,7 +142,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var latestMessage = await db.GetLatestMessageAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
 
-            Assert.IsTrue(latestMessage.Id == message.Id);
+            Assert.That(latestMessage.Id == message.Id, Is.True);
         }
 
         [Test]
@@ -158,8 +158,8 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var lastMessage = await db.GetContactLastMessageAsync(accountEmail, TestData.Folder, email, default).ConfigureAwait(true);
 
-            Assert.IsTrue(lastMessage.Id == message.Id);
-            Assert.Contains(email, lastMessage.From);
+            Assert.That(lastMessage.Id == message.Id, Is.True);            
+            Assert.That(lastMessage.From, Does.Contain(email));
         }
 
         [Test]
@@ -300,12 +300,12 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var earlierMessages = await db.GetEarlierContactMessagesAsync(contactEmail, 10, null, default).ConfigureAwait(true); ;
 
-            Assert.AreEqual(addMessageList.Count, earlierMessages.Count);
+            Assert.That(addMessageList.Count, Is.EqualTo(earlierMessages.Count));
 
             int lastMessageIndex = 5;
             var earlierMessages2 = await db.GetEarlierContactMessagesAsync(contactEmail, 10, addMessageList[lastMessageIndex], default).ConfigureAwait(true);
 
-            Assert.AreEqual(lastMessageIndex, earlierMessages2.Count);
+            Assert.That(lastMessageIndex, Is.EqualTo(earlierMessages2.Count));
         }
 
         [Test]
@@ -324,7 +324,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, 0).ConfigureAwait(true);
 
-            Assert.AreEqual(addMessageList.Count, receivedMessageList.Count);
+            Assert.That(addMessageList.Count, Is.EqualTo(receivedMessageList.Count));
         }
 
         [Test]
@@ -344,7 +344,7 @@ namespace Tuvi.Core.DataStorage.Tests
             uint countToReceive = 5;
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, countToReceive).ConfigureAwait(true);
 
-            Assert.AreEqual(countToReceive, receivedMessageList.Count);
+            Assert.That(countToReceive, Is.EqualTo(receivedMessageList.Count));
         }
 
 
@@ -365,7 +365,7 @@ namespace Tuvi.Core.DataStorage.Tests
             uint countToReceive = 20;
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, countToReceive).ConfigureAwait(true);
 
-            Assert.AreEqual(messageCount, receivedMessageList.Count);
+            Assert.That(messageCount, Is.EqualTo(receivedMessageList.Count));
         }
 
         [Test]
@@ -385,7 +385,7 @@ namespace Tuvi.Core.DataStorage.Tests
             uint countToReceive = 3;
             int startPosition = 5;
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, addMessageList[startPosition].Id, countToReceive).ConfigureAwait(true);
-            Assert.AreEqual(countToReceive, receivedMessageList.Count);
+            Assert.That(countToReceive, Is.EqualTo(receivedMessageList.Count));
 
             bool isCorrect = true;
             var temp = addMessageList.Where(x => x.Id < addMessageList[startPosition].Id).OrderByDescending(x => x.Id).Take((int)countToReceive).ToList();
@@ -397,7 +397,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 }
             }
 
-            Assert.IsTrue(isCorrect);
+            Assert.That(isCorrect, Is.True);
         }
 
         [Test]
@@ -418,7 +418,7 @@ namespace Tuvi.Core.DataStorage.Tests
             int startPosition = 5;
             var receivedMessageList = await db.GetMessageListAsync(accountEmail, TestData.Folder, addMessageList[startPosition].Id, countToReceive).ConfigureAwait(true);
 
-            Assert.AreEqual(messageCount - startPosition, receivedMessageList.Count);
+            Assert.That(messageCount - startPosition, Is.EqualTo(receivedMessageList.Count));
 
             bool isCorrect = true;
             var temp = addMessageList.Where(x => x.Id < addMessageList[startPosition].Id).OrderByDescending(x => x.Id).Take((int)countToReceive).ToList();
@@ -430,7 +430,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 }
             }
 
-            Assert.IsTrue(isCorrect);
+            Assert.That(isCorrect, Is.True);
         }
 
         [Test]
@@ -538,7 +538,7 @@ namespace Tuvi.Core.DataStorage.Tests
             int unreadMessagesCount = await AddRandomUnreadMessagesAsync(db, accountEmail, 10).ConfigureAwait(true);
 
             var storedUnreadMessagesCount = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
-            Assert.AreEqual(storedUnreadMessagesCount, unreadMessagesCount);
+            Assert.That(storedUnreadMessagesCount, Is.EqualTo(unreadMessagesCount));
             var newMessage1 = TestData.GetNewUnreadMessage();
             await db.AddMessageAsync(accountEmail, newMessage1).ConfigureAwait(true);
             storedUnreadMessagesCount = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
@@ -704,17 +704,17 @@ namespace Tuvi.Core.DataStorage.Tests
             var newMessages = new List<Message>() { TestData.GetNewReadMessage()};
             await db.AddMessageListAsync(accountEmail, TestData.Folder, newMessages).ConfigureAwait(true);
             var storedMessages = await db.GetMessageListAsync(accountEmail, TestData.Folder, 100).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages.Count == 1);
+            Assert.That(storedMessages.Count == 1, Is.True);
             int pk = storedMessages[0].Pk;
             uint oldId = storedMessages[0].Id;
             newMessages[0].Id = 98765;
             await db.UpdateMessagesAsync(accountEmail, newMessages).ConfigureAwait(true);
 
             storedMessages = await db.GetMessageListAsync(accountEmail, TestData.Folder, 100).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages.Count == 1);
-            Assert.IsTrue(storedMessages[0].Id == newMessages[0].Id);
-            Assert.IsFalse(storedMessages[0].Id == oldId);
-            Assert.IsTrue(storedMessages[0].Pk == pk);
+            Assert.That(storedMessages.Count == 1, Is.True);
+            Assert.That(storedMessages[0].Id == newMessages[0].Id, Is.True);
+            Assert.That(storedMessages[0].Id == oldId, Is.False);
+            Assert.That(storedMessages[0].Pk == pk, Is.True);
         }
 
         [Test]
@@ -998,7 +998,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var storedUnreadMessagesCount = await db.GetContactUnreadMessagesCountAsync(contactEmail, default).ConfigureAwait(true);
 
-            Assert.AreEqual(storedUnreadMessagesCount, unreadMessagesCount);
+            Assert.That(storedUnreadMessagesCount, Is.EqualTo(unreadMessagesCount));
         }
 
         //[Test]
@@ -1059,7 +1059,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             // each message linked to two contacts: from and contact
             var expectedCount = unreadMessagesCount * 2;
-            Assert.AreEqual(expectedCount, storedCounts.Select(x => x.Value).Sum());
+            Assert.That(expectedCount, Is.EqualTo(storedCounts.Select(x => x.Value).Sum()));
             Assert.That(storedCounts.Count, Is.EqualTo(contactCount + 1));
             var fromAddress = new EmailAddress("from@mail.com", "TM");
             Assert.That(storedCounts.Where(x => x.Key == fromAddress).FirstOrDefault().Value, Is.EqualTo(unreadMessagesCount));
@@ -1105,7 +1105,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var storedUnreadMessagesCount = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
 
-            Assert.AreEqual(storedUnreadMessagesCount, 0);
+            Assert.That(storedUnreadMessagesCount, Is.EqualTo(0));
         }
 
         [Test]
@@ -1124,7 +1124,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var storedUnreadMessagesCount = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
 
-            Assert.AreEqual(storedUnreadMessagesCount, messageCount);
+            Assert.That(storedUnreadMessagesCount, Is.EqualTo(messageCount));
         }
 
         [Test]
@@ -1206,7 +1206,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var storedMessagesCount = await db.GetMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
 
-            Assert.AreEqual(storedMessagesCount, messageCount);
+            Assert.That(storedMessagesCount, Is.EqualTo(messageCount));
         }
 
         [Test]
@@ -1221,10 +1221,10 @@ namespace Tuvi.Core.DataStorage.Tests
 
             message = await db.GetMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
 
-            Assert.IsTrue(message.Attachments.Count == 1);
-            Assert.IsTrue(message.Attachments.First().FileName == TestData.Attachment.FileName);
-            Assert.IsTrue(message.Attachments.First().Data.SequenceEqual(TestData.Attachment.Data));
-            Assert.IsTrue(message.Attachments.First().MessageId == message.Pk);
+            Assert.That(message.Attachments.Count == 1, Is.True);
+            Assert.That(message.Attachments.First().FileName == TestData.Attachment.FileName, Is.True);
+            Assert.That(message.Attachments.First().Data.SequenceEqual(TestData.Attachment.Data), Is.True);
+            Assert.That(message.Attachments.First().MessageId == message.Pk, Is.True);
         }
 
         [Test]
@@ -1240,11 +1240,11 @@ namespace Tuvi.Core.DataStorage.Tests
             message = await db.GetMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
             var signatureInfo = message.Protection.SignaturesInfo.First();
 
-            Assert.IsTrue(message.Protection.Type == TestData.Protection.Type);
-            Assert.IsTrue(message.Protection.SignaturesInfo.Count == 1);
-            Assert.IsTrue(signatureInfo.SignerEmail == TestData.SignatureInfo.SignerEmail);
-            Assert.IsTrue(signatureInfo.SignerFingerprint == TestData.SignatureInfo.SignerFingerprint);
-            Assert.IsTrue(signatureInfo.DigestAlgorithm == TestData.SignatureInfo.DigestAlgorithm);
+            Assert.That(message.Protection.Type == TestData.Protection.Type, Is.True);
+            Assert.That(message.Protection.SignaturesInfo.Count == 1, Is.True);
+            Assert.That(signatureInfo.SignerEmail == TestData.SignatureInfo.SignerEmail, Is.True);
+            Assert.That(signatureInfo.SignerFingerprint == TestData.SignatureInfo.SignerFingerprint, Is.True);
+            Assert.That(signatureInfo.DigestAlgorithm == TestData.SignatureInfo.DigestAlgorithm, Is.True);
         }
 
         [Test]
@@ -1263,11 +1263,11 @@ namespace Tuvi.Core.DataStorage.Tests
 
             message = await db.GetMessageAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true);
 
-            Assert.IsTrue(message.From.First().Equals(TestData.Email));
-            Assert.IsTrue(message.To.First().Equals(TestData.Email));
-            Assert.IsTrue(message.Cc.First().Equals(TestData.Email));
-            Assert.IsTrue(message.Bcc.First().Equals(TestData.Email));
-            Assert.IsTrue(message.ReplyTo.First().Equals(TestData.Email));
+            Assert.That(message.From.First().Equals(TestData.Email), Is.True);
+            Assert.That(message.To.First().Equals(TestData.Email), Is.True);
+            Assert.That(message.Cc.First().Equals(TestData.Email), Is.True);
+            Assert.That(message.Bcc.First().Equals(TestData.Email), Is.True);
+            Assert.That(message.ReplyTo.First().Equals(TestData.Email), Is.True);
         }
     }
 }

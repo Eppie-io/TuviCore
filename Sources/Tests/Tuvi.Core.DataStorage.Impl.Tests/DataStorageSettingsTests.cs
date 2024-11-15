@@ -29,13 +29,13 @@ namespace Tuvi.Core.DataStorage.Tests
 
                 var settings = await db.GetSettingsAsync().ConfigureAwait(true);
 
-                Assert.IsTrue(settings.DecentralizedAccountCounter == 0);
+                Assert.That(settings.DecentralizedAccountCounter == 0, Is.True);
 
                 settings.DecentralizedAccountCounter = 123;
                 await db.SetSettingsAsync(settings).ConfigureAwait(true);
 
                 var settings2 = await db.GetSettingsAsync().ConfigureAwait(true);
-                Assert.IsTrue(settings2.DecentralizedAccountCounter == 123);
+                Assert.That(settings2.DecentralizedAccountCounter == 123, Is.True);
             }
         }
     }

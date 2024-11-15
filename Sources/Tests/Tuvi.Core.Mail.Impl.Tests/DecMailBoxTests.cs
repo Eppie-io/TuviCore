@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
@@ -40,7 +39,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
     }
 
-    internal class MessageComparer : IComparer, IComparer<Message>
+    internal class MessageComparer : IComparer<Message>
     {
         public int Compare(Message x, Message y)
         {
@@ -155,7 +154,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(encryptedMessage).ConfigureAwait(true);
             Assert.That(decryptedMessage, Is.EqualTo(message));
             Assert.That(decryptedMessage.Protection.SignaturesInfo.Count, Is.EqualTo(1));
-            Assert.IsTrue(decryptedMessage.Protection.SignaturesInfo[0].IsVerified);
+            Assert.That(decryptedMessage.Protection.SignaturesInfo[0].IsVerified, Is.True);
         }
 
         [Test]
@@ -173,23 +172,23 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Message message = CreateMessage(senderAddress, receiverAddress);
             var senderMessageProtector = MessageProtectorCreator.GetMessageProtector(senderContext);
             var encryptedMessage = senderMessageProtector.SignAndEncrypt(message);
-            Assert.IsNull(message.TextBody);
-            Assert.IsNull(message.HtmlBody);
+            Assert.That(message.TextBody, Is.Null);
+            Assert.That(message.HtmlBody, Is.Null);
 
             // emulate dec transport layer
             var receiverEncryptedMessage = EmulateDecTransport(encryptedMessage);
 
-            Assert.IsTrue(AreEqualMessages(encryptedMessage, receiverEncryptedMessage));
+            Assert.That(AreEqualMessages(encryptedMessage, receiverEncryptedMessage), Is.True);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage, receiverAddress).ConfigureAwait(true);
             receiverContext.TryToAddDecSignerPublicKey(senderAddress);
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(receiverEncryptedMessage).ConfigureAwait(true);
-            Assert.IsFalse(AreEqualMessages(decryptedMessage, message));
+            Assert.That(AreEqualMessages(decryptedMessage, message), Is.False);
             decryptedMessage.ClearUnprotectedBody();
-            Assert.IsTrue(AreEqualMessages(decryptedMessage, message));
-            Assert.IsTrue(decryptedMessage.Protection.SignaturesInfo.Count == 1);
-            Assert.IsTrue(decryptedMessage.Protection.SignaturesInfo[0].IsVerified);
+            Assert.That(AreEqualMessages(decryptedMessage, message), Is.True);
+            Assert.That(decryptedMessage.Protection.SignaturesInfo.Count == 1, Is.True);
+            Assert.That(decryptedMessage.Protection.SignaturesInfo[0].IsVerified, Is.True);
         }
 
         private static Message EmulateDecTransport(Message messageToSend)
@@ -234,12 +233,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             };
             using var mailBox = new DecMailBox(account, storage.Object, client.Object, new PgpDecProtector(storage.Object));
             var folders = await mailBox.GetFoldersStructureAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(folders);
+            Assert.That(folders, Is.Not.Null);
             var sent = folders.Where(x => x.IsSent).FirstOrDefault();
-            Assert.IsNotNull(sent);
+            Assert.That(sent, Is.Not.Null);
             message.Folder = sent;
             var inbox = await mailBox.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(inbox);
+            Assert.That(inbox, Is.Not.Null);
             Assert.DoesNotThrowAsync(async () => await mailBox.SendMessageAsync(message, default).ConfigureAwait(true));
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.AtLeastOnce);
 
@@ -259,7 +258,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             coreMessage.Folder = new Folder("Folder Name", FolderAttributes.None);
             var decMessage = new DecMessage(messageHash, coreMessage);
             var restoredMessage = decMessage.ToMessage();
-            Assert.IsTrue(AreEqualMessages(coreMessage, restoredMessage));
+            Assert.That(AreEqualMessages(coreMessage, restoredMessage), Is.True);
         }
 
         [Test]
@@ -277,10 +276,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage);
 
             var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(senderFolders);
+            Assert.That(senderFolders, Is.Not.Null);
 
             var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
-            Assert.IsNotNull(sent);
+            Assert.That(sent, Is.Not.Null);
             message.Folder = sent;
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true));
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.AtLeastOnce);
@@ -303,10 +302,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage);
 
             var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(senderFolders);
+            Assert.That(senderFolders, Is.Not.Null);
 
             var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
-            Assert.IsNotNull(sent);
+            Assert.That(sent, Is.Not.Null);
             message1.Folder = sent;
             message2.Folder = sent;
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message1, default).ConfigureAwait(true));
@@ -315,13 +314,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage);
             var receiverFolders = await receiver.GetFoldersStructureAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(receiverFolders);
+            Assert.That(receiverFolders, Is.Not.Null);
             var messageCopy1 = message1.ShallowCopy();
             messageCopy1.IsMarkedAsRead = false; // SendAsync sets this flag
             var messageCopy2 = message2.ShallowCopy();
             messageCopy2.IsMarkedAsRead = false; // SendAsync sets this flag
             var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(inbox);
+            Assert.That(inbox, Is.Not.Null);
             messageCopy1.Folder = inbox;
             messageCopy2.Folder = inbox;
 
@@ -332,12 +331,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeast(2));
             Assert.That(messages2.Count, Is.EqualTo(2));
             // Verify that message has decrypted correctly
-            CollectionAssert.AreEqual(messages, messages2, new MessageComparer());
+            Assert.That(messages, Is.EqualTo(messages2).Using(new MessageComparer()));
             var comparer = new MessageEqualityComparer();
-            Assert.IsTrue(messages2.Contains(messageCopy2, comparer));
-            Assert.IsTrue(messages2.Contains(messageCopy1, comparer));
-            Assert.AreEqual(messages2[0].Id, 2);
-            Assert.AreEqual(messages2[1].Id, 1);
+            Assert.That(messages2.Contains(messageCopy2, comparer), Is.True);
+            Assert.That(messages2.Contains(messageCopy1, comparer), Is.True);
+            Assert.That(messages2[0].Id, Is.EqualTo(2));
+            Assert.That(messages2[1].Id, Is.EqualTo(1));
         }
 
         [Test]
@@ -359,10 +358,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
 
-            Assert.IsNotNull(senderFolders);
+            Assert.That(senderFolders, Is.Not.Null);
 
             var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
-            Assert.IsNotNull(sent);
+            Assert.That(sent, Is.Not.Null);
             message.Folder = sent;
 
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true));
@@ -376,11 +375,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             using var receiver = CreateDecMailBox(receiverAddress, client.Object, keyStorage);
             var receiverFolders = await receiver.GetFoldersStructureAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(receiverFolders);
+            Assert.That(receiverFolders, Is.Not.Null);
             var messageCopy = message.ShallowCopy();
             messageCopy.IsMarkedAsRead = false; // SendAsync sets this flag
             var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
-            Assert.IsNotNull(inbox);
+            Assert.That(inbox, Is.Not.Null);
             messageCopy.Folder = inbox;
 
             var messages = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
@@ -390,8 +389,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeast(2));
             Assert.That(messages2.Count, Is.EqualTo(1));
             // Verify that message has decrypted correctly
-            Assert.IsTrue(AreEqualMessages(messages[0], messages2[0]));
-            Assert.IsTrue(AreEqualMessages(messages2[0], messageCopy));
+            Assert.That(AreEqualMessages(messages[0], messages2[0]), Is.True);
+            Assert.That(AreEqualMessages(messages2[0], messageCopy), Is.True);
         }
 
         private static DecMailBox CreateDecMailBox(EmailAddress address, IDecStorageClient client, IDecStorage storage)
@@ -535,7 +534,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             
             IReadOnlyList<Message> messages = null;
             Assert.ThrowsAsync<DecException>(async () => { messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true); });
-            Assert.IsNull(messages);
+            Assert.That(messages, Is.Null);
 
             // Both clients should be called
             client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.AtLeastOnce);

@@ -42,24 +42,24 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 mimeMessage.Body = new TextPart { Text = EncryptionTestsData.PlainText };
                 mimeMessage.Sign(pgpContext);
 
-                Assert.IsTrue(mimeMessage.Body is MultipartSigned, "Message body was not properly signed");
+                Assert.That(mimeMessage.Body is MultipartSigned, Is.True, "Message body was not properly signed");
 
                 Message message = mimeMessage.ToTuviMailMessage(new Folder());
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.Signature,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Signed message protection type was not properly set.");
 
                 var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.Signature,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Verified message protection type was not properly set.");
 
-                Assert.IsTrue(message.TextBody.SequenceEqual(EncryptionTestsData.PlainText), "Decrypted message content has been altered");
+                Assert.That(message.TextBody.SequenceEqual(EncryptionTestsData.PlainText), Is.True, "Decrypted message content has been altered");
             }
         }
 
@@ -81,24 +81,24 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 mimeMessage.Body = new TextPart { Text = EncryptionTestsData.PlainText };
                 mimeMessage.SignAndEncrypt(pgpContext);
 
-                Assert.IsTrue(mimeMessage.Body is MultipartEncrypted, "Message body was not properly encrypted");
+                Assert.That(mimeMessage.Body is MultipartEncrypted, Is.True, "Message body was not properly encrypted");
 
                 Message message = mimeMessage.ToTuviMailMessage(new Folder());
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.Encryption,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Signed and encrypted message protection type was not properly set.");
 
                 var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.SignatureAndEncryption,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Decrypted message protection type was not properly set.");
 
-                Assert.IsTrue(message.TextBody.SequenceEqual(EncryptionTestsData.PlainText), "Decrypted message content has been altered");
+                Assert.That(message.TextBody.SequenceEqual(EncryptionTestsData.PlainText), Is.True, "Decrypted message content has been altered");
             }
         }
 
@@ -144,13 +144,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
                 message = messageProtector.SignAndEncrypt(message);
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.SignatureAndEncryption,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Encrypted message protection type was not properly set.");
 
-                Assert.IsNotNull(
+                Assert.That(
                     message.MimeBody,
+                    Is.Not.Null,
                     "Encrypted data is empty");
 
                 mimeMessage = message.ToMimeMessage();
@@ -167,22 +168,24 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
-                Assert.AreEqual(
+                Assert.That(
                     MessageProtectionType.SignatureAndEncryption,
-                    message.Protection.Type,
+                    Is.EqualTo(message.Protection.Type),
                     "Decrypted message protection type was not properly set.");
 
-                Assert.IsTrue(
+                Assert.That(
                     message.TextBody.SequenceEqual(EncryptionTestsData.PlainText),
+                    Is.True,
                     "Message text content was corrupted.");
 
-                Assert.IsTrue(
+                Assert.That(
                     message.HtmlBody.SequenceEqual(EncryptionTestsData.HtmlText),
+                    Is.True,
                     "Message html content was corrupted.");
 
-                Assert.AreEqual(
+                Assert.That(
                     EncryptionTestsData.Attachment,
-                    message.Attachments.FirstOrDefault(),
+                    Is.EqualTo(message.Attachments.FirstOrDefault()),
                     "Message attachment was corrupted.");
             }
         }        

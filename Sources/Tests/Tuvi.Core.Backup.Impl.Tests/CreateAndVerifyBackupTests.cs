@@ -47,7 +47,7 @@ namespace BackupTests
                     backupDataSignatureVerifier.SetPgpKeyIdentity(TestData.BackupPgpKeyIdentity);
 
                     var signed = await backupDataSignatureVerifier.VerifySignatureAsync(backup, deatachedSignatureData).ConfigureAwait(false);
-                    Assert.IsTrue(signed);
+                    Assert.That(signed, Is.True);
                 }
 
                 backup.Position = 0;

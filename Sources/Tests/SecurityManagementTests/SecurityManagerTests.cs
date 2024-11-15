@@ -1,11 +1,10 @@
-﻿using System.Threading.Tasks;
-using Moq;
+﻿using Moq;
 using NUnit.Framework;
+using System.Threading.Tasks;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using TuviPgpLib;
@@ -49,9 +48,9 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.IsTrue(manager.IsNeverStartedAsync().Result);
-                Assert.IsNotNull(manager.GetSeedValidator());
-                Assert.IsNull(manager.GetSeedQuiz());
+                Assert.That(manager.IsNeverStartedAsync().Result, Is.True);
+                Assert.That(manager.GetSeedValidator(), Is.Not.Null);
+                Assert.That(manager.GetSeedQuiz(), Is.Null);
             }
         }
 
@@ -63,8 +62,8 @@ namespace SecurityManagementTests
                 ISecurityManager manager = GetSecurityManager(storage);
 
                 Assert.DoesNotThrowAsync(() => manager.StartAsync(Password));
-                Assert.IsFalse(manager.IsNeverStartedAsync().Result);
-                Assert.IsFalse(manager.IsSeedPhraseInitializedAsync().Result);
+                Assert.That(manager.IsNeverStartedAsync().Result, Is.False);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.False);
             }
         }
 
@@ -76,15 +75,15 @@ namespace SecurityManagementTests
                 ISecurityManager manager = GetSecurityManager(storage);
 
                 string[] seed = manager.CreateSeedPhraseAsync().Result;
-                Assert.IsNotNull(seed);
-                Assert.GreaterOrEqual(seed.Length, manager.GetRequiredSeedPhraseLength());
+                Assert.That(seed, Is.Not.Null);
+                Assert.That(seed.Length, Is.GreaterThanOrEqualTo(manager.GetRequiredSeedPhraseLength()));
                 foreach (var word in seed)
                 {
-                    Assert.IsNotEmpty(word);
+                    Assert.That(word, Is.Not.Empty);
                 }
-                Assert.IsTrue(manager.IsNeverStartedAsync().Result);
-                Assert.IsNotNull(manager.GetSeedValidator());
-                Assert.IsNotNull(manager.GetSeedQuiz());
+                Assert.That(manager.IsNeverStartedAsync().Result, Is.True);
+                Assert.That(manager.GetSeedValidator(), Is.Not.Null);
+                Assert.That(manager.GetSeedQuiz(), Is.Not.Null);
             }
         }
 
@@ -97,8 +96,8 @@ namespace SecurityManagementTests
 
                 manager.CreateSeedPhraseAsync().Wait();
                 manager.StartAsync(Password).Wait();
-                Assert.IsFalse(manager.IsNeverStartedAsync().Result);
-                Assert.IsTrue(manager.IsSeedPhraseInitializedAsync().Result);
+                Assert.That(manager.IsNeverStartedAsync().Result, Is.False);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
             }
         }
 
@@ -113,7 +112,7 @@ namespace SecurityManagementTests
 
                 Assert.DoesNotThrowAsync(() => manager.CreateSeedPhraseAsync());
                 Assert.DoesNotThrowAsync(() => manager.InitializeSeedPhraseAsync());
-                Assert.IsTrue(manager.IsSeedPhraseInitializedAsync().Result);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
             }
         }
 
@@ -127,9 +126,9 @@ namespace SecurityManagementTests
                 var testSeed = TestData.GetTestSeed();
                 manager.RestoreSeedPhraseAsync(testSeed).Wait();
                 manager.StartAsync(Password).Wait();
-                Assert.IsFalse(manager.IsNeverStartedAsync().Result);
-                Assert.IsTrue(manager.IsSeedPhraseInitializedAsync().Result);
-                Assert.IsNotNull(manager.GetSeedValidator());
+                Assert.That(manager.IsNeverStartedAsync().Result, Is.False);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+                Assert.That(manager.GetSeedValidator(), Is.Not.Null);
             }
         }
 
@@ -142,7 +141,7 @@ namespace SecurityManagementTests
 
                 manager.CreateSeedPhraseAsync().Wait();
                 manager.StartAsync(Password).Wait();
-                Assert.IsTrue(manager.IsSeedPhraseInitializedAsync().Result);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
 
                 manager.ResetAsync().Wait();
             }
@@ -152,7 +151,7 @@ namespace SecurityManagementTests
                 ISecurityManager manager = GetSecurityManager(storage);
 
                 manager.StartAsync(Password).Wait();
-                Assert.IsFalse(manager.IsSeedPhraseInitializedAsync().Result);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.False);
             }
         }
 
