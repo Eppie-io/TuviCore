@@ -28,7 +28,7 @@ namespace BackupTests
                     var referenceBuffer = pair.Item2;
                     var actualBuffer = integer.ToByteBuffer();
 
-                    Assert.AreEqual(referenceBuffer, actualBuffer);
+                    Assert.That(referenceBuffer, Is.EqualTo(actualBuffer));
                 }
             }).ConfigureAwait(true);
         }
@@ -46,7 +46,7 @@ namespace BackupTests
                     var buffer = pair.Item2;
                     var actualInterger = buffer.FromByteBuffer();
 
-                    Assert.AreEqual(referenceInteger, actualInterger);
+                    Assert.That(referenceInteger, Is.EqualTo(actualInterger));
                 }
             }).ConfigureAwait(true);
         }
@@ -75,12 +75,12 @@ namespace BackupTests
                     deatachedSignatureData.Position = 0;
                     var signed = await BackupDataSignatureVerifier.VerifySignatureAsync(protectedData, deatachedSignatureData).ConfigureAwait(false);
 
-                    Assert.IsTrue(signed);
+                    Assert.That(signed, Is.True);
 
                     protectedData.Position = 0;
                     await BackupDataProtector.UnlockDataAsync(protectedData, unprotectedData).ConfigureAwait(false);                   
 
-                    Assert.AreEqual(TestData.DataToProtect, unprotectedData.ToArray());
+                    Assert.That(TestData.DataToProtect, Is.EqualTo(unprotectedData.ToArray()));
                 }
             }
         }
@@ -115,7 +115,7 @@ namespace BackupTests
                 await parser.ParseBackupAsync(backup).ConfigureAwait(true);
 
                 var version = await parser.GetVersionAsync().ConfigureAwait(true);
-                Assert.AreEqual(TestData.ProtocolVersion, version);
+                Assert.That(TestData.ProtocolVersion, Is.EqualTo(version));
 
                 Assert.ThrowsAsync<BackupDeserializationException>(() => parser.GetAccountsAsync());
             }
@@ -141,7 +141,7 @@ namespace BackupTests
 
                 var importedPublicKeys = await parser.GetImportedPublicKeysAsync().ConfigureAwait(true);
 
-                Assert.AreEqual(importedPublicKeys, TestData.ImportedPublicKeys);
+                Assert.That(importedPublicKeys, Is.EqualTo(TestData.ImportedPublicKeys));
             }
         }
 
@@ -179,7 +179,7 @@ namespace BackupTests
 
                 var settings = await parser.GetSettingsAsync().ConfigureAwait(true);
 
-                Assert.AreEqual(settings.DecentralizedAccountCounter, TestData.SomeSettings.DecentralizedAccountCounter);
+                Assert.That(settings.DecentralizedAccountCounter, Is.EqualTo(TestData.SomeSettings.DecentralizedAccountCounter));
             }
         }
     }

@@ -129,7 +129,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             var literals = f.FilterPgpObjects<PgpLiteralData>();
             string receiverBody = Encoding.UTF8.GetString(Streams.ReadAll(literals[0].GetDataStream()));
-            Assert.IsTrue(body == receiverBody);
+            Assert.That(body == receiverBody, Is.True);
         }
 
         [Test]
@@ -154,7 +154,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 outStream.Position = 0;
                 var decryped = Streams.ReadAll(Crypto.DecryptArmoredStream(context, outStream, false));
                 var decrypedString = Encoding.UTF8.GetString(decryped);
-                Assert.IsTrue(decrypedString == body);
+                Assert.That(decrypedString == body, Is.True);
             }
         }
 
@@ -182,10 +182,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
                 var decryped = Streams.ReadAll(Crypto.DecryptArmoredStream(context, outStream));
                 var decrypedString = Encoding.UTF8.GetString(decryped);
-                Assert.IsTrue(decrypedString == Body1);
+                Assert.That(decrypedString == Body1, Is.True);
             }
-            Assert.IsTrue(key1.Length == 96);
-            Assert.IsTrue(encBody1.Length >= 315);
+            Assert.That(key1.Length == 96, Is.True);
+            Assert.That(encBody1.Length >= 315, Is.True);
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var keyPairSender = GenerateEdDsaKeys();
             var body = "test body";
             var signature = Crypto.SignDetached(keyPairSender.PrivateKey, Encoding.UTF8.GetBytes(body));
-            Assert.IsTrue(VerifySignature(keyPairSender.PublicKey, signature, Encoding.UTF8.GetBytes(body)));
+            Assert.That(VerifySignature(keyPairSender.PublicKey, signature, Encoding.UTF8.GetBytes(body)), Is.True);
 
         }
 
@@ -231,7 +231,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         };
             await storage.AddMessageIDs(ids, default).ConfigureAwait(true);
             var storedIds = await storage.LoadMessageIDsAsync(default).ConfigureAwait(false);
-            CollectionAssert.AreEquivalent(storedIds.Select(x => x.Key), ids);
+            Assert.That(storedIds.Select(x => x.Key), Is.EquivalentTo(ids));
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
             var res = await storage.GetMessagesAsync("1", 0, default).ConfigureAwait(true);
-            Assert.IsTrue(res.Count == 0);
+            Assert.That(res.Count == 0, Is.True);
         }
 
         [Test]
@@ -255,15 +255,16 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
             var storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true); // should return all message with this label
             var storedMessages2 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages1.Count == 2);
-            Assert.IsTrue(storedMessages2.Count == 1);
-            CollectionAssert.AreEquivalent(storedMessages1, messages);
+            Assert.That(storedMessages1.Count == 2, Is.True);
+            Assert.That(storedMessages2.Count == 1, Is.True);
+            Assert.That(storedMessages1, Is.EquivalentTo(messages));
+
             await storage.DeleteMessageByMessageIdsAsync(new List<string>() { "1234567" }, default).ConfigureAwait(true);
             storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages1.Count == 1);
+            Assert.That(storedMessages1.Count == 1, Is.True);
             var storedMessages3 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages3.Count == 0);
-            Assert.IsTrue(storedMessages1[0].Equals(messages[1]));
+            Assert.That(storedMessages3.Count == 0, Is.True);
+            Assert.That(storedMessages1[0].Equals(messages[1]), Is.True);
         }
 
         [Test]
@@ -280,28 +281,28 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
 
             var storedMessages1 = await storage.GetMessagesAsync("5", 0).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages1.Count == 2);
-            Assert.IsTrue(storedMessages1[0].MessageId == "3");
-            Assert.IsTrue(storedMessages1[1].MessageId == "1");
+            Assert.That(storedMessages1.Count == 2, Is.True);
+            Assert.That(storedMessages1[0].MessageId == "3", Is.True);
+            Assert.That(storedMessages1[1].MessageId == "1", Is.True);
 
             messages[1].LabelIds = new List<string>() { "1", "5" };
             await storage.AddOrUpdateMessagesAsync(new List<Proton.Message>() { messages[1] }, default).ConfigureAwait(true);
             var storedMessages2 = await storage.GetMessagesAsync("5", 0).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages2.Count == 3);
-            Assert.IsTrue(storedMessages2[0].MessageId == "3");
-            Assert.IsTrue(storedMessages2[1].MessageId == "2");
-            Assert.IsTrue(storedMessages2[2].MessageId == "1");
+            Assert.That(storedMessages2.Count == 3, Is.True);
+            Assert.That(storedMessages2[0].MessageId == "3", Is.True);
+            Assert.That(storedMessages2[1].MessageId == "2", Is.True);
+            Assert.That(storedMessages2[2].MessageId == "1", Is.True);
 
             var storedMessages3 = await storage.GetMessagesAsync("5", (uint)storedMessages2[0].Id, getEarlier: true, 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages3.Count == 1);
-            Assert.IsTrue(storedMessages3[0].MessageId == "2");
+            Assert.That(storedMessages3.Count == 1, Is.True);
+            Assert.That(storedMessages3[0].MessageId == "2", Is.True);
 
             var storedMessages4 = await storage.GetMessagesAsync("5", (uint)storedMessages2[0].Id, getEarlier: false, 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages4.Count == 0);
+            Assert.That(storedMessages4.Count == 0, Is.True);
 
             var storedMessages5 = await storage.GetMessagesAsync("5", (uint)storedMessages2[1].Id, getEarlier: false, 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages5.Count == 1);
-            Assert.IsTrue(storedMessages5[0].MessageId == "3");
+            Assert.That(storedMessages5.Count == 1, Is.True);
+            Assert.That(storedMessages5[0].MessageId == "3", Is.True);
 
         }
 
@@ -319,12 +320,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
             await storage.DeleteMessagesByIds(storedMessages1.Select(x => (uint)x.Id).ToList(), "5", default).ConfigureAwait(true);
             var storedMessages2 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
-            CollectionAssert.AreEquivalent(storedMessages1, storedMessages2);
+            Assert.That(storedMessages1, Is.EquivalentTo(storedMessages2));
             await storage.DeleteMessagesByIds(storedMessages1.Select(x => (uint)x.Id).ToList(), "1", default).ConfigureAwait(true);
             var storedMessages3 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages3.Count == 0);
+            Assert.That(storedMessages3.Count == 0, Is.True);
             var storedMessages4 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
-            Assert.IsTrue(storedMessages4.Count == 0);
+            Assert.That(storedMessages4.Count == 0, Is.True);
         }
 
         [Test]
@@ -380,17 +381,17 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await storage.AddOrUpdateMessagesAsync(updatedMessages).ConfigureAwait(true);
             var m1 = await storage.GetMessagesAsync("5", 2).ConfigureAwait(true);
             var m2 = await storage.GetMessagesAsync("1", 2).ConfigureAwait(true);
-            Assert.IsTrue(m1.Count == 1);
-            Assert.IsTrue(m2.Count == 2);
-            Assert.AreEqual(m1[0], m2[1]);
-            Assert.IsTrue(m1[0].Unread == false);
-            Assert.IsTrue(m1[0].Unread == false);
-            Assert.IsTrue(m2[1].Unread == false);
-            Assert.IsTrue(m2[0].Subject == "New subject");
-            Assert.IsTrue(m2[0].From == "new@from.box");
-            Assert.IsTrue(m2[0].To == "new@to.box");
-            Assert.IsTrue(m2[0].Cc == "new@cc.box");
-            Assert.IsTrue(m2[0].Bcc == "new@bcc.box");
+            Assert.That(m1.Count == 1, Is.True);
+            Assert.That(m2.Count == 2, Is.True);
+            Assert.That(m1[0], Is.EqualTo(m2[1]));
+            Assert.That(m1[0].Unread == false, Is.True);
+            Assert.That(m1[0].Unread == false, Is.True);
+            Assert.That(m2[1].Unread == false, Is.True);
+            Assert.That(m2[0].Subject == "New subject", Is.True);
+            Assert.That(m2[0].From == "new@from.box", Is.True);
+            Assert.That(m2[0].To == "new@to.box", Is.True);
+            Assert.That(m2[0].Cc == "new@cc.box", Is.True);
+            Assert.That(m2[0].Bcc == "new@bcc.box", Is.True);
         }
 
         private static Proton.Message CreateMessage(string id, string labelId)

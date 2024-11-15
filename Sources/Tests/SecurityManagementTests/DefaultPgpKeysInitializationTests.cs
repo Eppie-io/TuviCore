@@ -1,10 +1,9 @@
-﻿using Tuvi.Core.Backup;
-using Tuvi.Core.DataStorage;
-using Tuvi.Core.Entities;
-using Moq;
+﻿using Moq;
 using NUnit.Framework;
 using Tuvi.Core;
-using Tuvi.Core.Impl;
+using Tuvi.Core.Backup;
+using Tuvi.Core.DataStorage;
+using Tuvi.Core.Entities;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using TuviPgpLib;
@@ -56,12 +55,13 @@ namespace SecurityManagementTests
                 manager.CreateSeedPhraseAsync().Wait();
                 manager.StartAsync(Password).Wait();
 
-                Assert.IsFalse(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()));
+                Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
                 manager.CreateDefaultPgpKeys(account);
 
-                Assert.IsTrue(
+                Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
+                    Is.True,
                     "Pgp key has to be created for account.");
             }
         }
@@ -80,13 +80,14 @@ namespace SecurityManagementTests
                 manager.StartAsync(Password).Wait();
                 storage.AddAccountAsync(account).Wait();
 
-                Assert.IsFalse(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()));
+                Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
                 manager.CreateSeedPhraseAsync().Wait();
                 manager.InitializeSeedPhraseAsync().Wait();
 
-                Assert.IsTrue(
+                Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
+                    Is.True,
                     "Pgp key has to be created for all existing accounts after master key initialization.");
             }
         }

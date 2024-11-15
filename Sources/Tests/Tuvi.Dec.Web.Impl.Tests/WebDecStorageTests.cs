@@ -21,31 +21,37 @@ namespace Tuvi.Core.Dec.Azure.Tests
             Client = DecStorageBuilder.CreateAzureClient(Url);
         }
 
+        [TearDown]
+        public void Teardown()
+        {
+            Client.Dispose();
+        }
+
         [Test]
         public async Task SendFunctionTest()
         {
             var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
-            Assert.IsTrue(hash == DataHash);
+            Assert.That(hash == DataHash, Is.True);
         }
 
         [Test]
         public async Task ListFunctionTest()
         {
             var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
-            Assert.IsTrue(hash == DataHash);
+            Assert.That(hash == DataHash, Is.True);
 
             var list = await Client.ListAsync(Address).ConfigureAwait(false);
-            Assert.IsTrue(list.Contains(hash));
+            Assert.That(list.Contains(hash), Is.True);
         }
 
         [Test]
         public async Task GetFunctionTest()
         {
             var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
-            Assert.IsTrue(hash == DataHash);
+            Assert.That(hash == DataHash, Is.True);
 
             var data = await Client.GetAsync(Address, hash).ConfigureAwait(false);
-            Assert.IsTrue(data.SequenceEqual(ByteData));
+            Assert.That(data.SequenceEqual(ByteData), Is.True);
         }
     }
 }

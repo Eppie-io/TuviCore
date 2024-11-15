@@ -1,8 +1,8 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -28,19 +28,20 @@ namespace Tuvi.Core.DataStorage.Tests
                 {
                     await db.DeleteAccountByEmailAsync(TestData.Account.Email).ConfigureAwait(true);
                 }
-                Assert.IsFalse(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true), Is.False);
 
                 await db.AddAccountAsync(TestData.Account).ConfigureAwait(true);
                 var isAdded = await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true);
-                Assert.IsTrue(isAdded);
+                Assert.That(isAdded, Is.True);
 
                 var account = await db.GetAccountAsync(TestData.Account.Email).ConfigureAwait(true);
-                Assert.AreEqual(account.AuthData.Type, TestData.Account.AuthData.Type);
+                Assert.That(account.AuthData.Type, Is.EqualTo(TestData.Account.AuthData.Type));
 
-                Assert.IsTrue(
+                Assert.That(
                     account.AuthData is BasicAuthData basicData &&
                     TestData.Account.AuthData is BasicAuthData data &&
-                    basicData.Password?.Equals(data.Password, StringComparison.Ordinal) == true
+                    basicData.Password?.Equals(data.Password, StringComparison.Ordinal) == true,
+                    Is.True
                     );
             }
         }
@@ -59,7 +60,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 bool result = await db.ExistsAccountWithEmailAddressAsync(accounts[0].Email).ConfigureAwait(true);
 
-                Assert.IsTrue(result);
+                Assert.That(result, Is.True);
             }
         }
 
@@ -91,13 +92,13 @@ namespace Tuvi.Core.DataStorage.Tests
                 }
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                Assert.GreaterOrEqual(accounts.Count, 0);
+                Assert.That(accounts.Count, Is.GreaterThanOrEqualTo(0));
 
                 var accountToDelete = accounts[0];
                 await db.DeleteAccountAsync(accountToDelete).ConfigureAwait(true);
 
                 accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                Assert.IsFalse(accounts.Exists(account => account.Email == accountToDelete.Email));
+                Assert.That(accounts.Exists(account => account.Email == accountToDelete.Email), Is.False);
             }
         }
 
@@ -113,7 +114,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 }
 
                 await db.DeleteAccountByEmailAsync(TestData.Account.Email).ConfigureAwait(true);
-                Assert.IsFalse(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true), Is.False);
             }
         }
 
@@ -137,7 +138,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 var updatedAccount = accounts.First(x => x.Email == account.Email);
 
-                Assert.AreEqual(newName, updatedAccount.Email.Name, "Account was not updated properly.");
+                Assert.That(newName, Is.EqualTo(updatedAccount.Email.Name), "Account was not updated properly.");
 
                 await db.DeleteAccountAsync(updatedAccount).ConfigureAwait(true);
             }
@@ -162,7 +163,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 var updatedAccount = accounts.First(x => x.Email == account.Email);
 
-                Assert.AreEqual(newAuth, updatedAccount.AuthData, "Account AuthData wasn't updated properly.");
+                Assert.That(newAuth, Is.EqualTo(updatedAccount.AuthData), "Account AuthData wasn't updated properly.");
 
                 await db.DeleteAccountAsync(updatedAccount).ConfigureAwait(true);
             }
@@ -208,14 +209,14 @@ namespace Tuvi.Core.DataStorage.Tests
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
-                Assert.AreEqual(newFolders, updatedAccount.FoldersStructure, "Account folders weren't updated properly.");
-                Assert.AreEqual(newFolders[0], updatedAccount.DefaultInboxFolder, "Account default folder wasn't updated properly.");
+                Assert.That(newFolders, Is.EqualTo(updatedAccount.FoldersStructure), "Account folders weren't updated properly.");
+                Assert.That(newFolders[0], Is.EqualTo(updatedAccount.DefaultInboxFolder), "Account default folder wasn't updated properly.");
                 Assert.That(updatedAccount.FoldersStructure[0].UnreadCount, Is.EqualTo(102));
                 Assert.That(updatedAccount.FoldersStructure[0].TotalCount, Is.EqualTo(123));
 
                 var message = await db.GetMessageAsync(TestData.AccountWithFolder.Email, TestData.Message.Folder.FullName, TestData.Message.Id).ConfigureAwait(true);
 
-                Assert.AreEqual(message.Folder, TestData.Message.Folder);
+                Assert.That(message.Folder, Is.EqualTo(TestData.Message.Folder));
 
                 // check message in the removed folder
                 {
@@ -224,7 +225,7 @@ namespace Tuvi.Core.DataStorage.Tests
                     account.DefaultInboxFolder = account.FoldersStructure[0];
                     await db.UpdateAccountAsync(account).ConfigureAwait(true);
                     bool exists = await db.IsMessageExistAsync(TestData.AccountWithFolder.Email, TestData.Message.Folder.FullName, TestData.Message.Id).ConfigureAwait(true);
-                    Assert.IsFalse(exists);
+                    Assert.That(exists, Is.False);
                 }
 
                 await db.DeleteAccountAsync(updatedAccount).ConfigureAwait(true);
@@ -241,10 +242,10 @@ namespace Tuvi.Core.DataStorage.Tests
                 {
                     await db.DeleteAccountByEmailAsync(TestData.Account.Email).ConfigureAwait(true);
                 }
-                Assert.IsFalse(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true), Is.False);
 
                 await db.UpdateAccountAsync(TestData.Account).ConfigureAwait(true);
-                Assert.IsFalse(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true), Is.False);
             }
         }
 
@@ -260,10 +261,10 @@ namespace Tuvi.Core.DataStorage.Tests
                 }
 
                 await db.AddAccountAsync(TestData.Account).ConfigureAwait(true);
-                Assert.IsTrue(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.Account.Email).ConfigureAwait(true), Is.True);
 
                 await db.AddAccountAsync(TestData.AccountWithFolder).ConfigureAwait(true);
-                Assert.IsTrue(await db.ExistsAccountWithEmailAddressAsync(TestData.AccountWithFolder.Email).ConfigureAwait(true));
+                Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.AccountWithFolder.Email).ConfigureAwait(true), Is.True);
             }
         }
     }

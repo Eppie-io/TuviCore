@@ -17,11 +17,11 @@ namespace SecurityManagementTests
             ISeedQuiz quiz = SecurityManagerCreator.CreateSeedQuiz(testSeed);
             int[] task = quiz.GenerateTask();
 
-            Assert.GreaterOrEqual(testSeed.Length, task.Length);
+            Assert.That(testSeed.Length, Is.GreaterThanOrEqualTo(task.Length));
             foreach (var number in task)
             {
-                Assert.GreaterOrEqual(number, 0);
-                Assert.Less(number, testSeed.Length);
+                Assert.That(number, Is.GreaterThanOrEqualTo(0));
+                Assert.That(number, Is.LessThan(testSeed.Length));
             }
         }
 
@@ -60,7 +60,7 @@ namespace SecurityManagementTests
             ISeedQuiz quiz = SecurityManagerCreator.CreateSeedQuiz(testSeed);
             int[] task = quiz.GenerateTask();
             
-            Assert.AreEqual(task.Length, task.Distinct().Count());
+            Assert.That(task.Length, Is.EqualTo(task.Distinct().Count()));
         }
 
         [Test]
@@ -76,8 +76,8 @@ namespace SecurityManagementTests
                 solution[i] = testSeed[task[i]];
             }
 
-            Assert.IsTrue(quiz.VerifySolution(solution, out bool[] res));
-            Assert.IsFalse(res.Any(e => e == false));
+            Assert.That(quiz.VerifySolution(solution, out bool[] res), Is.True);
+            Assert.That(res.Any(e => e == false), Is.False);
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace SecurityManagementTests
             ISeedQuiz quiz = SecurityManagerCreator.CreateSeedQuiz(testSeed);
             var task = quiz.GenerateTask();
 
-            Assert.IsFalse(quiz.VerifySolution(null, out bool[] res));
+            Assert.That(quiz.VerifySolution(null, out bool[] res), Is.False);
         }
 
         [Test]
@@ -103,7 +103,7 @@ namespace SecurityManagementTests
                 testSeed[task[1]],
                 testSeed[task[2]]
             };
-            Assert.IsFalse(quiz.VerifySolution(partialSolution, out bool[] res));
+            Assert.That(quiz.VerifySolution(partialSolution, out bool[] res), Is.False);
         }
 
         [Test]
@@ -122,8 +122,8 @@ namespace SecurityManagementTests
                 "435345",
                 testSeed[task[5]]
             };
-            Assert.IsFalse(quiz.VerifySolution(partialSolution, out bool[] res));
-            Assert.IsTrue(res.SequenceEqual(
+            Assert.That(quiz.VerifySolution(partialSolution, out bool[] res), Is.False);
+            Assert.That(res.SequenceEqual(
                 new bool[]
                 {
                     true,
@@ -132,7 +132,7 @@ namespace SecurityManagementTests
                     false,
                     false,
                     true
-                }));
+                }), Is.True);
         }
 
         [Test]
@@ -143,8 +143,8 @@ namespace SecurityManagementTests
             var task = quiz.GenerateTask();
 
             var emptySolutionWords = new string[task.Length];
-            Assert.IsFalse(quiz.VerifySolution(emptySolutionWords, out bool[] res));
-            Assert.IsFalse(res.Any(e => e == true));
+            Assert.That(quiz.VerifySolution(emptySolutionWords, out bool[] res), Is.False);
+            Assert.That(res.Any(e => e == true), Is.False);
         }
 
         [Test]
@@ -154,8 +154,8 @@ namespace SecurityManagementTests
             ISeedQuiz quiz = SecurityManagerCreator.CreateSeedQuiz(testSeed);
             var testSolution = testSeed.Take(6).ToArray();
 
-            Assert.IsFalse(quiz.VerifySolution(testSolution, out bool[] res));
-            Assert.IsNull(res);
+            Assert.That(quiz.VerifySolution(testSolution, out bool[] res), Is.False);
+            Assert.That(res, Is.Null);
         }
     }
 }

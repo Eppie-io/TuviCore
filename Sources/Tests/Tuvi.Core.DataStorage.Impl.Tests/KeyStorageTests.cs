@@ -1,10 +1,10 @@
-﻿using System;
+﻿using KeyDerivation.Keys;
+using KeyDerivationLib;
+using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using KeyDerivation.Keys;
-using KeyDerivationLib;
-using NUnit.Framework;
 using TuviPgpLib.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -52,7 +52,7 @@ namespace Tuvi.Core.DataStorage.Tests
             using (var storage = GetDataStorage())
             {
                 storage.CreateAsync(Password).Wait();
-                Assert.IsFalse(storage.IsMasterKeyExistAsync().Result);
+                Assert.That(storage.IsMasterKeyExistAsync().Result, Is.False);
             }
         }
 
@@ -63,7 +63,7 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
-                Assert.IsTrue(storage.IsMasterKeyExistAsync().Result);
+                Assert.That(storage.IsMasterKeyExistAsync().Result, Is.True);
             }
         }
 
@@ -75,7 +75,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 storage.CreateAsync(Password).Wait();
                 var masterKey = GenerateRandomMasterKey();
                 storage.InitializeMasterKeyAsync(masterKey).Wait();
-                Assert.AreEqual(masterKey, storage.GetMasterKeyAsync().Result);
+                Assert.That(masterKey, Is.EqualTo(storage.GetMasterKeyAsync().Result));
             }
         }
 
@@ -87,19 +87,19 @@ namespace Tuvi.Core.DataStorage.Tests
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
                 var keys = storage.GetPgpPublicKeysAsync().Result;
-                Assert.AreEqual(null, keys, "Key hasn't to exist.");
+                Assert.That(null, Is.EqualTo(keys), "Key hasn't to exist.");
 
                 var randomKeyData = GenerateRandomPgpPublicKeyBundleData();
                 storage.SavePgpPublicKeys(randomKeyData);
 
                 var extracted = storage.GetPgpPublicKeysAsync().Result;
-                Assert.AreEqual(randomKeyData, extracted, "Key data wasn't stored properly.");
+                Assert.That(randomKeyData, Is.EqualTo(extracted), "Key data wasn't stored properly.");
 
                 randomKeyData = GenerateRandomPgpPublicKeyBundleData();
                 storage.SavePgpPublicKeys(randomKeyData);
 
                 extracted = storage.GetPgpPublicKeysAsync().Result;
-                Assert.AreEqual(randomKeyData, extracted, "Key data wasn't updated properly.");
+                Assert.That(randomKeyData, Is.EqualTo(extracted), "Key data wasn't updated properly.");
             }
         }
 
@@ -110,19 +110,19 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
-                Assert.AreEqual(null, storage.GetPgpSecretKeysAsync().Result, "Key hasn't to exist.");
+                Assert.That(null, Is.EqualTo(storage.GetPgpSecretKeysAsync().Result), "Key hasn't to exist.");
 
                 var randomKeyData = GenerateRandomPgpSecretKeyBundleData();
                 storage.SavePgpSecretKeys(randomKeyData);
 
                 var extracted = storage.GetPgpSecretKeysAsync().Result;
-                Assert.AreEqual(randomKeyData, extracted, "Key data wasn't stored properly.");
+                Assert.That(randomKeyData, Is.EqualTo(extracted), "Key data wasn't stored properly.");
 
                 randomKeyData = GenerateRandomPgpSecretKeyBundleData();
                 storage.SavePgpSecretKeys(randomKeyData);
 
                 extracted = storage.GetPgpSecretKeysAsync().Result;
-                Assert.AreEqual(randomKeyData, extracted, "Key data wasn't updated properly.");
+                Assert.That(randomKeyData, Is.EqualTo(extracted), "Key data wasn't updated properly.");
             }
         }
 
@@ -130,23 +130,23 @@ namespace Tuvi.Core.DataStorage.Tests
         public async Task OpenCreateTest()
         {
             DeleteStorage();
-            Assert.IsFalse(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.False);
             var storage = await CreateDataStorageAsync().ConfigureAwait(true);
             Assert.DoesNotThrow(() => storage.Dispose());
-            Assert.IsTrue(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.True);
             Assert.DoesNotThrowAsync(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true));
             Assert.DoesNotThrow(() => storage.Dispose());
-            Assert.IsTrue(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.True);
             Assert.DoesNotThrowAsync(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true));
             Assert.DoesNotThrowAsync(() => storage.ResetAsync());
-            Assert.IsFalse(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.False);
             Assert.DoesNotThrow(() => storage.Dispose());
             Assert.DoesNotThrowAsync(async () => storage = await CreateDataStorageAsync().ConfigureAwait(true));
-            Assert.IsTrue(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.True);
             Assert.DoesNotThrowAsync(() => storage.ResetAsync());
-            Assert.IsFalse(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.False);
             Assert.DoesNotThrow(() => storage.Dispose());
-            Assert.IsFalse(DatabaseFileExists());
+            Assert.That(DatabaseFileExists(), Is.False);
         }
 
         [Test]
@@ -154,10 +154,10 @@ namespace Tuvi.Core.DataStorage.Tests
         {
             for (int j = 0; j < 100; ++j)
             {
-                Assert.IsFalse(DatabaseFileExists());
+                Assert.That(DatabaseFileExists(), Is.False);
                 var tasks = new List<Task>();
                 var storage = GetDataStorage();
-                Assert.IsFalse(DatabaseFileExists());
+                Assert.That(DatabaseFileExists(), Is.False);
                 for (int i = 0; i < 100; ++i)
                 {
                     tasks.Add(Task.Run(async () =>
@@ -166,11 +166,11 @@ namespace Tuvi.Core.DataStorage.Tests
                         await Task.Delay(Random.Shared.Next(200)).ConfigureAwait(false);
 #pragma warning restore CA5394 // Do not use insecure randomness
                         await storage.OpenAsync(Password).ConfigureAwait(false);
-                        Assert.IsTrue(DatabaseFileExists());
+                        Assert.That(DatabaseFileExists(), Is.True);
                     }));
                 }
                 storage.ResetAsync(); // should wait all connections
-                Assert.IsFalse(DatabaseFileExists());
+                Assert.That(DatabaseFileExists(), Is.False);
             }
 
         }

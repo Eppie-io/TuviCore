@@ -1,14 +1,14 @@
-﻿using System;
+﻿using MimeKit;
 using NUnit.Framework;
+using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
-using TuviPgpLibImpl;
-using Tuvi.Base32EConverterLib;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using MimeKit;
-using System.Collections.Generic;
+using Tuvi.Base32EConverterLib;
 using Tuvi.Core.Utils;
+using TuviPgpLibImpl;
 
 namespace SecurityManagementTests
 {
@@ -28,7 +28,7 @@ namespace SecurityManagementTests
                 string emailName = Base32EConverter.ConvertBytesToEmailName(publicKeyAsBytes);
                 var reconvertedPublicKeyAsBytes = Base32EConverter.ConvertStringToByteArray(emailName);
 
-                Assert.AreEqual(publicKeyAsBytes, reconvertedPublicKeyAsBytes);
+                Assert.That(publicKeyAsBytes, Is.EqualTo(reconvertedPublicKeyAsBytes));
             }
         }
 
@@ -43,7 +43,7 @@ namespace SecurityManagementTests
                 string emailName = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKey);
                 var reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(emailName);
 
-                Assert.AreEqual(publicKey, reconvertedPublicKey);
+                Assert.That(publicKey, Is.EqualTo(reconvertedPublicKey));
             }
         }
 
@@ -58,7 +58,7 @@ namespace SecurityManagementTests
             using TuviPgpContext ctx = InitializeTuviPgpContext();
             ctx.Import(new PgpPublicKeyRing(publicKey.GetEncoded()));
 
-            Assert.AreEqual(1, ctx.PublicKeyRingBundle.Count, "Public key was not imported");
+            Assert.That(1, Is.EqualTo(ctx.PublicKeyRingBundle.Count), "Public key was not imported");
         }
 
         [Test]
@@ -87,8 +87,9 @@ namespace SecurityManagementTests
             var mime = ctx.Decrypt(encryptedData);
             var decryptedBody = mime as TextPart;
 
-            Assert.IsTrue(
+            Assert.That(
                 TestData.TextContent.SequenceEqual(decryptedBody?.Text ?? string.Empty),
+                Is.True,
                 "Decrypted content is corrupted");
         }
 

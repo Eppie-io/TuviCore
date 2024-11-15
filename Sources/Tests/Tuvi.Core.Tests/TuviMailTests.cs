@@ -1,4 +1,7 @@
-﻿using System;
+﻿using KeyDerivation;
+using Moq;
+using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -6,9 +9,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using KeyDerivation;
-using Moq;
-using NUnit.Framework;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
@@ -70,7 +70,7 @@ namespace Tuvi.Core.Tests
 
             var accounts = await core.GetAccountsAsync().ConfigureAwait(true);
 
-            Assert.IsTrue(accounts.Count > 0);
+            Assert.That(accounts.Count > 0, Is.True);
         }
 
         [Test]
@@ -168,9 +168,9 @@ namespace Tuvi.Core.Tests
         {
             IKeyDerivationDetailsProvider provider = new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test");
 
-            Assert.AreEqual(
+            Assert.That(
                 "Test seed",
-                provider.GetSaltPhrase(),
+                Is.EqualTo(provider.GetSaltPhrase()),
                 "TuviMail master key derivation salt phrase is altered! This will brake keys compatibility.");
         }
 
@@ -195,10 +195,10 @@ namespace Tuvi.Core.Tests
                 backupManager.Object,
                 credentialsManager.Object,
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
-            Assert.IsTrue(core.IsFirstApplicationStartAsync().Result);
+            Assert.That(core.IsFirstApplicationStartAsync().Result, Is.True);
 
             securityManagerMock.Setup(a => a.IsNeverStartedAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-            Assert.IsFalse(core.IsFirstApplicationStartAsync().Result);
+            Assert.That(core.IsFirstApplicationStartAsync().Result, Is.False);
         }
 
         [Test]
@@ -328,7 +328,7 @@ namespace Tuvi.Core.Tests
                                 bytesRead = await s.ReadAsync(buffer.AsMemory(readOffset, buffer.Length - readOffset), cancellationToken).ConfigureAwait(true);
                             }
                         }
-                        Assert.AreEqual(sb.ToString(), command);
+                        Assert.That(sb.ToString(), Is.EqualTo(command));
                         sending = true;
                     }
                 }
@@ -395,12 +395,12 @@ namespace Tuvi.Core.Tests
             var ctx = new MySyncContext();
             SynchronizationContext.SetSynchronizationContext(ctx);
             await core.InitializeApplicationAsync("123").ConfigureAwait(true);
-            Assert.IsTrue(ctx.Calls == 1);
+            Assert.That(ctx.Calls == 1, Is.True);
             await core.AddAccountAsync(account, cts.Token).ConfigureAwait(true);
             //Assert.IsTrue(ctx.Calls == 2);
-            Assert.True(created);
-            Assert.False(deleted);
-            Assert.False(updated);
+            Assert.That(created, Is.True);
+            Assert.That(deleted, Is.False);
+            Assert.That(updated, Is.False);
 
             cts.Cancel();
             Assert.ThrowsAsync<OperationCanceledException>(async () => await serverTask.ConfigureAwait(true));

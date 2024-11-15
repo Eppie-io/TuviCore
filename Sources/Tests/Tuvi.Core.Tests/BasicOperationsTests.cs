@@ -376,7 +376,7 @@ namespace Tuvi.Core.Tests
 
             var storedMessages = (await core.GetFolderEarlierMessagesAsync(account.DefaultInboxFolder, 100, null).ConfigureAwait(true)).OrderBy(x => x.Id).ToList();
             Assert.That(storedMessages.Count, Is.EqualTo(1));
-            Assert.IsFalse(storedMessages[0].Id == 112);
+            Assert.That(storedMessages[0].Id == 112, Is.False);
             Assert.That(storedMessages[0].Pk, Is.EqualTo(message.Pk));
         }
 

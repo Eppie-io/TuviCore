@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using Moq;
+using NUnit.Framework;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.Tests
@@ -101,8 +101,8 @@ namespace Tuvi.Core.Tests
             sw.Start();
             var accounts = await core.GetCompositeAccountsAsync(default).ConfigureAwait(true);
             sw.Stop();
-            Assert.IsTrue(sw.ElapsedMilliseconds < 1000);
-            Assert.AreEqual(accounts.Count, 500);
+            Assert.That(sw.ElapsedMilliseconds < 1000, Is.True);
+            Assert.That(accounts.Count, Is.EqualTo(500));
         }
 
         [Test]

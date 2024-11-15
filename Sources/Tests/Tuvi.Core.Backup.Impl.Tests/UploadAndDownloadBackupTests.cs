@@ -44,7 +44,7 @@ namespace BackupTests
                     await BackupDataProtector.CreateDetachedSignatureDataAsync(backup, deatachedSignatureData, publicKeyStream).ConfigureAwait(false);
 
                     var responce = await BackupServiceClient.UploadAsync(new Uri(UploadUrl), Fingerprint, publicKeyStream, deatachedSignatureData, backup).ConfigureAwait(true);
-                    Assert.IsTrue(responce);
+                    Assert.That(responce, Is.True);
                 }
             }
 
@@ -69,7 +69,7 @@ namespace BackupTests
                         using (var deatachedSignatureData = await BackupServiceClient.DownloadAsync(new Uri(DownloadUrl), signatureName).ConfigureAwait(true))
                         {
                             var signed = await backupDataSignatureVerifier.VerifySignatureAsync(backup, deatachedSignatureData).ConfigureAwait(false);
-                            Assert.IsTrue(signed);
+                            Assert.That(signed, Is.True);
                         }
                     }
 
