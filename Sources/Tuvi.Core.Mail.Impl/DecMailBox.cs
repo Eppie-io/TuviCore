@@ -278,6 +278,11 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
+        public Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)
         {
             var decMessage = await Storage.AddDecMessageAsync(AccountSettings.Email, new DecMessage(null, message), cancellationToken).ConfigureAwait(false);
