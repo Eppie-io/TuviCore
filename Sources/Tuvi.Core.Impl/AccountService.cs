@@ -297,6 +297,50 @@ namespace Tuvi.Core.Impl
             return DoDeleteMessagesAsync(folder, messages, false, cancellationToken);
         }
 
+        public async Task MoveMessagesAsync(Folder folder, Folder targetFolder, IReadOnlyList<Message> messages, CancellationToken cancellationToken)
+        {
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            if (targetFolder is null)
+            {
+                throw new ArgumentNullException(nameof(targetFolder));
+            }
+
+            var uids = messages.Select(x => x.Id).Where(x => x > 0).ToList();
+            if (uids.Count == 0)
+            {
+                // there is nothing to move, given messages were not stored anywhere
+                return;
+            }
+
+            var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
+            var localTask = DeleteLocalMessagesAsync(folder, uids, updateUnreadAndTotal: true, cancellationToken);
+            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);
+
+            //var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
+            //var localTask = MoveLocalMessagesAsync(folder, targetFolder, uids, updateUnreadAndTotal: true, cancellationToken);
+            //var localTask = AddMessagesToDataStorageAsync(targetFolder, messages, cancellationToken);
+            //var localTask = Task.CompletedTask;
+            //await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);            
+        }
+        
+        private async Task MoveLocalMessagesAsync(Folder folder, Folder targetFolder, List<uint> uids, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        {
+            await DataStorage.MoveMessagesAsync(Account.Email, folder, targetFolder, uids, updateUnreadAndTotal, cancellationToken).ConfigureAwait(false);
+
+            if (MessageDeleted is null)
+            {
+                return;
+            }
+            foreach (var uid in uids)
+            {
+                RaiseMessageDeleted(folder, uid);
+            }
+        }
+
         public Task PermanentDeleteMessageAsync(Message message, CancellationToken cancellationToken)
         {
             if (message is null)

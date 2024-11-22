@@ -527,6 +527,32 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
         }
 
+        public override async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, Folder targetFolderPath, CancellationToken cancellationToken)
+        {
+            var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
+            await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+
+            var targetFolder = await ImapClient.GetFolderAsync(targetFolderPath.FullName, cancellationToken).ConfigureAwait(false);
+
+            var uniqueIds = new List<uint>(ids).ConvertAll(x => new UniqueId(x));
+
+
+            try
+            {
+                await folder.MoveToAsync(uniqueIds, targetFolder, cancellationToken).ConfigureAwait(false);
+                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (NotSupportedException)
+            {
+            }
+           
+
+            await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
+            await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
+            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+        }
+
         public override void Dispose()
         {
             ImapClient?.Dispose();

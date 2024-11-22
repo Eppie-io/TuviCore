@@ -124,7 +124,8 @@ namespace Tuvi.Core.Mail.Impl
 
         public Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            MoveMessagesCommand moveMessagesCommand = new MoveMessagesCommand(Receiver, ids, folder, targetFolder);
+            return moveMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
         }
 
         public Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)

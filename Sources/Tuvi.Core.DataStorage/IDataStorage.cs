@@ -355,5 +355,12 @@ namespace Tuvi.Core.DataStorage
         /// Update account email to a new one.
         /// </summary>
         Task UpdateAccountEmailAsync(EmailAddress prev, EmailAddress email, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Move messages list in storage.
+        /// </summary>
+        /// <exception cref="DataBaseException"/>
+        /// <exception cref="NoCollectionException"/>
+        Task MoveMessagesAsync(EmailAddress accountEmail, Folder folder, Folder targetFolder, IEnumerable<uint> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken = default);
     }
 }
