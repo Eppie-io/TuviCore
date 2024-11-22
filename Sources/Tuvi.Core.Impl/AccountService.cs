@@ -320,10 +320,9 @@ namespace Tuvi.Core.Impl
             var localTask = DeleteLocalMessagesAsync(folder, uids, updateUnreadAndTotal: true, cancellationToken);
             await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);
 
+            // TODO: Implement local messages moving
             //var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
             //var localTask = MoveLocalMessagesAsync(folder, targetFolder, uids, updateUnreadAndTotal: true, cancellationToken);
-            //var localTask = AddMessagesToDataStorageAsync(targetFolder, messages, cancellationToken);
-            //var localTask = Task.CompletedTask;
             //await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);            
         }
         
