@@ -280,7 +280,6 @@ namespace Tuvi.Core.Dec.Impl
 
         public async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete = false, CancellationToken cancellationToken = default)
         {
-            var trash = AccountSettings.FoldersStructure.Find(f => f.IsTrash);
             permanentDelete = permanentDelete || folder.IsTrash;
 
             foreach (var id in ids)
