@@ -318,26 +318,7 @@ namespace Tuvi.Core.Impl
 
             var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
             var localTask = DeleteLocalMessagesAsync(folder, uids, updateUnreadAndTotal: true, cancellationToken);
-            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);
-
-            // TODO: Implement local messages moving
-            //var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
-            //var localTask = MoveLocalMessagesAsync(folder, targetFolder, uids, updateUnreadAndTotal: true, cancellationToken);
-            //await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);            
-        }
-        
-        private async Task MoveLocalMessagesAsync(Folder folder, Folder targetFolder, List<uint> uids, bool updateUnreadAndTotal, CancellationToken cancellationToken)
-        {
-            await DataStorage.MoveMessagesAsync(Account.Email, folder, targetFolder, uids, updateUnreadAndTotal, cancellationToken).ConfigureAwait(false);
-
-            if (MessageDeleted is null)
-            {
-                return;
-            }
-            foreach (var uid in uids)
-            {
-                RaiseMessageDeleted(folder, uid);
-            }
+            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);        
         }
 
         public Task PermanentDeleteMessageAsync(Message message, CancellationToken cancellationToken)

@@ -303,7 +303,7 @@ namespace Tuvi.Core.DataStorage.Impl
             }
 
             var toAdd = account.FoldersStructure.Where(x => !prev.Exists(y => y.Equals(x))).ToList();
-            foreach (var folder in toAdd)
+            foreach(var folder in toAdd)
             {
                 // explicitly zero this counter, because user can pass any value from the external code.
                 // this value should be changed only in storage code, and saved in db
@@ -424,7 +424,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 {
                     return;
                 }
-
+                                                
                 AddAccountFolders(db, item.Id, account, ct);
 
                 connection.Update(item);
@@ -634,16 +634,16 @@ namespace Tuvi.Core.DataStorage.Impl
             foreach (var contact in contacts)
             {
                 contact.UnreadCount += delta;
-
+                
                 Debug.Assert(contact.UnreadCount >= 0);
-                if (contact.UnreadCount < 0)
+                if(contact.UnreadCount < 0)
                 {
                     throw new InvalidOperationException("contact.UnreadCount must be greater than zero");
                 }
                 else
                 {
                     connection.Update(contact);
-                }
+                }                
             }
         }
 
@@ -2092,37 +2092,6 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     connection.Table<ProtonMessageLabel>().Delete(x => x.MessageId == id && x.LabelId == label.Id);
                 }
             }, cancellationToken);
-        }
-
-        public Task MoveMessagesAsync(EmailAddress accountEmail, Folder folder, Folder targetFolder, IEnumerable<uint> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
-        {            
-            return WriteDatabaseAsync((db, ct) =>
-            {
-                var connection = db.Connection;
-                var path = CreatePath(accountEmail, folder.FullName);
-
-                foreach (var uid in messages)
-                {
-                    var message = connection.Find<Entities.Message>(x => x.Path == path && x.Id == uid);
-                    MoveMessage(db, message, accountEmail, targetFolder, updateUnreadAndTotal, ct);
-                }
-            }, cancellationToken);
-        }
-
-        private void MoveMessage(DbConnection db, Entities.Message message, EmailAddress accountEmail, Folder targetFolder, bool updateUnreadAndTotal, CancellationToken cancellationToken)
-        {
-            var connection = db.Connection;
-
-
-            var newPath = CreatePath(accountEmail, targetFolder.FullName);
-            message.Path = newPath;
-
-            InitMessageFolder(connection, accountEmail, targetFolder.FullName, message);
-            
-            connection.Update(message);
-
-            UpdateFolderCounters(connection, null, message, updateUnreadAndTotal);
-            UpdateContactsUnreadCount(connection, null, message);
         }
     }
 }
