@@ -1121,5 +1121,22 @@ namespace Tuvi.Core.Impl
             Debug.Assert(email != null);
             return null;
         }
+
+        public async Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken)
+        {
+            CheckDisposed();
+            // group messages by Folder
+            var messageByFolder = messages.GroupBy(x => x.FolderId);
+
+            foreach (var group in messageByFolder)
+            {
+                var message = group.First();
+                var folder = message.Folder;
+                var accountService = await GetAccountServiceAsync(folder.AccountEmail, cancellationToken).ConfigureAwait(true);
+
+                var target = targetFolder?.Folders.FirstOrDefault(x => x.AccountEmail == folder.AccountEmail);
+                await accountService.MoveMessagesAsync(folder, target, group.ToList(), cancellationToken).ConfigureAwait(true);
+            }
+        }
     }
 }

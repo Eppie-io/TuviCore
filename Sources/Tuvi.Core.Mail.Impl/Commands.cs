@@ -462,6 +462,34 @@ namespace Tuvi.Core.Mail.Impl
         }
     }
 
+
+    internal class MoveMessagesCommand : ReceiverCommand<bool>
+    {
+        IReadOnlyList<uint> UIDS;
+        Folder TargetFolder;
+
+        public MoveMessagesCommand(ReceiverService receiver, IReadOnlyList<uint> ids, Folder folder, Folder targetFolder)
+            : base(receiver, folder)
+        {
+            UIDS = ids;
+            TargetFolder =  targetFolder;
+        }
+
+        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        {
+            await Receiver.MoveMessagesAsync(UIDS, FolderPath, TargetFolder, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        protected override string GetUniqueCommandIdentifier(string email)
+        {
+            return this.GetType().Name
+                + email
+                + FolderPath.FullName
+                + String.Join(",", new List<uint>(UIDS).ConvertAll(x => x.ToString(CultureInfo.InvariantCulture)));
+        }
+    }
+
     internal class FlagMessagesCommand : ReceiverCommand<bool>
     {
         private IList<uint> UIDs;

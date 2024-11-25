@@ -107,5 +107,9 @@ namespace Tuvi.Core.Mail
         /// Delete messages with <paramref name="ids"/> list in <paramref name="folderPath"/> to trash folder if <paramref name="permanentDelete"/> is false.
         /// </summary>
         Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete = false, CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Move messages with <paramref name="ids"/> list in <paramref name="folder"/> to folder <paramref name="targetFolder"/>.
+        /// </summary>
+        Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken);
     }
 }

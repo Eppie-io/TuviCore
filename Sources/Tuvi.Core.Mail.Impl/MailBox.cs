@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,6 +120,12 @@ namespace Tuvi.Core.Mail.Impl
         {
             DeleteMessagesCommand deleteMessagesCommand = new DeleteMessagesCommand(Receiver, ids, folder, permanentDelete);
             return deleteMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+        }
+
+        public Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
+        {
+            MoveMessagesCommand moveMessagesCommand = new MoveMessagesCommand(Receiver, ids, folder, targetFolder);
+            return moveMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
         }
 
         public Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)

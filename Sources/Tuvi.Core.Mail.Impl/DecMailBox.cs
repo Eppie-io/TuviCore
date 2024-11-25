@@ -262,19 +262,42 @@ namespace Tuvi.Core.Dec.Impl
         public async Task DeleteMessageAsync(uint id, Folder folder, bool permanentDelete, CancellationToken cancellationToken)
         {
             var decMessage = await Storage.GetDecMessageAsync(AccountSettings.Email, folder, id, cancellationToken).ConfigureAwait(false);
-            var trash = AccountSettings.FoldersStructure.Find(f => f.IsTrash);
 
-            decMessage.FolderName = trash.FullName;
-            decMessage.FolderAttributes = trash.Attributes;
+            if (permanentDelete)
+            {
+                await Storage.DeleteDecMessageAsync(AccountSettings.Email, folder, id, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var trash = AccountSettings.FoldersStructure.Find(f => f.IsTrash);
 
-            await Storage.UpdateDecMessageAsync(AccountSettings.Email, decMessage, cancellationToken).ConfigureAwait(false);
+                decMessage.FolderName = trash.FullName;
+                decMessage.FolderAttributes = trash.Attributes;
+
+                await Storage.UpdateDecMessageAsync(AccountSettings.Email, decMessage, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete = false, CancellationToken cancellationToken = default)
         {
+            permanentDelete = permanentDelete || folder.IsTrash;
+
             foreach (var id in ids)
             {
                 await DeleteMessageAsync(id, folder, permanentDelete, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
+        {
+            foreach (var id in ids)
+            {
+                var decMessage = await Storage.GetDecMessageAsync(AccountSettings.Email, folder, id, cancellationToken).ConfigureAwait(false);
+                
+                decMessage.FolderName = targetFolder.FullName;
+                decMessage.FolderAttributes = targetFolder.Attributes;
+
+                await Storage.UpdateDecMessageAsync(AccountSettings.Email, decMessage, cancellationToken).ConfigureAwait(false);
             }
         }
 

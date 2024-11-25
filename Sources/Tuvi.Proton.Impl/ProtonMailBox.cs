@@ -372,6 +372,15 @@ namespace Tuvi.Proton
             await _storage.DeleteMessagesByIds(ids, labelId, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
+        {
+            var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
+            var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
+                        
+            var targetLabelId = GetMessageLabelId(targetFolder);
+            await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), targetLabelId, cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task FlagMessagesAsync(IEnumerable<Core.Entities.Message> messages, CancellationToken cancellationToken)
         {
             var storedMessages = await _storage.GetMessagesAsync(messages.Select(x => x.Id).ToList(), cancellationToken).ConfigureAwait(false);

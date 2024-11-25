@@ -116,5 +116,7 @@ namespace Tuvi.Core
         Task SynchronizeAsync(bool full, CancellationToken cancellationToken);
 
         Task SynchronizeFolderAsync(Folder folder, bool full, CancellationToken cancellationToken);
+
+        Task MoveMessagesAsync(Folder folder, Folder targetFolder, IReadOnlyList<Message> messages, CancellationToken cancellationToken);
     }
 }

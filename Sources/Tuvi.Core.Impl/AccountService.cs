@@ -297,6 +297,30 @@ namespace Tuvi.Core.Impl
             return DoDeleteMessagesAsync(folder, messages, false, cancellationToken);
         }
 
+        public async Task MoveMessagesAsync(Folder folder, Folder targetFolder, IReadOnlyList<Message> messages, CancellationToken cancellationToken)
+        {
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            if (targetFolder is null)
+            {
+                throw new ArgumentNullException(nameof(targetFolder));
+            }
+
+            var uids = messages.Select(x => x.Id).Where(x => x > 0).ToList();
+            if (uids.Count == 0)
+            {
+                // there is nothing to move, given messages were not stored anywhere
+                return;
+            }
+
+            var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
+            var localTask = DeleteLocalMessagesAsync(folder, uids, updateUnreadAndTotal: true, cancellationToken);
+            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);        
+        }
+
         public Task PermanentDeleteMessageAsync(Message message, CancellationToken cancellationToken)
         {
             if (message is null)
