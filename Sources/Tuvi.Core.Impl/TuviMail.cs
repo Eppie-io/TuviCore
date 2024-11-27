@@ -604,11 +604,15 @@ namespace Tuvi.Core.Impl
             }
             _isCheckingForNewMessages = true;
             try
-            {
-                await folder.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
-                await LoadNewMessagesAsync(folder, cancellationToken).ConfigureAwait(true);
-                await folder.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
-                RegisterExceptions(folder.Exceptions, "An error occurred while checking for new messages in folder");
+            {                
+                var tasks = folder.Folders.Select(async f =>
+                {
+                    var account = await GetAccountAsync(f.AccountEmail, cancellationToken).ConfigureAwait(false);
+                    await CheckForNewMessagesAsync(account, x => x.Equals(f), cancellationToken).ConfigureAwait(false);
+                }).ToArray();
+
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+
             }
             catch (OperationCanceledException)
             {
@@ -625,17 +629,6 @@ namespace Tuvi.Core.Impl
             var messages = await accountService.ReceiveNewMessagesInFolderAsync(folder, cancellationToken)
                                                .ConfigureAwait(true);
             var receivedMessages = new List<ReceivedMessageInfo>(messages.Select(m => new ReceivedMessageInfo(folder.AccountEmail, m)));
-
-            if (receivedMessages.Count > 0)
-            {
-                MessagesReceived?.Invoke(this, new MessagesReceivedEventArgs(receivedMessages));
-            }
-        }
-
-        private async Task LoadNewMessagesAsync(CompositeFolder folder, CancellationToken cancellationToken)
-        {
-            var messages = await folder.ReceiveNewMessagesAsync(cancellationToken).ConfigureAwait(true);
-            var receivedMessages = new List<ReceivedMessageInfo>(messages.Select(m => new ReceivedMessageInfo(m.Folder.AccountEmail, m)));
 
             if (receivedMessages.Count > 0)
             {
