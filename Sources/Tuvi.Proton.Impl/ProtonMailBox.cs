@@ -366,9 +366,24 @@ namespace Tuvi.Proton
         public async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete, CancellationToken cancellationToken)
         {
             var labelId = GetMessageLabelId(folder);
+
+            if(folder.IsTrash)
+            {
+                permanentDelete = true;
+            }
+
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
-            await client.UnlabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), labelId, cancellationToken).ConfigureAwait(false);
+            
+            if (permanentDelete)
+            {
+                await client.DeleteMessagesAsync(messages.Select(x => x.MessageId).ToList(), cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), LabelID.TrashLabel, cancellationToken).ConfigureAwait(false);
+            }
+
             await _storage.DeleteMessagesByIds(ids, labelId, cancellationToken).ConfigureAwait(false);
         }
 
