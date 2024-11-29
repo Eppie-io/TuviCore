@@ -62,8 +62,31 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
         {
-            var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], StatusItems.Unread | StatusItems.Count, cancellationToken: cancellationToken).ConfigureAwait(false);
-            var foldersStructure = new List<Folder>(from folder in folders where folder.Exists select folder.ToTuviMailFolder());
+            async Task<IList<Folder>> GetFoldersAsync()
+            {
+                var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], StatusItems.Unread | StatusItems.Count, cancellationToken: cancellationToken).ConfigureAwait(false);
+                return new List<Folder>(from folder in folders where folder.Exists select folder.ToTuviMailFolder());
+            }
+
+            IList<Folder> foldersStructure = null;
+            try
+            {
+                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
+            }
 
             return foldersStructure;
         }
