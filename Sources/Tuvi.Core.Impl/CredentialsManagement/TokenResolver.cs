@@ -93,6 +93,10 @@ namespace Tuvi.Core.Impl.CredentialsManagement
 
                 return data.Token;
             }
+            catch (AuthorizationException e)
+            {
+                throw new AuthorizationException(emailAddress, e.InnerException.Message, e.InnerException);
+            }
             finally
             {
                 _semaphore.Release();
