@@ -12,7 +12,7 @@ namespace Tuvi.Proton
         [SQLite.PrimaryKey]
         [SQLite.AutoIncrement]
         public int Id { get; set; }
-        [SQLite.Indexed(Name = "ProtonMessage_Index", Order = 1, Unique = true)]
+        [SQLite.Indexed(Name = "ProtonMessage_Index", Order = 2, Unique = true)]
         public string MessageId { get; set; }
         public string Subject { get; set; }
         public string From { get; set; }
@@ -24,8 +24,8 @@ namespace Tuvi.Proton
         public long Flags { get; set; }
         public DateTimeOffset Time { get; set; }
         public int NumAttachments { get; set; }
-        [SQLite.Indexed(Name = "ProtonMessage_Index", Order = 2, Unique = true)]
-        // public string LabelId { get; set; }
+        [SQLite.Indexed(Name = "ProtonMessage_Index", Order = 1, Unique = true)]
+        public int AccountId { get; set; }
         [SQLite.Ignore]
         public IReadOnlyList<string> LabelIds { get; set; }
 
@@ -65,14 +65,10 @@ namespace Tuvi.Proton
     {
         Task AddMessageIDs(IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(CancellationToken cancellationToken = default);
-        //Task AddMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
-        Task AddOrUpdateMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
-        // TODO: remove the method below
-        Task<IReadOnlyList<Message>> GetMessagesAsync(string labelId, int count, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<Message>> GetMessagesAsync(string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken = default);
-        Task<Message> GetMessageAsync(string labelId, uint id, CancellationToken cancellationToken = default);
+        Task AddOrUpdateMessagesAsync(int accountId, IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Message>> GetMessagesAsync(int accountId, string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken = default);
+        Task<Message> GetMessageAsync(int accountId, string labelId, uint id, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<Message>> GetMessagesAsync(IReadOnlyList<uint> ids, CancellationToken cancellationToken = default);
-        //Task UpdateMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
         Task DeleteMessageByMessageIdsAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
         Task DeleteMessagesByIds(IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken = default);
     }
