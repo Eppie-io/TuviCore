@@ -359,7 +359,7 @@ namespace Tuvi.Proton
         {
             var draftMessage = await CreateDraftAsync(message, cancellationToken).ConfigureAwait(false);
             var localMessage = draftMessage.ToLocalMessage();
-            await _storage.AddOrUpdateMessagesAsync(new List<Message>() { localMessage }, cancellationToken).ConfigureAwait(false);
+            await _storage.AddOrUpdateMessagesAsync(message.Folder.AccountId, new List<Message>() { localMessage }, cancellationToken).ConfigureAwait(false);
             return localMessage.ToCoreMessage();
         }
 
@@ -488,7 +488,7 @@ namespace Tuvi.Proton
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
             var labelId = GetMessageLabelId(folder);
-            var storedLastMessage = await _storage.GetMessageAsync(labelId, id, cancellationToken).ConfigureAwait(false);
+            var storedLastMessage = await _storage.GetMessageAsync(folder.AccountId, labelId, id, cancellationToken).ConfigureAwait(false);
             Debug.Assert(storedLastMessage != null);
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var messageData = await client.GetMessageAsync(storedLastMessage.MessageId, cancellationToken)
@@ -599,7 +599,7 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> ReplaceDraftMessageAsync(uint id, Core.Entities.Message message, CancellationToken cancellationToken)
         {
-            var storedMessage = await _storage.GetMessageAsync(LabelID.DraftsLabel, id, cancellationToken).ConfigureAwait(false);
+            var storedMessage = await _storage.GetMessageAsync(message.Folder.AccountId, LabelID.DraftsLabel, id, cancellationToken).ConfigureAwait(false);
             Debug.Assert(storedMessage != null);
 
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
@@ -667,7 +667,7 @@ namespace Tuvi.Proton
                 string labelId = GetMessageLabelId(folder);
                 uint knownMessageId = lastMessage != null ? lastMessage.Id : 0;
 
-                var storedItems = await _storage.GetMessagesAsync(labelId, knownMessageId, earlier, count, cancellationToken)
+                var storedItems = await _storage.GetMessagesAsync(folder.AccountId, labelId, knownMessageId, earlier, count, cancellationToken)
                                                 .ConfigureAwait(false);
 
                 return storedItems.Select(x => x.ToCoreMessage()).ToList();
@@ -741,7 +741,7 @@ namespace Tuvi.Proton
                 {
                     var messages = await client.GetMessageMetadataPagedAsync(page, SyncPageSize, anyMessageFilter, cancellationToken)
                                                .ConfigureAwait(false);
-                    await _storage.AddOrUpdateMessagesAsync(messages.Select(x => x.ToLocalMessage()).ToList(), cancellationToken)
+                    await _storage.AddOrUpdateMessagesAsync(_account.Id, messages.Select(x => x.ToLocalMessage()).ToList(), cancellationToken)
                                   .ConfigureAwait(false);
                 }
             }
@@ -875,7 +875,7 @@ namespace Tuvi.Proton
 
         private async Task ProcessMessagesAsync(IEnumerable<Core.Entities.Message> messages, Func<Impl.Client, IEnumerable<string>, Task> action, CancellationToken cancellationToken)
         {
-            var tasks = messages.Select(x => _storage.GetMessageAsync(GetMessageLabelId(x.Folder), x.Id, cancellationToken)).ToList();
+            var tasks = messages.Select(x => _storage.GetMessageAsync(x.Folder.AccountId, GetMessageLabelId(x.Folder), x.Id, cancellationToken)).ToList();
             await Task.WhenAll(tasks).ConfigureAwait(false);
             var storedMessageIDs = tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result.MessageId).ToList();
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);

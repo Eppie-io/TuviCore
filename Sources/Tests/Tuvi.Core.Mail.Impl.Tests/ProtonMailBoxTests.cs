@@ -220,6 +220,19 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return res;
         }
 
+
+        private static async Task<IStorage> GetProtonStorageAsync()
+        {
+            const string fileName = "proton.db";
+            if (File.Exists(fileName))
+            {
+                File.Delete(fileName);
+            }
+            var db = DataStorageProvider.GetDataStorage(fileName);
+            await db.CreateAsync("123").ConfigureAwait(true);
+            return db as IStorage;
+        }
+
         [Test]
         public async Task ProtonMessageIDsTest()
         {
@@ -238,31 +251,55 @@ namespace Tuvi.Core.Mail.Impl.Tests
         public async Task ProtonNoMessagesTest()
         {
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
-            var res = await storage.GetMessagesAsync("1", 0, default).ConfigureAwait(true);
+            var res = await storage.GetMessagesAsync(0, "1", 0, true, 0).ConfigureAwait(true);
             Assert.That(res.Count == 0, Is.True);
+        }
+
+        private static Proton.Message CreateMessage(int accountId, string id, IReadOnlyList<string> labelIds)
+        {
+            var message = new Proton.Message()
+            {
+                Subject = "Test Subject",
+                MessageId = id,
+                AccountId = accountId,
+                Unread = true,
+                Time = DateTimeOffset.Now,
+                From = "sender@mail.box",
+                To = "receiver@mail.box;receiver@mail.box:reseiver",
+                Cc = "cc@mail.box;cc2@mail.box",
+                Bcc = "bcc@mail.box;bcc2@mail.box",
+                LabelIds = labelIds
+            };
+            return message;
+        }
+
+        private static Proton.Message CreateMessage(int accountId, string id, string labelId)
+        {
+            return CreateMessage(accountId, id, new List<string>() { labelId });
         }
 
         [Test]
         public async Task DeleteByMessageIdTest()
         {
+            var accountId = 0;
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
             var messages = new List<Proton.Message>()
-        {
-            CreateMessage("1234567", new List<string>(){"1", "5" }),
-            CreateMessage("1234568", "1"),
-        };
+            {
+                CreateMessage(accountId, "1234567", new List<string>(){"1", "5" }),
+                CreateMessage(accountId, "1234568", "1"),
+            };
             await storage.AddMessageIDs(messages.Select(x => x.MessageId).Distinct().ToList(), default).ConfigureAwait(true);
-            await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
-            var storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true); // should return all message with this label
-            var storedMessages2 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
+            var storedMessages1 = await storage.GetMessagesAsync(accountId, "1", 0, true, 0).ConfigureAwait(true); // should return all message with this label
+            var storedMessages2 = await storage.GetMessagesAsync(accountId, "5", 0, true, 1).ConfigureAwait(true);
             Assert.That(storedMessages1.Count == 2, Is.True);
             Assert.That(storedMessages2.Count == 1, Is.True);
             Assert.That(storedMessages1, Is.EquivalentTo(messages));
 
             await storage.DeleteMessageByMessageIdsAsync(new List<string>() { "1234567" }, default).ConfigureAwait(true);
-            storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
+            storedMessages1 = await storage.GetMessagesAsync(accountId, "1", 0, true, 0).ConfigureAwait(true);
             Assert.That(storedMessages1.Count == 1, Is.True);
-            var storedMessages3 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
+            var storedMessages3 = await storage.GetMessagesAsync(accountId, "5", 0, true, 1).ConfigureAwait(true);
             Assert.That(storedMessages3.Count == 0, Is.True);
             Assert.That(storedMessages1[0].Equals(messages[1]), Is.True);
         }
@@ -270,37 +307,38 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public async Task GetMessagesTest()
         {
+            var accountId = 0;
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
             var messages = new List<Proton.Message>()
-        {
-            CreateMessage("1", new List<string>(){"1", "5" }),
-            CreateMessage("2", "1"),
-            CreateMessage("3", new List<string>(){"1", "5" }),
-        };
+            {
+                CreateMessage(accountId, "1", new List<string>(){"1", "5" }),
+                CreateMessage(accountId, "2", "1"),
+                CreateMessage(accountId, "3", new List<string>(){"1", "5" }),
+            };
             await storage.AddMessageIDs(messages.Select(x => x.MessageId).Distinct().ToList(), default).ConfigureAwait(true);
-            await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
 
-            var storedMessages1 = await storage.GetMessagesAsync("5", 0).ConfigureAwait(true);
+            var storedMessages1 = await storage.GetMessagesAsync(accountId, "5", 0, true, 0).ConfigureAwait(true);
             Assert.That(storedMessages1.Count == 2, Is.True);
             Assert.That(storedMessages1[0].MessageId == "3", Is.True);
             Assert.That(storedMessages1[1].MessageId == "1", Is.True);
 
             messages[1].LabelIds = new List<string>() { "1", "5" };
-            await storage.AddOrUpdateMessagesAsync(new List<Proton.Message>() { messages[1] }, default).ConfigureAwait(true);
-            var storedMessages2 = await storage.GetMessagesAsync("5", 0).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, new List<Proton.Message>() { messages[1] }, default).ConfigureAwait(true);
+            var storedMessages2 = await storage.GetMessagesAsync(accountId, "5", 0, true, 0).ConfigureAwait(true);
             Assert.That(storedMessages2.Count == 3, Is.True);
             Assert.That(storedMessages2[0].MessageId == "3", Is.True);
             Assert.That(storedMessages2[1].MessageId == "2", Is.True);
             Assert.That(storedMessages2[2].MessageId == "1", Is.True);
 
-            var storedMessages3 = await storage.GetMessagesAsync("5", (uint)storedMessages2[0].Id, getEarlier: true, 1).ConfigureAwait(true);
+            var storedMessages3 = await storage.GetMessagesAsync(accountId, "5", (uint)storedMessages2[0].Id, getEarlier: true, 1).ConfigureAwait(true);
             Assert.That(storedMessages3.Count == 1, Is.True);
             Assert.That(storedMessages3[0].MessageId == "2", Is.True);
 
-            var storedMessages4 = await storage.GetMessagesAsync("5", (uint)storedMessages2[0].Id, getEarlier: false, 1).ConfigureAwait(true);
+            var storedMessages4 = await storage.GetMessagesAsync(accountId, "5", (uint)storedMessages2[0].Id, getEarlier: false, 1).ConfigureAwait(true);
             Assert.That(storedMessages4.Count == 0, Is.True);
 
-            var storedMessages5 = await storage.GetMessagesAsync("5", (uint)storedMessages2[1].Id, getEarlier: false, 1).ConfigureAwait(true);
+            var storedMessages5 = await storage.GetMessagesAsync(accountId, "5", (uint)storedMessages2[1].Id, getEarlier: false, 1).ConfigureAwait(true);
             Assert.That(storedMessages5.Count == 1, Is.True);
             Assert.That(storedMessages5[0].MessageId == "3", Is.True);
 
@@ -309,22 +347,23 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public async Task DeleteByIdTest()
         {
+            var accountId = 0;
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
             var messages = new List<Proton.Message>()
         {
-            CreateMessage("1234567", new List<string>(){"1", "5" }),
-            CreateMessage("1234568", "1"),
+            CreateMessage(accountId, "1234567", new List<string>(){"1", "5" }),
+            CreateMessage(accountId, "1234568", "1"),
         };
             await storage.AddMessageIDs(messages.Select(x => x.MessageId).Distinct().ToList(), default).ConfigureAwait(true);
-            await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
-            var storedMessages1 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
+            var storedMessages1 = await storage.GetMessagesAsync(accountId, "1", 0, true, 0).ConfigureAwait(true);
             await storage.DeleteMessagesByIds(storedMessages1.Select(x => (uint)x.Id).ToList(), "5", default).ConfigureAwait(true);
-            var storedMessages2 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
+            var storedMessages2 = await storage.GetMessagesAsync(accountId, "1", 0, true, 0).ConfigureAwait(true);
             Assert.That(storedMessages1, Is.EquivalentTo(storedMessages2));
             await storage.DeleteMessagesByIds(storedMessages1.Select(x => (uint)x.Id).ToList(), "1", default).ConfigureAwait(true);
-            var storedMessages3 = await storage.GetMessagesAsync("1", 0).ConfigureAwait(true);
+            var storedMessages3 = await storage.GetMessagesAsync(accountId, "1", 0, true, 0).ConfigureAwait(true);
             Assert.That(storedMessages3.Count == 0, Is.True);
-            var storedMessages4 = await storage.GetMessagesAsync("5", 1).ConfigureAwait(true);
+            var storedMessages4 = await storage.GetMessagesAsync(accountId, "5", 0, true, 1).ConfigureAwait(true);
             Assert.That(storedMessages4.Count == 0, Is.True);
         }
 
@@ -357,19 +396,20 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public async Task UpdateMessageTest()
         {
+            var accountId = 0;
             using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
             var messages = new List<Proton.Message>()
-        {
-            CreateMessage("1234567", new List<string>(){"1", "5" }),
-            CreateMessage("1234568", "1"),
-        };
+            {
+                CreateMessage(accountId, "1234567", new List<string>(){"1", "5" }),
+                CreateMessage(accountId, "1234568", "1"),
+            };
             await storage.AddMessageIDs(messages.Select(x => x.MessageId).Distinct().ToList(), default).ConfigureAwait(true);
-            await storage.AddOrUpdateMessagesAsync(messages, default).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
             var updatedMessages = new List<Proton.Message>()
-        {
-            messages[0],
-            messages[1]
-        };
+            {
+                messages[0],
+                messages[1]
+            };
             updatedMessages[0].Id = 0;
             updatedMessages[0].Unread = false;
             updatedMessages[1].Unread = false;
@@ -378,9 +418,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
             updatedMessages[1].To = "new@to.box";
             updatedMessages[1].Cc = "new@cc.box";
             updatedMessages[1].Bcc = "new@bcc.box";
-            await storage.AddOrUpdateMessagesAsync(updatedMessages).ConfigureAwait(true);
-            var m1 = await storage.GetMessagesAsync("5", 2).ConfigureAwait(true);
-            var m2 = await storage.GetMessagesAsync("1", 2).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(accountId, updatedMessages).ConfigureAwait(true);
+            var m1 = await storage.GetMessagesAsync(accountId, "5", 0, true, 2).ConfigureAwait(true);
+            var m2 = await storage.GetMessagesAsync(accountId, "1", 0, true, 2).ConfigureAwait(true);
             Assert.That(m1.Count == 1, Is.True);
             Assert.That(m2.Count == 2, Is.True);
             Assert.That(m1[0], Is.EqualTo(m2[1]));
@@ -394,38 +434,62 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(m2[0].Bcc == "new@bcc.box", Is.True);
         }
 
-        private static Proton.Message CreateMessage(string id, string labelId)
+        [Test]
+        public async Task ProtonMessagesWithDifferentAccountsTest()
         {
-            return CreateMessage(id, new List<string>() { labelId });
-        }
+            using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
 
-        private static Proton.Message CreateMessage(string id, IReadOnlyList<string> labelIds)
-        {
-            var message = new Proton.Message()
+            var account1Id = 1;
+            var account2Id = 2;
+
+            var account1Messages = new List<Proton.Message>()
             {
-                Subject = "Test Subject",
-                MessageId = id,
-                Unread = true,
-                Time = DateTimeOffset.Now,
-                From = "sender@mail.box",
-                To = "receiver@mail.box;receiver@mail.box:reseiver",
-                Cc = "cc@mail.box;cc2@mail.box",
-                Bcc = "bcc@mail.box;bcc2@mail.box",
-                LabelIds = labelIds
+                CreateMessage(account1Id, "123", new List<string>() { "1" }),
+                CreateMessage(account1Id, "124", new List<string>() { "1", "2" })
             };
-            return message;
+            var account2Messages = new List<Proton.Message>()
+            {
+                CreateMessage(account2Id, "125", new List<string>() { "3" }),
+                CreateMessage(account2Id, "126", new List<string>() { "3", "4" })
+            };
+
+            await storage.AddOrUpdateMessagesAsync(account1Id, account1Messages, default).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(account2Id, account2Messages, default).ConfigureAwait(true);
+
+            var storedAccount1Messages = await storage.GetMessagesAsync(account1Id, "1", 0, true, 0).ConfigureAwait(true);
+            Assert.That(storedAccount1Messages.Count, Is.EqualTo(2));
+            Assert.That(storedAccount1Messages.Select(x => x.MessageId), Is.EquivalentTo(account1Messages.Select(x => x.MessageId)));
+
+            var storedAccount2Messages = await storage.GetMessagesAsync(account2Id, "3", 0, true, 0).ConfigureAwait(true);
+            Assert.That(storedAccount2Messages.Count, Is.EqualTo(2));
+            Assert.That(storedAccount2Messages.Select(x => x.MessageId), Is.EquivalentTo(account2Messages.Select(x => x.MessageId)));
         }
 
-        private static async Task<IStorage> GetProtonStorageAsync()
+        [Test]
+        public async Task ProtonMessagesIsolationBetweenAccountsTest()
         {
-            const string fileName = "proton.db";
-            if (File.Exists(fileName))
-            {
-                File.Delete(fileName);
-            }
-            var db = DataStorageProvider.GetDataStorage(fileName);
-            await db.CreateAsync("123").ConfigureAwait(true);
-            return db as IStorage;
+            using var storage = await GetProtonStorageAsync().ConfigureAwait(true);
+
+            var account1Id = 1;
+            var account2Id = 2;
+
+            var account1Message = CreateMessage(account1Id, "123", new List<string>() { "1" });
+            var account2Message = CreateMessage(account2Id, "123", new List<string>() { "2" });
+
+            await storage.AddOrUpdateMessagesAsync(account1Id, new List<Proton.Message> { account1Message }, default).ConfigureAwait(true);
+            await storage.AddOrUpdateMessagesAsync(account2Id, new List<Proton.Message> { account2Message }, default).ConfigureAwait(true);
+
+            var storedAccount1Messages = await storage.GetMessagesAsync(account1Id, "1", 0, true, 0).ConfigureAwait(true);
+            var storedAccount2Messages = await storage.GetMessagesAsync(account2Id, "2", 0, true, 0).ConfigureAwait(true);
+
+            Assert.That(storedAccount1Messages.Count, Is.EqualTo(1));
+            Assert.That(storedAccount1Messages[0].MessageId, Is.EqualTo("123"));
+
+            Assert.That(storedAccount2Messages.Count, Is.EqualTo(1));
+            Assert.That(storedAccount2Messages[0].MessageId, Is.EqualTo("123"));
+
+            Assert.That(storedAccount1Messages[0].Id, Is.Not.EqualTo(storedAccount2Messages[0].Id));
         }
+
     }
 }

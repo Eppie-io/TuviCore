@@ -1904,7 +1904,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task AddOrUpdateMessagesAsync(IReadOnlyList<Proton.Message> messages, CancellationToken cancellationToken)
+        public Task AddOrUpdateMessagesAsync(int accountId, IReadOnlyList<Proton.Message> messages, CancellationToken cancellationToken)
         {
             if (messages.Count == 0)
             {
@@ -1934,15 +1934,17 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 {
                     int messageId = 0;
                     ct.ThrowIfCancellationRequested();
-                    var existingMessage = connection.Table<Proton.Message>().Where(m => m.MessageId == message.MessageId).FirstOrDefault();
+                    var existingMessage = connection.Table<Proton.Message>().Where(m => m.AccountId == accountId && m.MessageId == message.MessageId).FirstOrDefault();
                     if (existingMessage is null)
                     {
+                        message.AccountId = accountId;
                         connection.Insert(message);
                         messageId = GetLastRowId(connection);
                     }
                     else
                     {
                         message.Id = existingMessage.Id;
+                        message.AccountId = existingMessage.AccountId;
                         messageId = existingMessage.Id;
                         connection.Update(message);
                         // remove existing labels
@@ -1956,12 +1958,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(string labelId, int count, CancellationToken cancellationToken)
-        {
-            return GetMessagesAsync(labelId, 0, getEarlier: true, count, cancellationToken);
-        }
-
-        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(int accountId, string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken)
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
@@ -1974,7 +1971,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                                                 .Where(x => x.LabelId == label.Id)
                                                 .Select(x => x.MessageId);
                 var query = connection.Table<Proton.Message>()
-                                      .Where(x => labeledMessages.Contains(x.Id))
+                                      .Where(x => x.AccountId == accountId && labeledMessages.Contains(x.Id))
                                       .OrderByDescending(x => x.Id);
                 if (knownId > 0)
                 {
@@ -2001,7 +1998,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return (IReadOnlyList<Proton.Message>)query.ToList(cancellationToken);
         }
 
-        public Task<Proton.Message> GetMessageAsync(string labelId, uint id, CancellationToken cancellationToken)
+        public Task<Proton.Message> GetMessageAsync(int accountId, string labelId, uint id, CancellationToken cancellationToken)
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
@@ -2014,7 +2011,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     return null;
                 }
                 return connection.Table<Proton.Message>()
-                                 .Where(x => x.Id == id)
+                                 .Where(x => x.AccountId == accountId && x.Id == id)
                                  .FirstOrDefault();
             }, cancellationToken);
         }
