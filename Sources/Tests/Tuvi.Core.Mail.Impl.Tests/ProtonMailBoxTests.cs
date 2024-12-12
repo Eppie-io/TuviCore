@@ -135,7 +135,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         [TestCase("A15VUlxvQ+3e0bo9Jqg/7iFaDdN+YnToSxy4tHWWuNM=", "0koBgPHji3nHD4mRXl5bv+kLVzzS6wIr7wZb5/MKuSp2RfV+FgMpNWDJSkcXcCkkWOzd05dCywr0VK11EFuCLS41B7ZTVkcAiLSGAQ==", "My body")]
         [TestCase("AbVOjLdx22soYIj2RuJHvH7fRVzFlNruLvMPOrH6BWI=", "0sCAAWFptg6Jk8Z0bMUZ0B8sMe3lqPNSsBuYizitEfxyVPBhDXD/P4p0PVyM1KER1XqK0W3jl2tGTp6uFUqSARCZZBp8Bb3VllP3WrEDWyy3o8EGRc6PrYno+TpZ1v6HHxqI9IHMJb0CwFNqGFtI5c6xZ/u4Lt2vEW/Vfp53GigSg0QKSWb0FMdaGcMtnef3wuGJxMAAEB+Tz+1J8scTF22RdJkrgV77aC+X2UlcxMiP4B8IUDptjPt/K5K+ltMHKH4e9ZX5eRww2sAHIlBHHZewQOI8Qk0q8Tf9DEmqRcF+Ih6cWblbPvAr8Ijs9am2G3DHnV2RyDZRH/ex4ioxuCgYmROOw5qYorEQArp5cTmkGyA1gJX86SLZ3cU4J5cZoC7H+b0fc7hr7QsXf73x4PwD8cAIGJs/vjXou3B7D2R3D7g=", "<html><head></head><body><span style=\"font-family:Segoe UI; font-size: 10.5pt; color: #000000\">dddddddddddddd<br/>\r\n</span></body></html>")]
-        public void PlainDataDecryptTest(string key, string encrypedBody, string body)
+        public async Task PlainDataDecryptTest(string key, string encrypedBody, string body)
         {
             var keyPair = GenerateECDHKeys();
             var keyData = Convert.FromBase64String(key);
@@ -152,16 +152,21 @@ namespace Tuvi.Core.Mail.Impl.Tests
                     armored.Write(bodyPacket);
                 }
                 outStream.Position = 0;
-                var decryped = Streams.ReadAll(Crypto.DecryptArmoredStream(context, outStream, false));
-                var decrypedString = Encoding.UTF8.GetString(decryped);
-                Assert.That(decrypedString == body, Is.True);
+                using (var decryptedStream = Crypto.DecryptArmoredStream(context, outStream, false))
+                {
+                    using (var reader = new StreamReader(decryptedStream))
+                    {
+                        var decryptedString = await reader.ReadToEndAsync().ConfigureAwait(true);
+                        Assert.That(decryptedString == body, Is.True);
+                    }
+                }
             }
         }
 
         const string Body1 = "<html><head></head><body><span style=\"font-family:Segoe UI; font-size: 10.5pt; color: #000000\">dddddddddddddd<br/>\r\n</span></body></html>";
 
         [Test]
-        public void SignatureTest()
+        public async Task SignatureTest()
         {
             var keyPairSender = GenerateECDHKeys();
 
@@ -180,9 +185,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 }
                 outStream.Position = 0;
 
-                var decryped = Streams.ReadAll(Crypto.DecryptArmoredStream(context, outStream));
-                var decrypedString = Encoding.UTF8.GetString(decryped);
-                Assert.That(decrypedString == Body1, Is.True);
+                using (var decryptedStream = Crypto.DecryptArmoredStream(context, outStream))
+                {
+                    using (var reader = new StreamReader(decryptedStream))
+                    {
+                        var decryptedString = await reader.ReadToEndAsync().ConfigureAwait(true);
+                        Assert.That(decryptedString == Body1, Is.True);
+                    }
+                }
             }
             Assert.That(key1.Length == 96, Is.True);
             Assert.That(encBody1.Length >= 315, Is.True);
