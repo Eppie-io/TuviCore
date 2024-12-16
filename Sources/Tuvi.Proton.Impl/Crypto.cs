@@ -115,7 +115,7 @@ namespace Tuvi.Proton.Impl
                 sig.Encode(outputStream);
                 outputStream.Flush();
                 outputStream.Position = 0;
-                return Streams.ReadAll(outputStream);
+                return outputStream.ToArray();
             }
         }
 
@@ -236,7 +236,7 @@ namespace Tuvi.Proton.Impl
 
                 multiPart.WriteTo(options, outStream, contentOnly: true);
                 outStream.Position = 0;
-                return Streams.ReadAll(outStream);
+                return outStream.ToArray();
             }
         }
 
