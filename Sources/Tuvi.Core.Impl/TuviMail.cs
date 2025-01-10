@@ -755,8 +755,18 @@ namespace Tuvi.Core.Impl
 
         public async Task UpdateAccountAsync(Account account, CancellationToken cancellationToken = default)
         {
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
             CheckDisposed();
             await DataStorage.UpdateAccountAuthAsync(account, cancellationToken).ConfigureAwait(false);
+
+            // Update account in cache
+            AccountCache.AddOrReplace(account.Id, account);
+            AccountGroupCache.TryRemove(account.GroupId, out AccountGroup _);
+            RemoveAccountServiceByKey(account.Email);
 
             UpdateSchedulerInterval(account);
 
