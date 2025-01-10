@@ -206,7 +206,7 @@ namespace Tuvi.Core.Impl
                     {
                         return Task.CompletedTask;
                     }
-                    return CheckForNewMessagesAsync(account, schedulerCancellation);
+                    return CheckForNewMessagesAsync(account, schedulerCancellation, silent: true);
                 },
                 TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds);
             scheduler.ExceptionOccurred += OnSchedulerExceptionOccurred;
@@ -220,9 +220,9 @@ namespace Tuvi.Core.Impl
             ExceptionOccurred?.Invoke(sender, args);
         }
 
-        private Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken)
+        private Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken, bool silent = false)
         {
-            return CheckForNewMessagesAsync(account, f => true, cancellationToken);
+            return CheckForNewMessagesAsync(account, f => true, cancellationToken, silent);
         }
 
         private void CheckDisposed()
@@ -233,7 +233,7 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        private async Task CheckForNewMessagesAsync(Account account, Func<Folder, bool> folderPredicate, CancellationToken cancellationToken)
+        private async Task CheckForNewMessagesAsync(Account account, Func<Folder, bool> folderPredicate, CancellationToken cancellationToken, bool silent = false)
         {
             List<EmailFolderError> failedEmailFolders = new List<EmailFolderError>();
 
@@ -257,7 +257,7 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                RegisterException(ex, "An error occurred while checking for new messages");
+                RegisterException(ex, "An error occurred while checking for new messages", silent);
             }
         }
 
@@ -362,7 +362,7 @@ namespace Tuvi.Core.Impl
                         }
                         folders.Add(folder);
 
-                        if (folder.Id == account.DefaultInboxFolder.Id)
+                        if (folder.Id == account.DefaultInboxFolderId)
                         {
                             defaultInboxFolders.Add(folder);
                         }
@@ -682,15 +682,20 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        private void RegisterException(Exception ex, string message)
+        private void RegisterException(Exception ex, string message, bool silent = false)
         {
             if (ex is OperationCanceledException ||
                 ex is ObjectDisposedException)
             {
                 return;
             }
+
             this.Log().LogError(ex, "Error details: {Details}", message);
-            ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
+
+            if (!silent)
+            {
+                ExceptionOccurred?.Invoke(this, new ExceptionEventArgs(ex));
+            }
         }
 
         private async Task RestoreAccountFromBackupAsync(Account account)
@@ -751,7 +756,7 @@ namespace Tuvi.Core.Impl
         public async Task UpdateAccountAsync(Account account, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
-            await DataStorage.UpdateAccountAsync(account, cancellationToken).ConfigureAwait(false);
+            await DataStorage.UpdateAccountAuthAsync(account, cancellationToken).ConfigureAwait(false);
 
             UpdateSchedulerInterval(account);
 
