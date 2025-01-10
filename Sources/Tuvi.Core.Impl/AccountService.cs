@@ -670,7 +670,7 @@ namespace Tuvi.Core.Impl
                 return;
             }
 
-            this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} started...", full, folder?.AccountEmail.Address, folder?.FullName);
+            this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} started...", full, folder?.AccountEmail?.Address, folder?.FullName);
             var sw = new Stopwatch();
             sw.Start();
             try
@@ -705,12 +705,12 @@ namespace Tuvi.Core.Impl
             }
             catch (OperationCanceledException)
             {
-                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} is interrupted", full, folder?.AccountEmail.Address, folder?.FullName);
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} is interrupted", full, folder?.AccountEmail?.Address, folder?.FullName);
             }
             finally
             {
                 sw.Stop();
-                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} took {Time}", full, folder?.AccountEmail.Address, folder?.FullName, sw.Elapsed);
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} took {Time}", full, folder?.AccountEmail?.Address, folder?.FullName, sw.Elapsed);
             }
         }
     }
