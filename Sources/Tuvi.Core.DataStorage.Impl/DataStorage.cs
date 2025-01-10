@@ -635,6 +635,14 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private static void UpdateContactsUnreadCount(SQLiteConnection connection, Entities.Message newMessage, Entities.Message oldMessage = null)
         {
+            int folderId = (newMessage ?? oldMessage).FolderId;
+            var folder = connection.Find<Folder>(folderId);
+            if (folder is null || (!folder.IsInbox && !folder.IsSent))
+            {
+                // Actually, only INBOX and SENT messages are taken into account when we collect contacts
+                return;
+            }
+
             if (newMessage is null && oldMessage is null)
             {
                 return;
@@ -657,7 +665,8 @@ namespace Tuvi.Core.DataStorage.Impl
             foreach (var contact in contacts)
             {
                 contact.UnreadCount += delta;
-                
+                connection.Update(contact);
+
                 Debug.Assert(contact.UnreadCount >= 0);
             }
         }
@@ -889,14 +898,14 @@ namespace Tuvi.Core.DataStorage.Impl
             InsertMessageEmails(connection, message);
             InsertProtection(connection, message);
             UpdateFolderCounters(connection, message, null, updateUnreadAndTotal);
-            if (!message.Folder.IsInbox &&
-                !message.Folder.IsSent)
+            
+            if (message.Folder.IsInbox ||
+                message.Folder.IsSent)
             {
                 // Actually, only INBOX and SENT messages are taken into account when we collect contacts
-                return;
+                InsertMessageContact(db, accountEmail, message, cancellationToken);
+                UpdateContactsUnreadCount(connection, message);
             }
-            InsertMessageContact(db, accountEmail, message, cancellationToken);
-            UpdateContactsUnreadCount(connection, message);
         }
 
         public Task UpdateMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
