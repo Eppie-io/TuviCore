@@ -35,6 +35,12 @@ namespace Tuvi.Core.DataStorage
         Task DeleteAccountByEmailAsync(EmailAddress accountEmail, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Update account and Auth data in storage if it exist.
+        /// </summary>
+        /// <exception cref="DataBaseException"/>
+        Task UpdateAccountAuthAsync(Account accountData, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Update account in storage if it exist.
         /// </summary>
         /// <exception cref="DataBaseException"/>

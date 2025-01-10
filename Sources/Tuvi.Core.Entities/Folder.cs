@@ -37,11 +37,13 @@ namespace Tuvi.Core.Entities
         /// <summary>
         /// Unread messages count
         /// </summary>
+        [JsonIgnore]
         public int UnreadCount { get; set; }
 
         /// <summary>
         /// Total messages in folder
         /// </summary>
+        [JsonIgnore]
         public int TotalCount { get; set; }
 
         /// <summary>

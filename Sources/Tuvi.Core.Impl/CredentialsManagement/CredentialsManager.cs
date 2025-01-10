@@ -137,7 +137,7 @@ namespace Tuvi.Core.Impl.CredentialsManagement
                 {
                     Account account = await _storage.GetAccountAsync(_emailAddress, cancellationToken).ConfigureAwait(false);
                     UpdateAccount(account, refreshToken);
-                    await _storage.UpdateAccountAsync(account, cancellationToken).ConfigureAwait(false);
+                    await _storage.UpdateAccountAuthAsync(account, cancellationToken).ConfigureAwait(false);
                     _newAccount = null;
                 }
                 catch (Exception exception) when (exception is AccountIsNotExistInDatabaseException)

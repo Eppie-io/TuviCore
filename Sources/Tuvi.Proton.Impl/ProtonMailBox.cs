@@ -966,7 +966,7 @@ namespace Tuvi.Proton
                 {
                     authData.RefreshToken = session.RefreshToken;
                     authData.UserId = session.UserId;
-                    await dataStorage.UpdateAccountAsync(_account, CancellationToken.None).ConfigureAwait(false);
+                    await dataStorage.UpdateAccountAuthAsync(_account, CancellationToken.None).ConfigureAwait(false);
                 }
             }
             catch (AccountIsNotExistInDatabaseException)

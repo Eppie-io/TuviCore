@@ -158,7 +158,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var account = TestData.Account;
                 var newAuth = new BasicAuthData() { Password = "1111" };
                 account.AuthData = newAuth;
-                await db.UpdateAccountAsync(account).ConfigureAwait(true);
+                await db.UpdateAccountAuthAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 var updatedAccount = accounts.First(x => x.Email == account.Email);
@@ -204,7 +204,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 account.FoldersStructure = newFolders;
                 account.DefaultInboxFolder = account.FoldersStructure[0];
 
-                await db.UpdateAccountAsync(account).ConfigureAwait(true);
+                await db.UpdateAccountFolderStructureAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
                 var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
@@ -223,7 +223,7 @@ namespace Tuvi.Core.DataStorage.Tests
                     newFolders.RemoveAt(0);
                     account.FoldersStructure = newFolders;
                     account.DefaultInboxFolder = account.FoldersStructure[0];
-                    await db.UpdateAccountAsync(account).ConfigureAwait(true);
+                    await db.UpdateAccountFolderStructureAsync(account).ConfigureAwait(true);
                     bool exists = await db.IsMessageExistAsync(TestData.AccountWithFolder.Email, TestData.Message.Folder.FullName, TestData.Message.Id).ConfigureAwait(true);
                     Assert.That(exists, Is.False);
                 }
