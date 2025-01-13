@@ -40,7 +40,18 @@ namespace Tuvi.Core.Tests
             message.Subject = "Messsage number " + id.ToString(CultureInfo.InvariantCulture);
             message.TextBody = "Hello world message body";
             message.Id = id;
-            message.Folder = new Folder(folder, FolderAttributes.None);
+            if (string.Equals(folder, "INBOX", StringComparison.OrdinalIgnoreCase))
+            {
+                message.Folder = new Folder(folder, FolderAttributes.Inbox);
+            }
+            else if (string.Equals(folder, "SENT", StringComparison.OrdinalIgnoreCase))
+            {
+                message.Folder = new Folder(folder, FolderAttributes.Sent);
+            }
+            else
+            {
+                message.Folder = new Folder(folder, FolderAttributes.None);
+            }            
             message.Date = date;
 
             return message;
