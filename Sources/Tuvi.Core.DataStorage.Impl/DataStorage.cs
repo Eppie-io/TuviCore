@@ -635,6 +635,11 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private static void UpdateContactsUnreadCount(SQLiteConnection connection, Entities.Message newMessage, Entities.Message oldMessage = null)
         {
+            if (newMessage is null && oldMessage is null)
+            {
+                return;
+            }
+
             int folderId = (newMessage ?? oldMessage).FolderId;
             var folder = connection.Find<Folder>(folderId);
             if (folder is null || (!folder.IsInbox && !folder.IsSent))
@@ -643,10 +648,6 @@ namespace Tuvi.Core.DataStorage.Impl
                 return;
             }
 
-            if (newMessage is null && oldMessage is null)
-            {
-                return;
-            }
             var delta = GetUnreadChanges(newMessage, oldMessage);
             if (delta == 0)
             {
