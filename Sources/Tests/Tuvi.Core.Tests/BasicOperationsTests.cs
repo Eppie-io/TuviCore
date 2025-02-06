@@ -78,7 +78,7 @@ namespace Tuvi.Core.Tests
                                                                messages,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(2));
         }
 
@@ -106,7 +106,7 @@ namespace Tuvi.Core.Tests
                                                                messages2,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(3));
         }
 
@@ -134,7 +134,7 @@ namespace Tuvi.Core.Tests
                                                                messages2,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(0));
         }
 
