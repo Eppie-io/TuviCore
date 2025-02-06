@@ -62,7 +62,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsOneAccount()
+        public async Task GetUnreadForAllAccountsInboxOneAccount()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
@@ -83,7 +83,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsTwoAccounts()
+        public async Task GetUnreadForAllAccountsInboxTwoAccounts()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
@@ -111,7 +111,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsTwoAccountsNoUnreadShouldBeZero()
+        public async Task GetUnreadForAllAccountsInboxTwoAccountsNoUnreadShouldBeZero()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
