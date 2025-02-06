@@ -79,7 +79,7 @@ namespace Tuvi.Core
         Task<IReadOnlyList<Message>> GetFolderEarlierMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<Message>> GetFolderEarlierMessagesAsync(CompositeFolder folder, int count, Message lastMessage, CancellationToken cancellationToken = default);
 
-        Task<int> GetUnreadCountForAllAccountsAsync(CancellationToken cancellationToken = default);
+        Task<int> GetUnreadCountForAllAccountsInboxAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get number of unread stored messages for each email the list of <paramref name="contacts"/>.

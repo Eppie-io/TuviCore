@@ -945,7 +945,7 @@ namespace Tuvi.Core.Impl
             return messages;
         }
 
-        public async Task<int> GetUnreadCountForAllAccountsAsync(CancellationToken cancellationToken)
+        public async Task<int> GetUnreadCountForAllAccountsInboxAsync(CancellationToken cancellationToken)
         {
             CheckDisposed();
             var unreadCount = 0;
@@ -954,8 +954,13 @@ namespace Tuvi.Core.Impl
             foreach (var account in accounts)
             {
                 var accountService = await GetAccountServiceAsync(account.Email, cancellationToken).ConfigureAwait(false);
-                unreadCount += await accountService.GetUnreadMessagesCountAsync(cancellationToken).ConfigureAwait(false);
+                
+                foreach (var inbox in account.DefaultInboxFolder.Folders)
+                {
+                    unreadCount += await accountService.GetUnreadMessagesCountInFolderAsync(inbox, cancellationToken).ConfigureAwait(false);
+                }
             }
+
             Debug.Assert(unreadCount >= 0);
             return unreadCount;
         }

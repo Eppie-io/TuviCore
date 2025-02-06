@@ -62,7 +62,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsOneAccount()
+        public async Task GetUnreadForAllAccountsInboxOneAccount()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
@@ -78,12 +78,12 @@ namespace Tuvi.Core.Tests
                                                                messages,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(2));
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsTwoAccounts()
+        public async Task GetUnreadForAllAccountsInboxTwoAccounts()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
@@ -106,12 +106,12 @@ namespace Tuvi.Core.Tests
                                                                messages2,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(3));
         }
 
         [Test]
-        public async Task GetUnreadForAllAccountsTwoAccountsNoUnreadShouldBeZero()
+        public async Task GetUnreadForAllAccountsInboxTwoAccountsNoUnreadShouldBeZero()
         {
             using var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
             using var core = CreateCore(dataStorage);
@@ -134,7 +134,7 @@ namespace Tuvi.Core.Tests
                                                                messages2,
                                                                default).ConfigureAwait(true);
 
-            var count = await core.GetUnreadCountForAllAccountsAsync(default).ConfigureAwait(true);
+            var count = await core.GetUnreadCountForAllAccountsInboxAsync(default).ConfigureAwait(true);
             Assert.That(count, Is.EqualTo(0));
         }
 
