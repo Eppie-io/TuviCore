@@ -30,14 +30,6 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
                 // retry once
                 return await SendAsync().ConfigureAwait(false);
             }
-            catch (MailKit.ServiceNotConnectedException exp)
-            {
-                throw new MailServiceIsNotConnectedException(exp.Message, exp);
-            }
-            catch (MailKit.ServiceNotAuthenticatedException exp)
-            {
-                throw new MailServiceIsNotAuthenticatedException(exp.Message, exp);
-            }
 
             async Task<string> SendAsync()
             {
