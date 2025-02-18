@@ -20,11 +20,15 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
         {
             try
             {
-                using (var mimeMessage = message.ToMimeMessage())
-                {
-                    await SmtpClient.SendAsync(mimeMessage, cancellationToken).ConfigureAwait(false);
-                    return mimeMessage.MessageId;
-                }
+                return await SendAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+                // retry once
+                return await SendAsync().ConfigureAwait(false);
             }
             catch (MailKit.ServiceNotConnectedException exp)
             {
@@ -33,6 +37,15 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
             catch (MailKit.ServiceNotAuthenticatedException exp)
             {
                 throw new MailServiceIsNotAuthenticatedException(exp.Message, exp);
+            }
+
+            async Task<string> SendAsync()
+            {
+                using (var mimeMessage = message.ToMimeMessage())
+                {
+                    await SmtpClient.SendAsync(mimeMessage, cancellationToken).ConfigureAwait(false);
+                    return mimeMessage.MessageId;
+                }
             }
         }
 
