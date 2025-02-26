@@ -1581,7 +1581,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
             if (contact.LastMessageData != null)
             {
-                // TOODO: we create new record each time, this is not ok
+                // TODO: we create new record each time, this is not ok
                 contact.LastMessageData.AccountEmailId = InsertOrUpdateEmailAddress(connection, contact.LastMessageData.AccountEmail);
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);
