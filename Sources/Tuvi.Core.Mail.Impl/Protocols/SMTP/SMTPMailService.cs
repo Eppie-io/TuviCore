@@ -30,6 +30,14 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
                 // retry once
                 return await SendAsync().ConfigureAwait(false);
             }
+            catch (MailKit.Net.Smtp.SmtpProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+                // retry once
+                return await SendAsync().ConfigureAwait(false);
+            }
 
             async Task<string> SendAsync()
             {
