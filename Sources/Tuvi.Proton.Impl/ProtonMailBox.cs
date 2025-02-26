@@ -487,10 +487,12 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
+            var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
+
             var labelId = await GetMessageLabelIdAsync(folder).ConfigureAwait(false);
             var storedLastMessage = await _storage.GetMessageAsync(folder.AccountId, labelId, id, cancellationToken).ConfigureAwait(false);
             Debug.Assert(storedLastMessage != null);
-            var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
+
             var messageData = await client.GetMessageAsync(storedLastMessage.MessageId, cancellationToken)
                                           .ConfigureAwait(false);
 
