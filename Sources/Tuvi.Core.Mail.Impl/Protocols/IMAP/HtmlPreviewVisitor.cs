@@ -198,8 +198,16 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             }
             else
             {
-                // pass the tag through to the output
-                ctx.WriteTag(htmlWriter, true);
+                try
+                {
+                    // pass the tag through to the output
+                    ctx.WriteTag(htmlWriter, true);
+                }
+                catch (ArgumentException)
+                {
+                    // invalid html, just pass it
+                    htmlWriter.WriteText(ctx.TagName);
+                }
             }
         }
 

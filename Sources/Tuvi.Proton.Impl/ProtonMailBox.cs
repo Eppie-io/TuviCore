@@ -487,10 +487,12 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
-            var labelId = GetMessageLabelId(folder);
+            var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
+
+            var labelId = await GetMessageLabelIdAsync(folder).ConfigureAwait(false);
             var storedLastMessage = await _storage.GetMessageAsync(folder.AccountId, labelId, id, cancellationToken).ConfigureAwait(false);
             Debug.Assert(storedLastMessage != null);
-            var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
+
             var messageData = await client.GetMessageAsync(storedLastMessage.MessageId, cancellationToken)
                                           .ConfigureAwait(false);
 
@@ -893,6 +895,16 @@ namespace Tuvi.Proton
             }
 
             return labelId;
+        }
+
+        private async Task<string> GetMessageLabelIdAsync(Folder folder)
+        {
+            if(_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
+            {
+                await GetFoldersStructureAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            return GetMessageLabelId(folder);
         }
 
         private async Task<Impl.Client> GetClientAsync(CancellationToken cancellationToken)

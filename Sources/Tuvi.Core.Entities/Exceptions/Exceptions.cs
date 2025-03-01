@@ -19,23 +19,6 @@ namespace Tuvi.Core.Entities
         }
     }
 
-    public class MailServiceIsNotConnectedException : Exception
-    {
-        public MailServiceIsNotConnectedException()
-        {
-        }
-
-        public MailServiceIsNotConnectedException(string message)
-            : base(message)
-        {
-        }
-
-        public MailServiceIsNotConnectedException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
-
     public class AuthenticationException : Exception
     {
         public EmailAddress Email { get; private set; }
@@ -79,23 +62,6 @@ namespace Tuvi.Core.Entities
         {
         }
         public AuthorizationException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
-
-    public class MailServiceIsNotAuthenticatedException : Exception
-    {
-        public MailServiceIsNotAuthenticatedException()
-        {
-        }
-
-        public MailServiceIsNotAuthenticatedException(string message)
-            : base(message)
-        {
-        }
-
-        public MailServiceIsNotAuthenticatedException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
