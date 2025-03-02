@@ -44,5 +44,23 @@ namespace Tuvi.Core.Entities
         /// Gets or sets a value indicating whether the local AI agent is allowed to send emails.
         /// </summary>
         public bool IsAllowedToSendingEmail { get; set; }
+
+        /// <summary>
+        /// Gets or sets the preprocessor agent for the local AI agent.
+        /// </summary>
+        public LocalAIAgent PreprocessorAgent { get; set; }
+        /// <summary>
+        /// Gets or sets the postprocessor agent for the local AI agent.
+        /// </summary>
+        public LocalAIAgent PostprocessorAgent { get; set; }
+
+        /// <summary>
+        /// Returns the name of the local AI agent.
+        /// </summary>
+        /// <returns>The name of the local AI agent.</returns>
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }
