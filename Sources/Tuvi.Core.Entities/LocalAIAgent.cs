@@ -22,6 +22,11 @@ namespace Tuvi.Core.Entities
         public string Name { get; set; }
 
         /// <summary>
+        /// Gets or sets the specialty of the local AI agent.
+        /// </summary>
+        public LocalAIAgentSpecialty AgentSpecialty { get; set; }
+
+        /// <summary>
         /// Gets or sets the system prompt for the local AI agent.
         /// </summary>
         public string SystemPrompt { get; set; }

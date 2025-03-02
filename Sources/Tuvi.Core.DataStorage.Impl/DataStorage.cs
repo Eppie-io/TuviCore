@@ -2120,8 +2120,11 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return WriteDatabaseAsync((db, ct) =>
             {
-                var connection = db.Connection;
-                agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                var connection = db.Connection;                
+                if (agent.Email != null)
+                {
+                    agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                }
                 connection.Insert(agent);
             }, cancellationToken);
         }
@@ -2133,7 +2136,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 var agents = connection.Table<LocalAIAgent>().ToList(ct);
                 foreach (var agent in agents)
                 {
-                    agent.Email = GetEmailAddressData(connection, agent.EmailId).ToEmailAddress();
+                    agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
                 }
                 return agents as IReadOnlyList<LocalAIAgent>;
             }, cancellationToken);
@@ -2146,7 +2149,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 var agent = connection.Find<LocalAIAgent>(id);
                 if (agent != null)
                 {
-                    agent.Email = GetEmailAddressData(connection, agent.EmailId).ToEmailAddress();
+                    agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
                 }
                 return agent;
             }, cancellationToken);
@@ -2157,7 +2160,10 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                if (agent.Email != null)
+                {
+                    agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                }
                 connection.Update(agent);
             }, cancellationToken);
         }
