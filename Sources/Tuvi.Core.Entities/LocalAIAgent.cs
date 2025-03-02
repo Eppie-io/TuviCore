@@ -48,10 +48,13 @@ namespace Tuvi.Core.Entities
         /// <summary>
         /// Gets or sets the preprocessor agent for the local AI agent.
         /// </summary>
+        [SQLite.Ignore]
         public LocalAIAgent PreprocessorAgent { get; set; }
+
         /// <summary>
         /// Gets or sets the postprocessor agent for the local AI agent.
         /// </summary>
+        [SQLite.Ignore]
         public LocalAIAgent PostprocessorAgent { get; set; }
 
         /// <summary>
