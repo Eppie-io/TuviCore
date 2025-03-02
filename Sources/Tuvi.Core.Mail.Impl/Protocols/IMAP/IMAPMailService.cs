@@ -186,26 +186,41 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         {
             try
             {
-                var imapFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-                await imapFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
-                var mimeMessage = await imapFolder.GetMessageAsync(new UniqueId(id), cancellationToken).ConfigureAwait(false);
-                var message = mimeMessage?.ToTuviMailMessage(imapFolder.ToTuviMailFolder(), cancellationToken);
-
-                var messageSummaries = await imapFolder.FetchAsync(new List<UniqueId>() { new UniqueId(id) }, MessageSummaryItems.Flags, cancellationToken).ConfigureAwait(false);
-                if (message != null && messageSummaries.Count > 0)
-                {
-                    var messageSummary = messageSummaries[0];
-                    message.IsMarkedAsRead = messageSummary.Flags.Value.HasFlag(MessageFlags.Seen);
-                    message.IsFlagged = messageSummary.Flags.Value.HasFlag(MessageFlags.Flagged);
-                }
-
-                await imapFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-                return message;
+                return await GetMessageAsync().ConfigureAwait(false);
             }
-            catch (MessageNotFoundException)
+            catch (System.IO.IOException)
             {
-                throw new MessageIsNotExistException();
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await GetMessageAsync().ConfigureAwait(false);
+            }
+
+            async Task<Message> GetMessageAsync()
+            {
+                try
+                {
+                    var imapFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                    await imapFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+                    var mimeMessage = await imapFolder.GetMessageAsync(new UniqueId(id), cancellationToken).ConfigureAwait(false);
+                    var message = mimeMessage?.ToTuviMailMessage(imapFolder.ToTuviMailFolder(), cancellationToken);
+
+                    var messageSummaries = await imapFolder.FetchAsync(new List<UniqueId>() { new UniqueId(id) }, MessageSummaryItems.Flags, cancellationToken).ConfigureAwait(false);
+                    if (message != null && messageSummaries.Count > 0)
+                    {
+                        var messageSummary = messageSummaries[0];
+                        message.IsMarkedAsRead = messageSummary.Flags.Value.HasFlag(MessageFlags.Seen);
+                        message.IsFlagged = messageSummary.Flags.Value.HasFlag(MessageFlags.Flagged);
+                    }
+
+                    await imapFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+
+                    return message;
+                }
+                catch (MessageNotFoundException)
+                {
+                    throw new MessageIsNotExistException();
+                }
             }
         }
 
