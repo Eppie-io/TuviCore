@@ -7,7 +7,7 @@ using TuviPgpLib;
 
 namespace Tuvi.Core.DataStorage
 {
-    public interface IDataStorage : IPasswordProtectedStorage, IKeyStorage, IDecStorage, IDisposable
+    public interface IDataStorage : IPasswordProtectedStorage, IKeyStorage, IDecStorage, IAIAgentsStorage, IDisposable
     {
         event EventHandler<ContactAddedEventArgs> ContactAdded;
         event EventHandler<ContactChangedEventArgs> ContactChanged;

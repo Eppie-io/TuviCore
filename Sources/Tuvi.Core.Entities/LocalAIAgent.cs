@@ -10,6 +10,13 @@ namespace Tuvi.Core.Entities
     public class LocalAIAgent
     {
         /// <summary>
+        /// Gets or sets the ID of the local AI agent.
+        /// </summary>
+        [SQLite.PrimaryKey]
+        [SQLite.AutoIncrement]
+        public uint Id { get; set; }
+
+        /// <summary>
         /// Gets or sets the name of the local AI agent.
         /// </summary>
         public string Name { get; set; }
@@ -22,6 +29,10 @@ namespace Tuvi.Core.Entities
         /// <summary>
         /// Gets or sets the email address associated with the local AI agent.
         /// </summary>
+        [SQLite.Indexed]
+        public int EmailId { get; set; }
+
+        [SQLite.Ignore]
         public EmailAddress Email { get; set; }
 
         /// <summary>

@@ -2115,5 +2115,60 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 }
             }, cancellationToken);
         }
+
+        public Task AddAIAgentAsync(LocalAIAgent agent, CancellationToken cancellationToken = default)
+        {
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                connection.Insert(agent);
+            }, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<LocalAIAgent>> GetAIAgentsAsync(CancellationToken cancellationToken = default)
+        {
+            return ReadDatabaseAsync((connection, ct) =>
+            {
+                var agents = connection.Table<LocalAIAgent>().ToList(ct);
+                foreach (var agent in agents)
+                {
+                    agent.Email = GetEmailAddressData(connection, agent.EmailId).ToEmailAddress();
+                }
+                return agents as IReadOnlyList<LocalAIAgent>;
+            }, cancellationToken);
+        }
+
+        public Task<LocalAIAgent> GetAIAgentAsync(uint id, CancellationToken cancellationToken = default)
+        {
+            return ReadDatabaseAsync((connection, ct) =>
+            {
+                var agent = connection.Find<LocalAIAgent>(id);
+                if (agent != null)
+                {
+                    agent.Email = GetEmailAddressData(connection, agent.EmailId).ToEmailAddress();
+                }
+                return agent;
+            }, cancellationToken);
+        }
+
+        public Task UpdateAIAgentAsync(LocalAIAgent agent, CancellationToken cancellationToken = default)
+        {
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                connection.Update(agent);
+            }, cancellationToken);
+        }
+
+        public Task DeleteAIAgentAsync(uint id, CancellationToken cancellationToken = default)
+        {
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                connection.Delete<LocalAIAgent>(id);
+            }, cancellationToken);
+        }
     }
 }

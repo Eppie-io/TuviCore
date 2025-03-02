@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Utils;
 
@@ -13,6 +14,7 @@ namespace Tuvi.Core
         IBackupManager GetBackupManager();
         ICredentialsManager CredentialsManager { get; }
         ITextUtils GetTextUtils();
+        IAIAgentsStorage GetAIAgentsStorage();
 
         event EventHandler<MessagesReceivedEventArgs> MessagesReceived;
         event EventHandler<UnreadMessagesReceivedEventArgs> UnreadMessagesReceived;

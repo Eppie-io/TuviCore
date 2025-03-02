@@ -604,7 +604,7 @@ namespace Tuvi.Core.Impl
             }
             _isCheckingForNewMessages = true;
             try
-            {                
+            {
                 var tasks = folder.Folders.Select(async f =>
                 {
                     var account = await GetAccountAsync(f.AccountEmail, cancellationToken).ConfigureAwait(false);
@@ -676,7 +676,7 @@ namespace Tuvi.Core.Impl
 
         private void RegisterExceptions(IEnumerable<Exception> exceptions, string message)
         {
-            foreach(var ex in exceptions)
+            foreach (var ex in exceptions)
             {
                 RegisterException(ex, message);
             }
@@ -954,7 +954,7 @@ namespace Tuvi.Core.Impl
             foreach (var account in accounts)
             {
                 var accountService = await GetAccountServiceAsync(account.Email, cancellationToken).ConfigureAwait(false);
-                
+
                 foreach (var inbox in account.DefaultInboxFolder.Folders)
                 {
                     unreadCount += await accountService.GetUnreadMessagesCountInFolderAsync(inbox, cancellationToken).ConfigureAwait(false);
@@ -1150,6 +1150,11 @@ namespace Tuvi.Core.Impl
                 var target = targetFolder?.Folders.FirstOrDefault(x => x.AccountEmail == folder.AccountEmail);
                 await accountService.MoveMessagesAsync(folder, target, group.ToList(), cancellationToken).ConfigureAwait(true);
             }
+        }
+
+        public IAIAgentsStorage GetAIAgentsStorage()
+        {
+            return DataStorage;
         }
     }
 }
