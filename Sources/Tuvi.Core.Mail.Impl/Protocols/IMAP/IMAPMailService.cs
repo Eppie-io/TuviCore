@@ -292,96 +292,111 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool fast, CancellationToken cancellationToken)
         {
-            List<Message> messages = new List<Message>();
-
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
-
-            int startIndex = 0, endIndex = 0;
-            if (lastMessage == null)
+            try
             {
-                if (count > mailFolder.Count || count == 0)
-                {
-                    count = mailFolder.Count;
-                }
-
-                endIndex = mailFolder.Count - 1;
+                return await GetEarlierMessagesAsync().ConfigureAwait(false);
             }
-            else
+            catch (System.IO.IOException)
             {
-                // Try to find message with last loaded id
-                var uids = new List<UniqueId>() { new UniqueId(lastMessage.Id) };
-                var messageSummary = await mailFolder.FetchAsync(uids, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
-                if (messageSummary.Count > 0)
-                {
-                    // End with previous message index
-                    endIndex = messageSummary[0].Index - 1;
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await GetEarlierMessagesAsync().ConfigureAwait(false);
+            }
 
-                    if (endIndex < UniqueId.MinValue.Id)
+            async Task<IReadOnlyList<Message>> GetEarlierMessagesAsync()
+            {
+                List<Message> messages = new List<Message>();
+
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+                int startIndex = 0, endIndex = 0;
+                if (lastMessage == null)
+                {
+                    if (count > mailFolder.Count || count == 0)
                     {
-                        // No more earlier messages were found
-                        await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                        return messages;
+                        count = mailFolder.Count;
                     }
+
+                    endIndex = mailFolder.Count - 1;
                 }
                 else
                 {
-                    // If failed to find message by id, try to find messages with lower id
-                    // start search with small steps, then increase
-                    uint step = 10;
-                    bool found = false;
-                    for (uint i = lastMessage.Id - 1; i >= UniqueId.MinValue.Id;)
+                    // Try to find message with last loaded id
+                    var uids = new List<UniqueId>() { new UniqueId(lastMessage.Id) };
+                    var messageSummary = await mailFolder.FetchAsync(uids, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
+                    if (messageSummary.Count > 0)
                     {
-                        uint minId = i > step ? i - step : UniqueId.MinValue.Id;
-                        var uidsRange = new UniqueIdRange(new UniqueId(Math.Max(UniqueId.MinValue.Id, i)),
-                                                          new UniqueId(minId));
-                        messageSummary = await mailFolder.FetchAsync(uidsRange,
-                                                                     MessageSummaryItems.Fast,
-                                                                     cancellationToken).ConfigureAwait(false);
-                        if (messageSummary.Count > 0)
+                        // End with previous message index
+                        endIndex = messageSummary[0].Index - 1;
+
+                        if (endIndex < UniqueId.MinValue.Id)
                         {
-                            // End with last found message index
-                            endIndex = messageSummary.Last().Index;
-                            found = true;
-                            break;
+                            // No more earlier messages were found
+                            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            return messages;
+                        }
+                    }
+                    else
+                    {
+                        // If failed to find message by id, try to find messages with lower id
+                        // start search with small steps, then increase
+                        uint step = 10;
+                        bool found = false;
+                        for (uint i = lastMessage.Id - 1; i >= UniqueId.MinValue.Id;)
+                        {
+                            uint minId = i > step ? i - step : UniqueId.MinValue.Id;
+                            var uidsRange = new UniqueIdRange(new UniqueId(Math.Max(UniqueId.MinValue.Id, i)),
+                                                              new UniqueId(minId));
+                            messageSummary = await mailFolder.FetchAsync(uidsRange,
+                                                                         MessageSummaryItems.Fast,
+                                                                         cancellationToken).ConfigureAwait(false);
+                            if (messageSummary.Count > 0)
+                            {
+                                // End with last found message index
+                                endIndex = messageSummary.Last().Index;
+                                found = true;
+                                break;
+                            }
+
+                            if (minId == UniqueId.MinValue.Id)
+                            {
+                                break;
+                            }
+
+                            i = minId - 1;
+
+                            // increase step for the case we have sparse id space, like exponent search
+                            step *= 2;
                         }
 
-                        if (minId == UniqueId.MinValue.Id)
+                        if (found == false)
                         {
-                            break;
+                            // No more earlier messages were found
+                            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            return messages;
                         }
-
-                        i = minId - 1;
-
-                        // increase step for the case we have sparse id space, like exponent search
-                        step *= 2;
                     }
 
-                    if (found == false)
+                    var restCount = endIndex + 1;
+                    if (count == 0 || count > restCount)
                     {
-                        // No more earlier messages were found
-                        await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                        return messages;
+                        count = restCount;
                     }
                 }
 
-                var restCount = endIndex + 1;
-                if (count == 0 || count > restCount)
+                startIndex = Math.Max(0, endIndex - count + 1);
+
+                if (endIndex >= startIndex)
                 {
-                    count = restCount;
+                    messages = await FetchMessagesAsync(mailFolder, startIndex, endIndex, fast, cancellationToken).ConfigureAwait(false);
                 }
+
+                await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+
+                return messages;
             }
-
-            startIndex = Math.Max(0, endIndex - count + 1);
-
-            if (endIndex >= startIndex)
-            {
-                messages = await FetchMessagesAsync(mailFolder, startIndex, endIndex, fast, cancellationToken).ConfigureAwait(false);
-            }
-
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-            return messages;
         }
 
         public override async Task<IList<Message>> CheckNewMessagesAsync(Folder folder, DateTime dateTime, CancellationToken cancellationToken)
