@@ -2120,13 +2120,28 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return WriteDatabaseAsync((db, ct) =>
             {
-                var connection = db.Connection;                
+                var connection = db.Connection;
                 if (agent.Email != null)
                 {
                     agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
                 }
+                if (agent.PreprocessorAgent != null)
+                {
+                    agent.PreprocessorAgentId = agent.PreprocessorAgent.Id;
+                }
+                if (agent.PostprocessorAgent != null)
+                {
+                    agent.PostprocessorAgentId = agent.PostprocessorAgent.Id;
+                }
                 connection.Insert(agent);
             }, cancellationToken);
+        }
+
+        private void LoadAgentDetails(SQLiteConnection connection, LocalAIAgent agent)
+        {
+            agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
+            agent.PreprocessorAgent = agent.PreprocessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PreprocessorAgentId) : null;
+            agent.PostprocessorAgent = agent.PostprocessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PostprocessorAgentId) : null;
         }
 
         public Task<IReadOnlyList<LocalAIAgent>> GetAIAgentsAsync(CancellationToken cancellationToken = default)
@@ -2136,7 +2151,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 var agents = connection.Table<LocalAIAgent>().ToList(ct);
                 foreach (var agent in agents)
                 {
-                    agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
+                    LoadAgentDetails(connection, agent);
                 }
                 return agents as IReadOnlyList<LocalAIAgent>;
             }, cancellationToken);
@@ -2149,7 +2164,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 var agent = connection.Find<LocalAIAgent>(id);
                 if (agent != null)
                 {
-                    agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
+                    LoadAgentDetails(connection, agent);
                 }
                 return agent;
             }, cancellationToken);
@@ -2163,6 +2178,14 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 if (agent.Email != null)
                 {
                     agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                }
+                if (agent.PreprocessorAgent != null)
+                {
+                    agent.PreprocessorAgentId = agent.PreprocessorAgent.Id;
+                }
+                if (agent.PostprocessorAgent != null)
+                {
+                    agent.PostprocessorAgentId = agent.PostprocessorAgent.Id;
                 }
                 connection.Update(agent);
             }, cancellationToken);
