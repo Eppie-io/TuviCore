@@ -1,10 +1,10 @@
-﻿using System;
+﻿using MimeKit.Cryptography;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MimeKit.Cryptography;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail.Impl.Protocols.IMAP;
 

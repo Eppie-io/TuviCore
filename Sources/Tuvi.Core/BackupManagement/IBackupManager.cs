@@ -1,9 +1,9 @@
-﻿using Tuvi.Core.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Core.Entities;
 
 namespace Tuvi.Core
 {
@@ -44,7 +44,7 @@ namespace Tuvi.Core
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="BackupDataProtectionException"/>
         Task CreateDetachedSignatureDataAsync(Stream dataToSign, Stream deatachedSignatureData, Stream publicKeyData, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Raised when account restored from backup.
         /// </summary>

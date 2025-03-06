@@ -1,4 +1,9 @@
-﻿using System;
+﻿using BackupServiceClientLibrary;
+using Microsoft.Extensions.Logging;
+using MimeKit;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,12 +11,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BackupServiceClientLibrary;
-using Microsoft.Extensions.Logging;
-using MimeKit;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Bcpg.Sig;
-using Org.BouncyCastle.Crypto.Parameters;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
@@ -122,7 +121,7 @@ namespace Tuvi.Core.Impl
 
             BackupManager.AccountRestoredAsync += RestoreAccountFromBackupAsync;
             BackupManager.MessagesRestoredAsync += RestoreMessagesFromBackupAsync;
-            
+
             BackupManager.SetBackupDetails(implementationDetailsProvider);
             SecurityManager.SetKeyDerivationDetails(implementationDetailsProvider);
 

@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Konscious.Security.Cryptography;
+using SQLite;
+using System;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Konscious.Security.Cryptography;
-using SQLite;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Impl
@@ -109,7 +109,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 try
                 {
                     newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
-                    await Database.ReKeyAsync(newPassword).ConfigureAwait(false);                   
+                    await Database.ReKeyAsync(newPassword).ConfigureAwait(false);
                 }
                 catch (SQLite.SQLiteException exp)
                 {

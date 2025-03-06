@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SQLite;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -6,7 +7,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using SQLite;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Impl
@@ -303,7 +303,7 @@ namespace Tuvi.Core.DataStorage.Impl
             }
 
             var toAdd = account.FoldersStructure.Where(x => !prev.Exists(y => y.Equals(x))).ToList();
-            foreach(var folder in toAdd)
+            foreach (var folder in toAdd)
             {
                 // explicitly zero this counter, because user can pass any value from the external code.
                 // this value should be changed only in storage code, and saved in db
@@ -447,7 +447,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 {
                     return;
                 }
-                                                
+
                 AddAccountFolders(db, item.Id, account, ct);
 
                 connection.Update(item);
@@ -899,7 +899,7 @@ namespace Tuvi.Core.DataStorage.Impl
             InsertMessageEmails(connection, message);
             InsertProtection(connection, message);
             UpdateFolderCounters(connection, message, null, updateUnreadAndTotal);
-            
+
             if (message.Folder.IsInbox ||
                 message.Folder.IsSent)
             {

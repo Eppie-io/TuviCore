@@ -35,7 +35,7 @@ namespace Tuvi.Core.Entities
     }
 
     public class EmailAddress : IEquatable<EmailAddress>, IComparable<EmailAddress>
-    {        
+    {
         public EmailAddress(string address)
         {
             if (address is null)

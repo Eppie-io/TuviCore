@@ -1,9 +1,9 @@
-﻿using Tuvi.Core.Web.BackupService;
-using System;
+﻿using System;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web;
+using Tuvi.Core.Web.BackupService;
 
 namespace BackupServiceClientLibrary
 {
@@ -59,7 +59,7 @@ namespace BackupServiceClientLibrary
             using (var client = new HttpClient())
             {
                 var publickeyName = name + DataIdentificators.PublicKeyExtension;
-                var signatureName = name + DataIdentificators.SignatureExtension;                
+                var signatureName = name + DataIdentificators.SignatureExtension;
                 var backupName = name + DataIdentificators.BackupExtension;
 
                 formData.Add(filePublickeyStreamContent, publickeyName, publickeyName);
@@ -107,8 +107,8 @@ namespace BackupServiceClientLibrary
             {
                 throw new ArgumentException($"{nameof(name)} can't be empty or contain only a space.", nameof(name));
             }
-                       
-            using (var client = new HttpClient())            
+
+            using (var client = new HttpClient())
             using (var response = await client.GetAsync(actionUrl + HttpUtility.UrlEncode(name)).ConfigureAwait(false))
             {
                 var statusCode = response.StatusCode;
@@ -122,7 +122,7 @@ namespace BackupServiceClientLibrary
 
                     return stream;
                 }
-            }           
+            }
 
             return null;
         }
