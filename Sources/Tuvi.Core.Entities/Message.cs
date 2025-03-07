@@ -261,6 +261,7 @@ namespace Tuvi.Core.Entities
         public string PreviewText { get; set; }
         public string TextBody { get; set; }
         public string HtmlBody { get; set; }
+        public string TextBodyProcessed { get; set; }
         public byte[] MimeBody { get; set; }
 
         private AttachmentsCollection _attachments;

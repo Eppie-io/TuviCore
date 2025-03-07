@@ -925,6 +925,8 @@ namespace Tuvi.Core.DataStorage.Impl
                 }
                 InitMessageFolder(connection, accountEmail, message.Folder.FullName, message, item);
 
+                UpdateMessageTextFields(message, item);
+
                 connection.Update(message);
 
                 InsertAttachments(connection, message);
@@ -934,6 +936,19 @@ namespace Tuvi.Core.DataStorage.Impl
                 UpdateContactsUnreadCount(connection, message, item);
 
             }, cancellationToken);
+        }
+
+        private static void UpdateMessageTextFields(Message message, Message item)
+        {
+            if (string.IsNullOrEmpty(message.PreviewText))
+            {
+                message.PreviewText = item.PreviewText;
+            }
+
+            if (string.IsNullOrEmpty(message.TextBodyProcessed))
+            {
+                message.TextBodyProcessed = item.TextBodyProcessed;
+            }
         }
 
         public async Task UpdateMessagesAsync(EmailAddress email, IEnumerable<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
@@ -2197,6 +2212,32 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 var connection = db.Connection;
                 connection.Delete<LocalAIAgent>(id);
+            }, cancellationToken);
+        }
+
+        public Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            if (result == null)
+            {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                var item = connection.Find<Message>(message.Pk);
+                if (item == null)
+                {
+                    throw new DataBaseException($"Message with primary key {message.Pk} not found.");
+                }
+
+                item.TextBodyProcessed = result;
+                connection.Update(item);
             }, cancellationToken);
         }
     }
