@@ -361,5 +361,12 @@ namespace Tuvi.Core.DataStorage
         /// Update account email to a new one.
         /// </summary>
         Task UpdateAccountEmailAsync(EmailAddress prev, EmailAddress email, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Sets the processing result for a given message.
+        /// </summary>
+        /// <param name="message">The message for which the result is being set.</param>
+        /// <param name="result">The result of the processing.</param>
+        Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default);
     }
 }

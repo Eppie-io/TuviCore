@@ -1156,5 +1156,11 @@ namespace Tuvi.Core.Impl
         {
             return DataStorage;
         }
+
+        public Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+            return DataStorage.UpdateMessageProcessingResultAsync(message, result, cancellationToken);
+        }
     }
 }
