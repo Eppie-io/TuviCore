@@ -109,5 +109,6 @@ namespace Tuvi.Core
         Task<Message> UpdateDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken = default);
 
         Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken = default);
+        Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default);
     }
 }
