@@ -2217,12 +2217,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default)
         {
-            if (message == null)
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
 
-            if (result == null)
+            if (result is null)
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -2230,11 +2230,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var item = connection.Find<Message>(message.Pk);
-                if (item == null)
-                {
-                    throw new DataBaseException($"Message with primary key {message.Pk} not found.");
-                }
+                var item = connection.Find<Message>(message.Pk) ?? throw new DataBaseException($"Message with primary key {message.Pk} not found.");
 
                 item.TextBodyProcessed = result;
                 connection.Update(item);
