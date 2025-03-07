@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,7 +7,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
 using Tuvi.Core.Mail.Impl.Protocols;
@@ -472,7 +472,7 @@ namespace Tuvi.Core.Mail.Impl
             : base(receiver, folder)
         {
             UIDS = ids;
-            TargetFolder =  targetFolder;
+            TargetFolder = targetFolder;
         }
 
         protected async override Task<bool> Execute(CancellationToken cancellationToken)

@@ -1,7 +1,7 @@
-﻿using Tuvi.Core.Entities;
-using System;
+﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
 {
@@ -9,7 +9,7 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
     {
         public override IAuthenticationData Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if(reader.TokenType == JsonTokenType.Null) return null;
+            if (reader.TokenType == JsonTokenType.Null) return null;
 
             var doc = JsonDocument.ParseValue(ref reader);
             if (doc != null && doc.RootElement.TryGetProperty(nameof(IAuthenticationData.Type), out var property) && property.ValueKind == JsonValueKind.String)
@@ -24,7 +24,7 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                             Password = GetString(doc.RootElement, nameof(BasicAuthData.Password))
                         };
                         break;
-                    case nameof(AuthenticationType.OAuth2): 
+                    case nameof(AuthenticationType.OAuth2):
                         result = new OAuth2Data()
                         {
                             RefreshToken = GetString(doc.RootElement, nameof(OAuth2Data.RefreshToken)),
@@ -79,7 +79,7 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
 
         private static string GetString(JsonElement element, string propName)
         {
-            if(element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propName, out var prop))
+            if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propName, out var prop))
             {
                 return prop.GetString();
             }

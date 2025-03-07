@@ -1,7 +1,6 @@
-﻿using Tuvi.Core.Entities;
-using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Core.Entities;
 
 
 namespace Tuvi.Core.Mail.Impl.Protocols

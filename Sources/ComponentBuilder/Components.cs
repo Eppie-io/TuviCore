@@ -1,8 +1,8 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using MimeKit;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
+using System;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Backup.Impl;
@@ -34,7 +34,7 @@ namespace ComponentBuilder
     {
         public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher, ILoggerFactory loggerFactory = null)
         {
-            if(loggerFactory != null)
+            if (loggerFactory != null)
             {
                 Tuvi.Core.Logging.LoggingExtension.LoggerFactory = loggerFactory;
             }

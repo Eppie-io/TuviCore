@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
@@ -318,7 +318,7 @@ namespace Tuvi.Core.Impl
 
             var remoteTask = MailBox.MoveMessagesAsync(uids, folder, targetFolder, cancellationToken);
             var localTask = DeleteLocalMessagesAsync(folder, uids, updateUnreadAndTotal: true, cancellationToken);
-            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);        
+            await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);
         }
 
         public Task PermanentDeleteMessageAsync(Message message, CancellationToken cancellationToken)

@@ -12,7 +12,7 @@ namespace Tuvi.Core.Dec
 
         public static IDecStorageClient CreateAzureClient(System.Uri url)
         {
-            if(url is null)
+            if (url is null)
             {
                 throw new ArgumentNullException(nameof(url));
             }

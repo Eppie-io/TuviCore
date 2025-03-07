@@ -1,4 +1,13 @@
-﻿using System;
+﻿using MimeKit;
+using MimeKit.Cryptography;
+using MimeKit.Utils;
+using Org.BouncyCastle.Bcpg;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities.Encoders;
+using Org.BouncyCastle.Utilities.IO;
+using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,15 +21,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using MimeKit;
-using MimeKit.Cryptography;
-using MimeKit.Utils;
-using Org.BouncyCastle.Bcpg;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Utilities.Encoders;
-using Org.BouncyCastle.Utilities.IO;
 using Tuvi.Auth.Proton.Exceptions;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
@@ -48,7 +48,7 @@ namespace Tuvi.Proton
                                                                        twoFactorProvider,
                                                                        null,
                                                                        cancellationToken)
-                                          .ConfigureAwait(false)) 
+                                          .ConfigureAwait(false))
             {
                 var userTask = client.GetUserAsync(cancellationToken);
                 var saltsTask = client.GetSaltsAsync(cancellationToken);
@@ -57,7 +57,7 @@ namespace Tuvi.Proton
                 var user = userTask.Result;
                 var salts = saltsTask.Result;
 
-                var primaryKey = user.Keys.Where(x=>x.Primary > 0).First();
+                var primaryKey = user.Keys.Where(x => x.Primary > 0).First();
                 var salt = salts.FirstOrDefault(x => x.ID == primaryKey.ID);
 
                 var keyPass = password;
@@ -367,14 +367,14 @@ namespace Tuvi.Proton
         {
             var labelId = GetMessageLabelId(folder);
 
-            if(folder.IsTrash)
+            if (folder.IsTrash)
             {
                 permanentDelete = true;
             }
 
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
-            
+
             if (permanentDelete)
             {
                 await client.DeleteMessagesAsync(messages.Select(x => x.MessageId).ToList(), cancellationToken).ConfigureAwait(false);
@@ -391,7 +391,7 @@ namespace Tuvi.Proton
         {
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
-                        
+
             var targetLabelId = GetMessageLabelId(targetFolder);
             await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), targetLabelId, cancellationToken).ConfigureAwait(false);
         }
@@ -686,7 +686,7 @@ namespace Tuvi.Proton
             {
                 throw new ConnectionException("Proton: Failed to connect", ex);
             }
-            catch (AuthProtonException ex) 
+            catch (AuthProtonException ex)
             {
                 throw new Core.Entities.AuthenticationException(this._account.Email, ex.Message, ex);
             }
@@ -899,7 +899,7 @@ namespace Tuvi.Proton
 
         private async Task<string> GetMessageLabelIdAsync(Folder folder)
         {
-            if(_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
+            if (_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
             {
                 await GetFoldersStructureAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -995,7 +995,7 @@ namespace Tuvi.Proton
             var user = userTask.Result;
             var addresses = addressesTask.Result;
             var saltedKeyPass = (account.AuthData as ProtonAuthData).SaltedPassword;
-            var primaryKey = user.Keys.Where(x=>x.Primary > 0).First();
+            var primaryKey = user.Keys.Where(x => x.Primary > 0).First();
             var context = new MyOpenPgpContext();
             context.AddKey(primaryKey.PrivateKey, saltedKeyPass);
 
@@ -1006,8 +1006,8 @@ namespace Tuvi.Proton
                     var key = address.Keys.Where(x => x.Active == 1).First();
                     context.AddKey(key.PrivateKey, Crypto.DecryptArmored(context, key.Token));
                 }
-            } 
-            catch(System.UnauthorizedAccessException)
+            }
+            catch (System.UnauthorizedAccessException)
             {
                 // invalid password
                 throw new AuthorizationException("Proton: invalid mailbox password");

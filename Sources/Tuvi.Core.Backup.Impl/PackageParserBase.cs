@@ -66,7 +66,7 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8
             byte[] bytes = new byte[sizeof(PackageHeaderVersion)];
 
             await package.ReadAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
-            
+
             int headerVersion = bytes.FromByteBuffer();
 
             if (!Enum.IsDefined(typeof(PackageHeaderVersion), headerVersion))

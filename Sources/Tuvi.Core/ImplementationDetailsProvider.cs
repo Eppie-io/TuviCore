@@ -7,7 +7,7 @@ namespace Tuvi.Core
     {
         private string _keyDerivationSalt;
         private string _backupPackageIdentifier;
-        
+
         private Dictionary<SpecialPgpKeyType, string> _specialPgpKeyIdentities;
 
         public ImplementationDetailsProvider(string keyDerivationSalt, string backupPackageIdentifier, string backupPgpKeyIdentity)
@@ -19,7 +19,7 @@ namespace Tuvi.Core
                                       {
                                           { SpecialPgpKeyType.Backup, backupPgpKeyIdentity }
                                       };
-        }        
+        }
 
         public string GetPackageIdentifier()
         {

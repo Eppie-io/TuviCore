@@ -1,7 +1,7 @@
-﻿using System;
+﻿using MimeKit.Cryptography;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using MimeKit.Cryptography;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Impl;
 using Tuvi.Core.Mail.Impl.Protocols;

@@ -51,7 +51,7 @@ namespace Tuvi.Core.Impl.CredentialsManagement
 
                     provider = new OAuth2CredentialsProvider(_storage, account, data)
                     {
-                        TokenResolver = (EmailAddress address, CancellationToken ct) =>_tokenResolver.GetAccessTokenAsync(address, ct)
+                        TokenResolver = (EmailAddress address, CancellationToken ct) => _tokenResolver.GetAccessTokenAsync(address, ct)
                     };
 
                     break;
