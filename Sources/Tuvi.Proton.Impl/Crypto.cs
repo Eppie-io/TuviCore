@@ -1,4 +1,10 @@
-﻿using System;
+﻿using MimeKit;
+using MimeKit.Cryptography;
+using Org.BouncyCastle.Bcpg;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities.IO;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,12 +15,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using MimeKit;
-using MimeKit.Cryptography;
-using Org.BouncyCastle.Bcpg;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Utilities.IO;
 using Tuvi.Core.Entities;
 
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Tests")]

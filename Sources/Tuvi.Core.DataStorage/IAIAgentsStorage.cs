@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage
-{    
+{
     public interface IAIAgentsStorage
     {
         Task AddAIAgentAsync(LocalAIAgent agent, CancellationToken cancellationToken = default);

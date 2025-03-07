@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using MimeKit;
+﻿using MimeKit;
 using MimeKit.Text;
 using MimeKit.Tnef;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 {

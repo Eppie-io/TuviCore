@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Tuvi.Core.Entities
+﻿namespace Tuvi.Core.Entities
 {
     /// <summary>
     /// Represents a local AI agent with a system prompt and an associated email address.
@@ -49,7 +45,7 @@ namespace Tuvi.Core.Entities
         /// Gets or sets the preprocessor agent for the local AI agent.
         /// </summary>        
         public uint PreprocessorAgentId { get; set; }
-        
+
         [SQLite.Ignore]
         public LocalAIAgent PreprocessorAgent { get; set; }
 
@@ -57,7 +53,7 @@ namespace Tuvi.Core.Entities
         /// Gets or sets the postprocessor agent for the local AI agent.
         /// </summary>
         public uint PostprocessorAgentId { get; set; }
-        
+
         [SQLite.Ignore]
         public LocalAIAgent PostprocessorAgent { get; set; }
 

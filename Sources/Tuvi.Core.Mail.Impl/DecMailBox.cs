@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -7,7 +8,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Impl.SecurityManagement;
@@ -293,7 +293,7 @@ namespace Tuvi.Core.Dec.Impl
             foreach (var id in ids)
             {
                 var decMessage = await Storage.GetDecMessageAsync(AccountSettings.Email, folder, id, cancellationToken).ConfigureAwait(false);
-                
+
                 decMessage.FolderName = targetFolder.FullName;
                 decMessage.FolderAttributes = targetFolder.Attributes;
 
