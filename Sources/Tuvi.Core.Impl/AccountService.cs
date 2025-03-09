@@ -406,7 +406,7 @@ namespace Tuvi.Core.Impl
             newMessage.Pk = existingMessage.Pk;
             await DataStorage.UpdateMessageAsync(Account.Email, newMessage, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
-            return message;
+            return newMessage;
         }
 
         public Task AddMessagesToDataStorageAsync(Folder folder,
