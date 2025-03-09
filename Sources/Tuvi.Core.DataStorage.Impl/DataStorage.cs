@@ -2140,13 +2140,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 {
                     agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
                 }
-                if (agent.PreprocessorAgent != null)
+                if (agent.PreProcessorAgent != null)
                 {
-                    agent.PreprocessorAgentId = agent.PreprocessorAgent.Id;
+                    agent.PreProcessorAgentId = agent.PreProcessorAgent.Id;
                 }
-                if (agent.PostprocessorAgent != null)
+                if (agent.PostProcessorAgent != null)
                 {
-                    agent.PostprocessorAgentId = agent.PostprocessorAgent.Id;
+                    agent.PostProcessorAgentId = agent.PostProcessorAgent.Id;
                 }
                 connection.Insert(agent);
             }, cancellationToken);
@@ -2155,8 +2155,8 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         private void LoadAgentDetails(SQLiteConnection connection, LocalAIAgent agent)
         {
             agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
-            agent.PreprocessorAgent = agent.PreprocessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PreprocessorAgentId) : null;
-            agent.PostprocessorAgent = agent.PostprocessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PostprocessorAgentId) : null;
+            agent.PreProcessorAgent = agent.PreProcessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PreProcessorAgentId) : null;
+            agent.PostProcessorAgent = agent.PostProcessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PostProcessorAgentId) : null;
         }
 
         public Task<IReadOnlyList<LocalAIAgent>> GetAIAgentsAsync(CancellationToken cancellationToken = default)
@@ -2194,13 +2194,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 {
                     agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
                 }
-                if (agent.PreprocessorAgent != null)
+                if (agent.PreProcessorAgent != null)
                 {
-                    agent.PreprocessorAgentId = agent.PreprocessorAgent.Id;
+                    agent.PreProcessorAgentId = agent.PreProcessorAgent.Id;
                 }
-                if (agent.PostprocessorAgent != null)
+                if (agent.PostProcessorAgent != null)
                 {
-                    agent.PostprocessorAgentId = agent.PostprocessorAgent.Id;
+                    agent.PostProcessorAgentId = agent.PostProcessorAgent.Id;
                 }
                 connection.Update(agent);
             }, cancellationToken);
