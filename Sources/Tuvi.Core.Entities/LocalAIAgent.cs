@@ -57,6 +57,13 @@
         [SQLite.Ignore]
         public LocalAIAgent PostProcessorAgent { get; set; }
 
+        /// <summary>
+        /// Gets or sets the DoSample parameter.
+        /// If Sampling is disabled, a greedy approach will be used and the model will select the most likely token every time. 
+        /// If enabled,tokens will be selected based on the token probability distribution. 
+        /// The Top K, Top P, and Temperature parameters only apply if sampling is enabled.
+        /// </summary>
+        public bool DoSample { get; set; }
 
         /// <summary>
         /// Gets or sets the top K parameter.
