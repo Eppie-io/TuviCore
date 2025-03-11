@@ -2230,7 +2230,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var item = connection.Find<Message>(message.Pk) ?? throw new DataBaseException($"Message with primary key {message.Pk} not found.");
+                var item = connection.Find<Message>(message.Pk) ?? throw new MessageIsNotExistException();
 
                 item.TextBodyProcessed = result;
                 connection.Update(item);
