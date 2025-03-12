@@ -2190,18 +2190,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                if (agent.Email != null)
-                {
-                    agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
-                }
-                if (agent.PreProcessorAgent != null)
-                {
-                    agent.PreProcessorAgentId = agent.PreProcessorAgent.Id;
-                }
-                if (agent.PostProcessorAgent != null)
-                {
-                    agent.PostProcessorAgentId = agent.PostProcessorAgent.Id;
-                }
+
+                agent.EmailId = agent.Email is null ? 0 : InsertOrUpdateEmailAddress(connection, agent.Email);
+
+                agent.PreProcessorAgentId =  agent.PreProcessorAgent is null ? 0 : agent.PreProcessorAgent.Id;
+                agent.PostProcessorAgentId = agent.PostProcessorAgent is null ? 0 : agent.PostProcessorAgent.Id;
+
                 connection.Update(agent);
             }, cancellationToken);
         }
