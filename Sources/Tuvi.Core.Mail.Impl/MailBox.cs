@@ -75,8 +75,14 @@ namespace Tuvi.Core.Mail.Impl
 
         public Task<Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken = default)
         {
-            GetMessageByIDCommand getMessageByIDCommand = new GetMessageByIDCommand(Receiver, folder, id);
-            return getMessageByIDCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            var command = new GetMessageByIDCommand(Receiver, folder, id);
+            return command.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+        }
+
+        public Task<Message> GetMessageByIDHighPriorityAsync(Folder folder, uint id, CancellationToken cancellationToken = default)
+        {
+            var command = new GetMessageByIDHighPriorityCommand(Receiver, folder, id);
+            return command.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
         }
 
         public virtual Task<IReadOnlyList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default)

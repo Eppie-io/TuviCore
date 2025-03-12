@@ -44,6 +44,13 @@ namespace Tuvi.Core.Mail
         Task<Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Get by <paramref name="id"/> message from <paramref name="folder"/> with high priority.
+        /// </summary>
+        /// <returns>Message</returns>
+        /// <exception cref="MessageIsNotExistException"/>
+        Task<Message> GetMessageByIDHighPriorityAsync(Folder folder, uint id, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get limited <paramref name="count"/> of messages from <paramref name="folder"/>
         /// which delivered later than <paramref name="lastMessage"/>.
         /// </summary>

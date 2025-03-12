@@ -198,6 +198,12 @@ namespace Tuvi.Core.Dec.Impl
             return decMessage.ToMessage();
         }
 
+        public Task<Message> GetMessageByIDHighPriorityAsync(Folder folder, uint id, CancellationToken cancellationToken)
+        {
+            // TODO: implement high priority
+            return GetMessageByIDAsync(folder, id, cancellationToken);
+        }
+
         public async Task<IReadOnlyList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken)
         {
             var messages = await GetMessageListAsync(folder, count, cancellationToken).ConfigureAwait(false);
