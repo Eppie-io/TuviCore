@@ -93,6 +93,16 @@ namespace Tuvi.Core
         /// <exception cref="MessageSignatureVerificationException"/>
         Task<Message> GetMessageBodyAsync(Message message, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Get body of message with high priority. Message content will be loaded and decrypted if it's necessary.
+        /// </summary>
+        /// <param name="message">Message to get body for</param>
+        /// <returns>Fully loaded and processed message</returns>
+        /// <exception cref="NoSecretKeyException"/>
+        /// <exception cref="MessageDecryptionException"/>
+        /// <exception cref="MessageSignatureVerificationException"/>
+        Task<Message> GetMessageBodyHighPriorityAsync(Message message, CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<Message>> ReceiveNewMessagesInFolderAsync(Folder folder, CancellationToken cancellationToken = default);
 
         Task DeleteMessageAsync(Message message, CancellationToken cancellationToken = default);

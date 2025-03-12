@@ -1040,6 +1040,17 @@ namespace Tuvi.Core.Impl
             }, cancellationToken);
         }
 
+        public Task<Message> GetMessageBodyHighPriorityAsync(Message message, CancellationToken cancellationToken)
+        {
+            CheckDisposed();
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+            var accountService = GetAccountService(message.Folder);
+            return accountService.GetMessageBodyHighPriorityAsync(message, cancellationToken);
+        }
+
         public Task<Message> GetMessageBodyAsync(Message message, CancellationToken cancellationToken)
         {
             CheckDisposed();

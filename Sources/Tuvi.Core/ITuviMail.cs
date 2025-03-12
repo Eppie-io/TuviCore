@@ -99,6 +99,7 @@ namespace Tuvi.Core
         Task FlagMessagesAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
         Task UnflagMessagesAsync(IEnumerable<Message> messages, CancellationToken cancellationToken = default);
         Task<Message> GetMessageBodyAsync(Message message, CancellationToken cancellationToken = default);
+        Task<Message> GetMessageBodyHighPriorityAsync(Message message, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Send message in ordinary way without any additional protection.

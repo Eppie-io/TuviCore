@@ -189,6 +189,22 @@ namespace Tuvi.Core.Impl
             }
         }
 
+        public async Task<Message> GetMessageBodyHighPriorityAsync(Message message, CancellationToken cancellationToken = default)
+        {
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            Message fullMessage = null;
+            if (message.IsNoBodyLoaded())
+            {
+                fullMessage = await MailBox.GetMessageByIDHighPriorityAsync(message.Folder, message.Id, cancellationToken).ConfigureAwait(false);
+            }
+
+            return await GetMessageBodyImplAsync(message, fullMessage, cancellationToken).ConfigureAwait(false);
+        }
+
         public async Task<Message> GetMessageBodyAsync(Message message, CancellationToken cancellationToken = default)
         {
             if (message is null)
@@ -196,28 +212,40 @@ namespace Tuvi.Core.Impl
                 throw new ArgumentNullException(nameof(message));
             }
 
+            Message fullMessage = null;
             if (message.IsNoBodyLoaded())
             {
-                message = await LoadFullMessageAsync(message, cancellationToken).ConfigureAwait(false);
+                fullMessage = await MailBox.GetMessageByIDAsync(message.Folder, message.Id, cancellationToken).ConfigureAwait(false);
             }
 
-            await MessageProtector.TryVerifyAndDecryptAsync(message, cancellationToken).ConfigureAwait(false);
+            return await GetMessageBodyImplAsync(message, fullMessage, cancellationToken).ConfigureAwait(false);
+        }
 
+        private async Task<Message> GetMessageBodyImplAsync(Message message, Message fullMessage, CancellationToken cancellationToken = default)
+        {
+            message = await UpdateMessageAsync(message, fullMessage, cancellationToken).ConfigureAwait(false);
+            
+            await MessageProtector.TryVerifyAndDecryptAsync(message, cancellationToken).ConfigureAwait(false);
             await DataStorage.UpdateMessageAsync(Account.Email, message, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
             return message;
         }
 
-        private async Task<Message> LoadFullMessageAsync(Message incompleteMessage, CancellationToken cancellationToken)
+        private async Task<Message> UpdateMessageAsync(Message incompleteMessage, Message fullMessage, CancellationToken cancellationToken)
         {
             try
             {
-                var fullMessage = await MailBox.GetMessageByIDAsync(incompleteMessage.Folder, incompleteMessage.Id, cancellationToken).ConfigureAwait(false);
-                incompleteMessage.CopyInitialParameters(fullMessage);
-                await DataStorage.UpdateMessageAsync(Account.Email, fullMessage, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
+                if (fullMessage != null)
+                {
+                    incompleteMessage.CopyInitialParameters(fullMessage);
+                    await DataStorage.UpdateMessageAsync(Account.Email, fullMessage, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
-                return fullMessage;
-
+                    return fullMessage;
+                }
+                else
+                {
+                    return incompleteMessage;
+                }
             }
             catch (MessageIsNotExistException)
             {
