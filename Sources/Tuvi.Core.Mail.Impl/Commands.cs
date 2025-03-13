@@ -315,8 +315,6 @@ namespace Tuvi.Core.Mail.Impl
     {
         private uint ID;
 
-        protected override bool IsHighPriority { get => true; }
-
         public GetMessageByIDCommand(ReceiverService receiver, Folder folder, uint id)
           : base(receiver, folder)
         {
@@ -331,6 +329,16 @@ namespace Tuvi.Core.Mail.Impl
         protected override string GetUniqueCommandIdentifier(string email)
         {
             return this.GetType().Name + email + FolderPath.FullName + ID.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    internal class GetMessageByIDHighPriorityCommand : GetMessageByIDCommand
+    {
+        protected override bool IsHighPriority { get => true; }
+
+        public GetMessageByIDHighPriorityCommand(ReceiverService receiver, Folder folder, uint id)
+          : base(receiver, folder, id)
+        {
         }
     }
 

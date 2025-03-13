@@ -584,6 +584,12 @@ namespace Tuvi.Proton
             return message;
         }
 
+        public Task<Core.Entities.Message> GetMessageByIDHighPriorityAsync(Folder folder, uint id, CancellationToken cancellationToken)
+        {
+            // TODO: implement high priority
+            return GetMessageByIDAsync(folder, id, cancellationToken);
+        }
+
         public Task<IReadOnlyList<Core.Entities.Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken)
         {
             return GetMessagesAsync(folder, count, null, true, updateLocal: false, cancellationToken);
