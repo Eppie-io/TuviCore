@@ -297,7 +297,7 @@ namespace Tuvi.Proton
 
         public override void Import(PgpSecretKeyRingBundle bundle, CancellationToken cancellationToken)
         {
-            if (bundle == null)
+            if (bundle is null)
             {
                 throw new ArgumentNullException(nameof(bundle));
             }
@@ -898,7 +898,7 @@ namespace Tuvi.Proton
 
         private async Task<string> GetMessageLabelIdAsync(Folder folder, CancellationToken cancellationToken)
         {
-            if (_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
+            if (_folderToLabelMap is null || _folderToLabelMap.IsEmpty)
             {
                 await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false);
             }
