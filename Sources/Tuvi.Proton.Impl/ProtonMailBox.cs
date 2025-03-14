@@ -365,7 +365,7 @@ namespace Tuvi.Proton
 
         public async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete, CancellationToken cancellationToken)
         {
-            var labelId = GetMessageLabelId(folder);
+            var labelId = await GetMessageLabelIdAsync(folder, cancellationToken).ConfigureAwait(false);
 
             if (folder.IsTrash)
             {
@@ -392,7 +392,7 @@ namespace Tuvi.Proton
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
 
-            var targetLabelId = GetMessageLabelId(targetFolder);
+            var targetLabelId = await GetMessageLabelIdAsync(targetFolder, cancellationToken).ConfigureAwait(false);
             await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), targetLabelId, cancellationToken).ConfigureAwait(false);
         }
 
@@ -489,7 +489,7 @@ namespace Tuvi.Proton
         {
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
 
-            var labelId = await GetMessageLabelIdAsync(folder).ConfigureAwait(false);
+            var labelId = await GetMessageLabelIdAsync(folder, cancellationToken).ConfigureAwait(false);
             var storedLastMessage = await _storage.GetMessageAsync(folder.AccountId, labelId, id, cancellationToken).ConfigureAwait(false);
             Debug.Assert(storedLastMessage != null);
 
@@ -672,7 +672,7 @@ namespace Tuvi.Proton
             {
                 await SynchronizedMessagesAsync(cancellationToken).ConfigureAwait(false);
                 await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false);
-                string labelId = GetMessageLabelId(folder);
+                string labelId = await GetMessageLabelIdAsync(folder, cancellationToken).ConfigureAwait(false);
                 uint knownMessageId = lastMessage != null ? lastMessage.Id : 0;
 
                 var storedItems = await _storage.GetMessagesAsync(folder.AccountId, labelId, knownMessageId, earlier, count, cancellationToken)
@@ -883,15 +883,26 @@ namespace Tuvi.Proton
 
         private async Task ProcessMessagesAsync(IEnumerable<Core.Entities.Message> messages, Func<Impl.Client, IEnumerable<string>, Task> action, CancellationToken cancellationToken)
         {
-            var tasks = messages.Select(x => _storage.GetMessageAsync(x.Folder.AccountId, GetMessageLabelId(x.Folder), x.Id, cancellationToken)).ToList();
+            var tasks = messages.Select(x => GetMessageAsync(x)).ToList();
             await Task.WhenAll(tasks).ConfigureAwait(false);
             var storedMessageIDs = tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result.MessageId).ToList();
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             await action(client, storedMessageIDs).ConfigureAwait(false);
+
+            async Task<Message> GetMessageAsync(Core.Entities.Message message)
+            {
+                var labelID = await GetMessageLabelIdAsync(message.Folder, cancellationToken).ConfigureAwait(false);
+                return await _storage.GetMessageAsync(message.Folder.AccountId, labelID, message.Id, cancellationToken).ConfigureAwait(false);
+            }
         }
 
-        private string GetMessageLabelId(Folder folder)
+        private async Task<string> GetMessageLabelIdAsync(Folder folder, CancellationToken cancellationToken)
         {
+            if (_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
+            {
+                await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             Debug.Assert(folder != null);
 
             string labelId;
@@ -901,16 +912,6 @@ namespace Tuvi.Proton
             }
 
             return labelId;
-        }
-
-        private async Task<string> GetMessageLabelIdAsync(Folder folder)
-        {
-            if (_folderToLabelMap == null || _folderToLabelMap.IsEmpty)
-            {
-                await GetFoldersStructureAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-
-            return GetMessageLabelId(folder);
         }
 
         private async Task<Impl.Client> GetClientAsync(CancellationToken cancellationToken)
