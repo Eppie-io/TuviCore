@@ -87,6 +87,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 // retry once
                 foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
             }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
+            }
 
             return foldersStructure;
         }
@@ -483,27 +490,56 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)
         {
-            if (message.Folder == null)
+            try
             {
-                message.Folder = GetDraftsFolder().ToTuviMailFolder();
+                return await AppendDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await AppendDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await AppendDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await AppendDraftMessageAsync().ConfigureAwait(false);
             }
 
-            var draftsFolder = await ImapClient.GetFolderAsync(message.Folder.FullName, cancellationToken).ConfigureAwait(false);
-
-            await draftsFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-            message.Folder = draftsFolder.ToTuviMailFolder();
-
-            using (var mimeMessage = message.ToMimeMessage())
+            async Task<Message> AppendDraftMessageAsync()
             {
-                message.Date = DateTimeOffset.UtcNow;
-                var uid = await draftsFolder.AppendAsync(mimeMessage, MessageFlags.Draft | MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
-                message.Id = uid.Value.Id;
-                message.IsMarkedAsRead = true;
+                if (message.Folder == null)
+                {
+                    message.Folder = GetDraftsFolder().ToTuviMailFolder();
+                }
 
-                await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                var draftsFolder = await ImapClient.GetFolderAsync(message.Folder.FullName, cancellationToken).ConfigureAwait(false);
+
+                await draftsFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+                message.Folder = draftsFolder.ToTuviMailFolder();
+
+                using (var mimeMessage = message.ToMimeMessage())
+                {
+                    message.Date = DateTimeOffset.UtcNow;
+                    var uid = await draftsFolder.AppendAsync(mimeMessage, MessageFlags.Draft | MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
+                    message.Id = uid.Value.Id;
+                    message.IsMarkedAsRead = true;
+
+                    await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                }
+
+                return message;
             }
-
-            return message;
         }
 
         public override async Task<Message> ReplaceDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken)
