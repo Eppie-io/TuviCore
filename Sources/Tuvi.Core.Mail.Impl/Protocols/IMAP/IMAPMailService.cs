@@ -580,6 +580,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 // retry once
                 await MarkMessagesAsReadAsync().ConfigureAwait(false);
             }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await MarkMessagesAsReadAsync().ConfigureAwait(false);
+            }
 
             Task MarkMessagesAsReadAsync()
             {
@@ -601,6 +608,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
             {
                 // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -634,6 +648,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 // retry once
                 await FlagMessagesAsync().ConfigureAwait(false);
             }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await FlagMessagesAsync().ConfigureAwait(false);
+            }
 
             Task FlagMessagesAsync()
             {
@@ -655,6 +676,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await UnflagMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await UnflagMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
             {
                 // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -686,57 +714,115 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, bool permanentDelete, CancellationToken cancellationToken)
         {
-            var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
-            await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-
-            var uniqueIds = new List<uint>(ids).ConvertAll(x => new UniqueId(x));
-
-            if (!folder.Attributes.HasFlag(MailKit.FolderAttributes.Trash) && !permanentDelete)
+            try
             {
-                try
-                {
-                    var trash = GetTrashFolder();
-                    if (trash != null)
-                    {
-                        await folder.MoveToAsync(uniqueIds, trash, cancellationToken).ConfigureAwait(false);
-                        await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                        return;
-                    }
-                }
-                catch (NotSupportedException)
-                {
-                }
+                await DeleteMessagesAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await DeleteMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await DeleteMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await DeleteMessagesAsync().ConfigureAwait(false);
             }
 
-            await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
-            await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            async Task DeleteMessagesAsync()
+            {
+                var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
+                await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+
+                var uniqueIds = new List<uint>(ids).ConvertAll(x => new UniqueId(x));
+
+                if (!folder.Attributes.HasFlag(MailKit.FolderAttributes.Trash) && !permanentDelete)
+                {
+                    try
+                    {
+                        var trash = GetTrashFolder();
+                        if (trash != null)
+                        {
+                            await folder.MoveToAsync(uniqueIds, trash, cancellationToken).ConfigureAwait(false);
+                            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            return;
+                        }
+                    }
+                    catch (NotSupportedException)
+                    {
+                    }
+                }
+
+                await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
+                await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
+                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public override async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, Folder targetFolderPath, CancellationToken cancellationToken)
         {
-            var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
-            await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-
-            var targetFolder = await ImapClient.GetFolderAsync(targetFolderPath.FullName, cancellationToken).ConfigureAwait(false);
-
-            var uniqueIds = new List<uint>(ids).ConvertAll(x => new UniqueId(x));
-
-
             try
             {
-                await folder.MoveToAsync(uniqueIds, targetFolder, cancellationToken).ConfigureAwait(false);
-                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                return;
+                await MoveMessagesAsync().ConfigureAwait(false);
             }
-            catch (NotSupportedException)
+            catch (System.IO.IOException)
             {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await MoveMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await MoveMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await MoveMessagesAsync().ConfigureAwait(false);
             }
 
+            async Task MoveMessagesAsync()
+            {
+                var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
+                await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
 
-            await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
-            await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                var targetFolder = await ImapClient.GetFolderAsync(targetFolderPath.FullName, cancellationToken).ConfigureAwait(false);
+
+                var uniqueIds = new List<uint>(ids).ConvertAll(x => new UniqueId(x));
+
+
+                try
+                {
+                    await folder.MoveToAsync(uniqueIds, targetFolder, cancellationToken).ConfigureAwait(false);
+                    await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (NotSupportedException)
+                {
+                }
+
+
+                await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
+                await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
+                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public override void Dispose()
