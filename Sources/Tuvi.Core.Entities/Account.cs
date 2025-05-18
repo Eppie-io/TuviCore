@@ -53,8 +53,28 @@ namespace Tuvi.Core.Entities
         public int Id { get; set; }
 
         [SQLite.Ignore]
-        public EmailAddress Email { get; set; }
-        [SQLite.Indexed]
+        public EmailAddress Email
+        {
+            get
+            {
+                if (_Email is null && EmailAddress != null)
+                {
+                    _Email = new EmailAddress(EmailAddress, EmailName);
+                }
+                return _Email;
+            }
+            set
+            {
+                EmailAddress = value?.Address;
+                EmailName = value?.Name;
+                _Email = value;
+            }
+        }
+        private EmailAddress _Email;
+        public string EmailAddress { get; set; }
+        public string EmailName { get; set; }
+
+        // TODO: remove this property after migration (18.05.2025)
         public int EmailId { get; set; }
 
         public int GroupId { get; set; }

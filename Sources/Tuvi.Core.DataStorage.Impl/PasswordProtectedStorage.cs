@@ -2,6 +2,7 @@
 using SQLite;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -207,6 +208,30 @@ namespace Tuvi.Core.DataStorage.Impl
 
             // Automatic migration
             await CreateOrMigrateTablesAsync(db).ConfigureAwait(false);
+
+            // --- Data migration (18.05.2025): Account.EmailId -> Account.Email ---
+            // Get all accounts where EmailAddress is not set, but EmailId is present
+            var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+            bool needMigration = accounts.Any(a => string.IsNullOrEmpty(a.EmailAddress) && a.EmailId != 0);
+
+            if (needMigration)
+            {
+                foreach (var account in accounts)
+                {
+                    // If EmailAddress is not set and EmailId is present, migrate the data
+                    if (string.IsNullOrEmpty(account.EmailAddress) && account.EmailId != 0)
+                    {
+                        var emailData = await db.FindAsync<EmailAddressData>(account.EmailId).ConfigureAwait(false);
+                        if (emailData != null)
+                        {
+                            // Set the Email property using the data from EmailAddressData
+                            account.Email = new EmailAddress(emailData.Address, emailData.Name);
+                            account.EmailId = 0; // Reset EmailId to avoid future migrations
+                            await db.UpdateAsync(account).ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
         }
 
         private async Task<bool> IsDataStorageOpenedCorrectlyAsync()

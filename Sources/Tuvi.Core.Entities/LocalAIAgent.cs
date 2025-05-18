@@ -31,10 +31,13 @@
         /// Gets or sets the email address associated with the local AI agent.
         /// </summary>
         [SQLite.Indexed]
-        public int EmailId { get; set; }
+        public int AccountId { get; set; }
 
         [SQLite.Ignore]
-        public EmailAddress Email { get; set; }
+        public Account Account { get; set; }
+
+        [SQLite.Ignore]
+        public EmailAddress Email => Account?.Email;
 
         /// <summary>
         /// Gets or sets a value indicating whether the local AI agent is allowed to send emails.
