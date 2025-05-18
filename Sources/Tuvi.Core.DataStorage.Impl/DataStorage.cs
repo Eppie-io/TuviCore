@@ -327,8 +327,6 @@ namespace Tuvi.Core.DataStorage.Impl
             await WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                accountData.EmailId = InsertOrUpdateEmailAddress(connection, accountData.Email);
-                Debug.Assert(accountData.EmailId > 0);
                 connection.Insert(accountData);
                 int accountId = GetLastRowId(connection);
 
@@ -387,20 +385,12 @@ namespace Tuvi.Core.DataStorage.Impl
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var emailData = FindEmailAddress(connection, account.Email);
-                if (emailData == null)
-                {
-                    return;
-                }
-                var item = connection.Find<Account>(x => x.EmailId == emailData.Id);
+                var item = FindAccount(connection, account.Email);
                 if (item == null)
                 {
                     return;
                 }
                 account.Id = item.Id;
-
-                emailData.UpdateValue(account.Email);
-                connection.Update(emailData);
 
                 AddAccountAuthData(connection, account.Id, account.AuthData);
 
@@ -413,21 +403,12 @@ namespace Tuvi.Core.DataStorage.Impl
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var emailData = FindEmailAddress(connection, account.Email);
-                if (emailData == null)
-                {
-                    return;
-                }
-                var item = connection.Find<Account>(x => x.EmailId == emailData.Id);
+                var item = FindAccount(connection, account.Email);
                 if (item == null)
                 {
                     return;
                 }
                 account.Id = item.Id;
-
-                emailData.UpdateValue(account.Email);
-                connection.Update(emailData);
-
                 connection.Update(account);
             }, cancellationToken);
         }
@@ -437,19 +418,12 @@ namespace Tuvi.Core.DataStorage.Impl
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var emailData = FindEmailAddress(connection, account.Email);
-                if (emailData == null)
-                {
-                    return;
-                }
-                var item = connection.Find<Account>(x => x.EmailId == emailData.Id);
+                var item = FindAccount(connection, account.Email);
                 if (item == null)
                 {
                     return;
                 }
-
                 AddAccountFolders(db, item.Id, account, ct);
-
                 connection.Update(item);
             }, cancellationToken);
         }
@@ -473,21 +447,14 @@ namespace Tuvi.Core.DataStorage.Impl
             account.DefaultInboxFolder = folders.FirstOrDefault(x => x.Id == account.DefaultInboxFolderId);
         }
 
-        private Folder GetAccountDefaultInboxFolder(SQLiteConnection connection, EmailAddress accountEmail)
-        {
-            var account = FindAccountStrict(connection, accountEmail);
-            var folder = connection.Find<Folder>(account.DefaultInboxFolderId);
-            folder.AccountEmail = accountEmail;
-            return folder;
-        }
-
         public Task<Account> GetAccountAsync(EmailAddress accountEmail, CancellationToken cancellationToken)
         {
             Debug.Assert(accountEmail != null);
             return ReadDatabaseAsync((connection, ct) =>
             {
                 var account = FindAccountStrict(connection, accountEmail);
-                BuildAccount(connection, accountEmail, account);
+                BuildAccountAuthData(connection, account);
+                BuildAccountFolders(connection, account);
                 return account;
             }, cancellationToken);
         }
@@ -500,19 +467,11 @@ namespace Tuvi.Core.DataStorage.Impl
                 foreach (var account in accounts)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var emailData = GetEmailAddressData(connection, account.EmailId);
-                    BuildAccount(connection, emailData.ToEmailAddress(), account);
+                    BuildAccountAuthData(connection, account);
+                    BuildAccountFolders(connection, account);
                 }
-
                 return accounts;
             }, cancellationToken);
-        }
-
-        private static void BuildAccount(SQLiteConnection connection, EmailAddress accountEmail, Account account)
-        {
-            account.Email = accountEmail;
-            BuildAccountAuthData(connection, account);
-            BuildAccountFolders(connection, account);
         }
 
         private void DeleteMessage(DbConnection db, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
@@ -556,7 +515,7 @@ namespace Tuvi.Core.DataStorage.Impl
             connection.Table<Attachment>().Delete(x => x.MessageId == message.Pk);
         }
 
-        private void InitMessageFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderPath, Entities.Message message, Entities.Message oldMessage = null)
+        private static void InitMessageFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderPath, Entities.Message message, Entities.Message oldMessage = null)
         {
             if (String.IsNullOrEmpty(folderPath))
             {
@@ -567,7 +526,7 @@ namespace Tuvi.Core.DataStorage.Impl
             message.Folder = folder;
         }
 
-        private Folder FindAccountFolderStrict(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
+        private static Folder FindAccountFolderStrict(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
         {
             var folder = FindAccountFolder(connection, accountEmail, folderName);
             if (folder is null)
@@ -578,7 +537,7 @@ namespace Tuvi.Core.DataStorage.Impl
             return folder;
         }
 
-        private Folder FindAccountFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
+        private static Folder FindAccountFolder(SQLiteConnection connection, EmailAddress accountEmail, string folderName)
         {
             var account = FindAccountStrict(connection, accountEmail);
             var folder = connection.Find<Folder>(x => x.AccountId == account.Id &&
@@ -1005,7 +964,7 @@ namespace Tuvi.Core.DataStorage.Impl
             LoadMessageEmailAddresses(connection, message, cancellationToken);
             return BuildMessageWithoutEmailAddresses(connection, message, cancellationToken);
         }
-        private Entities.Message BuildMessageWithoutEmailAddresses(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
+        private static Entities.Message BuildMessageWithoutEmailAddresses(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             message.Attachments.AddRange(connection.Table<Attachment>().Where(x => x.MessageId == message.Pk));
@@ -1014,7 +973,7 @@ namespace Tuvi.Core.DataStorage.Impl
             if (message.Folder != null)
             {
                 var account = connection.Find<Account>(message.Folder.AccountId);
-                message.Folder.AccountEmail = GetEmailAddressData(connection, account.EmailId).ToEmailAddress();
+                message.Folder.AccountEmail = account.Email;
             }
             cancellationToken.ThrowIfCancellationRequested();
             message.Protection = connection.Find<ProtectionInfo>(x => x.MessageId == message.Pk);
@@ -1487,7 +1446,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        private bool ExistsAccountWithEmailAddress(SQLiteConnection connection, EmailAddress accountEmail)
+        private static bool ExistsAccountWithEmailAddress(SQLiteConnection connection, EmailAddress accountEmail)
         {
             return FindAccount(connection, accountEmail) != null;
         }
@@ -1756,17 +1715,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return emailData;
         }
 
-        private Account FindAccount(SQLiteConnection connection, EmailAddress accountEmail)
+        private static Account FindAccount(SQLiteConnection connection, EmailAddress accountEmail)
         {
-            var emailData = FindEmailAddress(connection, accountEmail);
-            if (emailData is null)
-            {
-                return null;
-            }
-            return connection.Find<Account>(x => x.EmailId == emailData.Id);
+            return connection.Find<Account>(x => x.EmailAddress == accountEmail.Address);
         }
 
-        private Account FindAccountStrict(SQLiteConnection connection, EmailAddress accountEmail)
+        private static Account FindAccountStrict(SQLiteConnection connection, EmailAddress accountEmail)
         {
             var account = FindAccount(connection, accountEmail);
             if (account == null)
@@ -2136,9 +2090,9 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                if (agent.Email != null)
+                if (agent.Account != null)
                 {
-                    agent.EmailId = InsertOrUpdateEmailAddress(connection, agent.Email);
+                    agent.AccountId = agent.Account.Id;
                 }
                 if (agent.PreProcessorAgent != null)
                 {
@@ -2152,9 +2106,9 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        private void LoadAgentDetails(SQLiteConnection connection, LocalAIAgent agent)
+        private static void LoadAgentDetails(SQLiteConnection connection, LocalAIAgent agent)
         {
-            agent.Email = GetEmailAddressData(connection, agent.EmailId)?.ToEmailAddress();
+            agent.Account = agent.AccountId > 0 ? connection.Find<Account>(agent.AccountId) : null;
             agent.PreProcessorAgent = agent.PreProcessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PreProcessorAgentId) : null;
             agent.PostProcessorAgent = agent.PostProcessorAgentId > 0 ? connection.Find<LocalAIAgent>(agent.PostProcessorAgentId) : null;
         }
@@ -2191,9 +2145,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 var connection = db.Connection;
 
-                agent.EmailId = agent.Email is null ? 0 : InsertOrUpdateEmailAddress(connection, agent.Email);
-
-                agent.PreProcessorAgentId =  agent.PreProcessorAgent is null ? 0 : agent.PreProcessorAgent.Id;
+                agent.PreProcessorAgentId = agent.PreProcessorAgent is null ? 0 : agent.PreProcessorAgent.Id;
                 agent.PostProcessorAgentId = agent.PostProcessorAgent is null ? 0 : agent.PostProcessorAgent.Id;
 
                 connection.Update(agent);
