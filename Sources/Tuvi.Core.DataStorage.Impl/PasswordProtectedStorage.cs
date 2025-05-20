@@ -209,29 +209,65 @@ namespace Tuvi.Core.DataStorage.Impl
             // Automatic migration
             await CreateOrMigrateTablesAsync(db).ConfigureAwait(false);
 
-            // --- Data migration (18.05.2025): Account.EmailId -> Account.Email ---
-            // Get all accounts where EmailAddress is not set, but EmailId is present
-            var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
-            bool needMigration = accounts.Any(a => string.IsNullOrEmpty(a.EmailAddress) && a.EmailId != 0);
+            // --- Data migration (18.05.2025) ---
+            // LastMessageData.AccountEmailId -> LastMessageData.AccountId
+            // Account.EmailId -> Account.Email
+            await DataMigration18052025(db).ConfigureAwait(false);
+        }
 
-            if (needMigration)
+        private static async Task DataMigration18052025(SQLiteAsyncConnection db)
+        {
+#pragma warning disable CS0618 // Only for migration purposes
+            // --- Data migration (18.05.2025): LastMessageData.AccountEmailId -> LastMessageData.AccountId ---
             {
-                foreach (var account in accounts)
+                var lastMessages = await db.Table<LastMessageData>().ToListAsync().ConfigureAwait(false);
+
+                bool needLmdMigration = lastMessages.Any(lmd => lmd.AccountId == 0 && lmd.AccountEmailId != 0);
+
+                if (needLmdMigration)
                 {
-                    // If EmailAddress is not set and EmailId is present, migrate the data
-                    if (string.IsNullOrEmpty(account.EmailAddress) && account.EmailId != 0)
+                    var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                    foreach (var lmd in lastMessages)
                     {
-                        var emailData = await db.FindAsync<EmailAddressData>(account.EmailId).ConfigureAwait(false);
-                        if (emailData != null)
+                        // If AccountId is not set and AccountEmailId is present, migrate the data
+                        if (lmd.AccountId == 0 && lmd.AccountEmailId != 0)
                         {
-                            // Set the Email property using the data from EmailAddressData
-                            account.Email = new EmailAddress(emailData.Address, emailData.Name);
-                            account.EmailId = 0; // Reset EmailId to avoid future migrations
-                            await db.UpdateAsync(account).ConfigureAwait(false);
+                            var account = accounts.FirstOrDefault(a => a.EmailId == lmd.AccountEmailId);
+                            if (account != null)
+                            {
+                                lmd.AccountId = account.Id;
+                                lmd.AccountEmailId = 0; // Reset AccountEmailId to avoid future migrations
+                                await db.UpdateAsync(lmd).ConfigureAwait(false);
+                            }
                         }
                     }
                 }
             }
+
+            // --- Data migration (18.05.2025): Account.EmailId -> Account.Email ---            
+            {
+                var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                bool needMigration = accounts.Any(a => string.IsNullOrEmpty(a.EmailAddress) && a.EmailId != 0);
+
+                if (needMigration)
+                {
+                    foreach (var account in accounts)
+                    {
+                        // If EmailAddress is not set and EmailId is present, migrate the data
+                        if (string.IsNullOrEmpty(account.EmailAddress) && account.EmailId != 0)
+                        {
+                            var emailData = await db.FindAsync<EmailAddressData>(account.EmailId).ConfigureAwait(false);
+                            if (emailData != null)
+                            {
+                                account.Email = new EmailAddress(emailData.Address, emailData.Name);
+                                account.EmailId = 0; // Reset EmailId to avoid future migrations
+                                await db.UpdateAsync(account).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+            }
+#pragma warning restore CS0618 // Only for migration purposes
         }
 
         private async Task<bool> IsDataStorageOpenedCorrectlyAsync()

@@ -499,9 +499,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 var messages = GetEarlierContactMessages(connection, contact.Email, 1, null, cancellationToken);
                 if (messages.Count > 0)
                 {
-                    contact.LastMessageData = new LastMessageData(messages[0].Folder.AccountEmail,
-                                                                  messages[0].Id,
-                                                                  messages[0].Date);
+                    contact.LastMessageData = CreateLastMessageData(messages[0].Folder.AccountEmail, messages[0]);
                     UpdateContact(db, contact);
                 }
             }
@@ -721,7 +719,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 if (contact is null)
                 {
                     contact = new Contact(contactEmail.Name, contactEmail);
-                    contact.LastMessageData = new LastMessageData(accountEmail, message.Id, message.Date);
+                    contact.LastMessageData = CreateLastMessageData(accountEmail, message);
                     InsertContact(db, contact, cancellationToken);
                 }
                 else
@@ -730,13 +728,18 @@ namespace Tuvi.Core.DataStorage.Impl
                     if (contact.LastMessageData is null ||
                         message.Date > contact.LastMessageData.Date)
                     {
-                        contact.LastMessageData = new LastMessageData(accountEmail, message.Id, message.Date);
+                        contact.LastMessageData = CreateLastMessageData(accountEmail, message);
                         UpdateContact(db, contact);
                     }
                 }
 
                 connection.Insert(new MessageContact() { MessageId = message.Pk, ContactId = contact.Id });
             }
+        }
+
+        private static LastMessageData CreateLastMessageData(EmailAddress accountEmail, Message message)
+        {   
+            return new LastMessageData(message.Folder.AccountId, accountEmail, message.Id, message.Date);
         }
 
         public async Task<List<DecMessage>> GetDecMessagesAsync(EmailAddress email, Folder folder, int count, CancellationToken cancellationToken)
@@ -1508,8 +1511,8 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             if (contact.LastMessageData != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var emailData = GetEmailAddressData(connection, contact.LastMessageData.AccountEmailId);
-                contact.LastMessageData.AccountEmail = emailData.ToEmailAddress();
+                var account = connection.Find<Account>(contact.LastMessageData.AccountId);
+                contact.LastMessageData.AccountEmail = account.Email;
             }
             cancellationToken.ThrowIfCancellationRequested();
             contact.Email = GetEmailAddressData(connection, contact.EmailId).ToEmailAddress();
@@ -1555,8 +1558,8 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
             if (contact.LastMessageData != null)
             {
-                // TODO: we create new record each time, this is not ok
-                contact.LastMessageData.AccountEmailId = InsertOrUpdateEmailAddress(connection, contact.LastMessageData.AccountEmail);
+                var account = FindAccountStrict(connection, contact.LastMessageData.AccountEmail);
+                contact.LastMessageData.AccountId = account.Id;
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);
             }
@@ -1717,7 +1720,9 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         private static Account FindAccount(SQLiteConnection connection, EmailAddress accountEmail)
         {
+#pragma warning disable CS0618 // Only for SQLite and internal using
             return connection.Find<Account>(x => x.EmailAddress == accountEmail.Address);
+#pragma warning restore CS0618 // Only for SQLite and internal using
         }
 
         private static Account FindAccountStrict(SQLiteConnection connection, EmailAddress accountEmail)
@@ -1743,30 +1748,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 connection.Update(item);
             }, cancellationToken);
         }
-
-        public Task<IEnumerable<Contact>> GetContactsWithLastMessageIdAsync(EmailAddress accountEmail, uint messageId, CancellationToken cancellationToken)
-        {
-            return ReadDatabaseAsync((connection, ct) =>
-            {
-                var emailData = FindEmailAddressStrict(connection, accountEmail);
-                var items = connection.Table<LastMessageData>()
-                                      .Where(x => x.MessageId == messageId && x.AccountEmailId == emailData.Id)
-                                      .ToList(ct);
-                var contacts = new List<Contact>();
-                foreach (var item in items)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var contactItems = connection.Table<Contact>().Where(x => x.LastMessageDataId == item.Id);
-                    foreach (var contact in contactItems)
-                    {
-                        BuildContact(connection, contact, ct);
-                        contacts.Add(contact);
-                    }
-                }
-                return (IEnumerable<Contact>)contacts;
-            }, cancellationToken);
-        }
-
+        
         public Task<int> GetContactUnreadMessagesCountAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
         {
             if (_isDisposed)

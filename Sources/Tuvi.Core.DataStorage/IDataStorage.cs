@@ -314,15 +314,6 @@ namespace Tuvi.Core.DataStorage
         Task RemoveContactAvatarAsync(EmailAddress contactEmail, CancellationToken cancellationToken);
 
         /// <summary>
-        /// Gets all contacts whose last message id is <paramref name="messageId"/> and this message is from account with email <paramref name="accountEmail"/>
-        /// </summary>
-        /// <param name="accountEmail"></param>
-        /// <param name="messageId"></param>
-        /// <param name="cancellationToken"></param>
-        /// <exception cref="DataBaseException"/>
-        Task<IEnumerable<Contact>> GetContactsWithLastMessageIdAsync(EmailAddress accountEmail, uint messageId, CancellationToken cancellationToken);
-
-        /// <summary>
         /// Tries to find the last message that refers to contact <paramref name="contactEmail"/> in folder <paramref name="folder"/> of the account with email <paramref name="email"/>. If no message is found, returns null
         /// </summary>
         /// <param name="email"></param>

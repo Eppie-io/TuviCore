@@ -477,31 +477,6 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        public static IEnumerable<Contact> CollectContactsFromMessages(EmailAddress accountEmail, IEnumerable<Message> messages)
-        {
-            foreach (var message in messages.OrderByDescending(message => message.Date))
-            {
-                var contacts = GetMessageContacts(accountEmail, message);
-                foreach (var contact in contacts)
-                {
-                    yield return contact;
-                }
-            }
-        }
-
-        private static IEnumerable<Contact> GetMessageContacts(EmailAddress accountEmail, Message message)
-        {
-            var addresses = message.GetContactEmails(accountEmail);
-
-            var contacts = addresses.GroupBy(email => EmailAddressHelper.GetKeyFromEmail(email))
-                                    .Select(group => group.FirstOrDefault(email => !string.IsNullOrEmpty(email.Name)) ?? group.First())
-                                    .Select(email => new Contact(email.Name, email)
-                                    {
-                                        LastMessageData = new LastMessageData(accountEmail, message.Id, message.Date)
-                                    });
-            return contacts;
-        }
-
         public async Task<int> GetUnreadMessagesCountAsync(CancellationToken cancellationToken)
         {
             int unreadCount = 0;
