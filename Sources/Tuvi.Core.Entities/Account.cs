@@ -67,7 +67,7 @@ namespace Tuvi.Core.Entities
             {
                 EmailAddress = value?.Address;
                 EmailName = value?.Name;
-                _Email = value;
+                _Email = null;
             }
         }
         private EmailAddress _Email;
