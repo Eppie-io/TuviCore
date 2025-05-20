@@ -136,7 +136,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.UpdateAccountAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                var updatedAccount = accounts.First(x => x.EmailAddress == account.Email.Address);
+                var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
                 Assert.That(newName, Is.EqualTo(updatedAccount.Email.Name), "Account was not updated properly.");
 
@@ -161,7 +161,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.UpdateAccountAuthAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                var updatedAccount = accounts.First(x => x.EmailAddress == account.Email.Address);
+                var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
                 Assert.That(newAuth, Is.EqualTo(updatedAccount.AuthData), "Account AuthData wasn't updated properly.");
 
@@ -207,7 +207,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.UpdateAccountFolderStructureAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                var updatedAccount = accounts.First(x => x.EmailAddress == account.Email.Address);
+                var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
                 Assert.That(newFolders, Is.EqualTo(updatedAccount.FoldersStructure), "Account folders weren't updated properly.");
                 Assert.That(newFolders[0], Is.EqualTo(updatedAccount.DefaultInboxFolder), "Account default folder wasn't updated properly.");
