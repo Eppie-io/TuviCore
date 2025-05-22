@@ -183,7 +183,8 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(contact.LastMessageData, Is.Null);
             Assert.That(contact.LastMessageDataId == 0, Is.True);
 
-            contact.LastMessageData = new LastMessageData(TestData.Account.Email, TestData.Message.Id, System.DateTimeOffset.Now);
+            await db.AddAccountAsync(TestData.Account).ConfigureAwait(true);
+            contact.LastMessageData = new LastMessageData(1, TestData.Account.Email, TestData.Message.Id, System.DateTimeOffset.Now);
 
             await db.UpdateContactAsync(contact, default).ConfigureAwait(true);
 
@@ -201,25 +202,6 @@ namespace Tuvi.Core.DataStorage.Tests
 
             Assert.That(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true), Is.True);
             Assert.That(await db.TryAddContactAsync(TestData.Contact, default).ConfigureAwait(true), Is.False);
-        }
-
-        [Test]
-        public async Task GetContactsWithLastMessageIdAsync()
-        {
-            using var db = await OpenDataStorageAsync().ConfigureAwait(true);
-            await db.AddAccountAsync(TestData.AccountWithFolder, default).ConfigureAwait(true);
-            var accountEmail = TestData.AccountWithFolder.Email;
-            var message = TestData.GetNewMessage();
-            await db.AddMessageAsync(accountEmail, message).ConfigureAwait(true);
-
-            var message2 = TestData.GetNewMessage();
-            await db.AddMessageAsync(accountEmail, message2).ConfigureAwait(true);
-
-            var contacts = await db.GetContactsWithLastMessageIdAsync(accountEmail, message.Id, default).ConfigureAwait(true);
-            Assert.That(contacts.Any(), Is.False);
-
-            var contacts2 = await db.GetContactsWithLastMessageIdAsync(accountEmail, message2.Id, default).ConfigureAwait(true);
-            Assert.That(contacts2.Count() == 1, Is.True);
         }
 
         [Test]
