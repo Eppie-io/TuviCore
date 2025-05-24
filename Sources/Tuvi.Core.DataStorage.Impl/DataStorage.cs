@@ -990,11 +990,20 @@ namespace Tuvi.Core.DataStorage.Impl
             return WriteDatabaseAsync((db, ct) =>
             {
                 var path = CreatePath(email, folder);
+                var connection = db.Connection;
 
                 foreach (var message in messages)
                 {
                     message.Path = path;
-                    AddMessage(db, email, folder, message, updateUnreadAndTotal, ct);
+                    var exists = connection.Find<Entities.Message>(x => x.Path == path && x.Id == message.Id);
+                    if (exists is null)
+                    {
+                        AddMessage(db, email, folder, message, updateUnreadAndTotal, ct);
+                    }
+                    else
+                    {
+                        throw new MessageAlreadyExistInDatabaseException();
+                    }
                 }
             }, cancellationToken);
         }
@@ -1474,7 +1483,10 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 foreach (var uid in uids)
                 {
                     var message = connection.Find<Entities.Message>(x => x.Path == path && x.Id == uid);
-                    DeleteMessage(db, message, updateUnreadAndTotal, ct);
+                    if (message != null)
+                    {
+                        DeleteMessage(db, message, updateUnreadAndTotal, ct);
+                    }
                 }
             }, cancellationToken);
         }

@@ -64,8 +64,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         {
             async Task<IList<Folder>> GetFoldersAsync()
             {
-                var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], StatusItems.Unread | StatusItems.Count, cancellationToken: cancellationToken).ConfigureAwait(false);
-                return new List<Folder>(from folder in folders where folder.Exists select folder.ToTuviMailFolder());
+                var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], cancellationToken: cancellationToken).ConfigureAwait(false);
+                var result = new List<Folder>();
+
+                foreach (var folder in folders)
+                {
+                    if (folder.Exists)
+                    {
+                        try
+                        {
+                            await folder.StatusAsync(StatusItems.Unread | StatusItems.Count, cancellationToken).ConfigureAwait(false);
+                            result.Add(folder.ToTuviMailFolder());
+                        }
+                        catch (MailKit.Net.Imap.ImapCommandException)
+                        {
+                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
+                        }
+                    }
+                }
+                return result;
             }
 
             IList<Folder> foldersStructure = null;
@@ -196,6 +213,20 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 return await GetMessageAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await GetMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await GetMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
             {
                 // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
