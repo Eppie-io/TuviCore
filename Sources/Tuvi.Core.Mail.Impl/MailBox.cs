@@ -12,9 +12,9 @@ namespace Tuvi.Core.Mail.Impl
 {
     public static class MailBoxCreator
     {
-        public static IMailBox Create(Account account, ICredentialsProvider credentialsProvider)
+        public static IMailBox Create(Account account, ICredentialsProvider outgoingCredentialsProvider, ICredentialsProvider incomingCredentialsProvider)
         {
-            return new MailBox(account, credentialsProvider);
+            return new MailBox(account, outgoingCredentialsProvider, incomingCredentialsProvider);
         }
     }
     internal class MailBox : IMailBox
@@ -26,12 +26,12 @@ namespace Tuvi.Core.Mail.Impl
 
         public bool HasFolderCounters => true;
 
-        public MailBox(Account accountData, ICredentialsProvider credentialsProvider)
+        public MailBox(Account accountData, ICredentialsProvider outgoingCredentialsProvider, ICredentialsProvider incomingCredentialsProvider)
         {
             AccountSettings = accountData;
 
-            Sender = CreateSenderService(credentialsProvider);
-            Receiver = CreateReceiverService(credentialsProvider);
+            Sender = CreateSenderService(outgoingCredentialsProvider);
+            Receiver = CreateReceiverService(incomingCredentialsProvider);
         }
 
         private SenderService CreateSenderService(ICredentialsProvider credentialsProvider)

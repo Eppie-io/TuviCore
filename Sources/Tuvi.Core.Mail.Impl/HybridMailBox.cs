@@ -19,8 +19,8 @@ namespace Tuvi.Core.Mail.Impl
 
         private IDecStorageClient DecClient;
 
-        public HybridMailBox(Account account, ICredentialsProvider credentialsProvider, IDataStorage dataStorage)
-            : base(account, credentialsProvider)
+        public HybridMailBox(Account account, ICredentialsProvider outgoingCredentialsProvider, ICredentialsProvider incomingCredentialsProvider, IDataStorage dataStorage)
+            : base(account, outgoingCredentialsProvider, incomingCredentialsProvider)
         {
             DataStorage = dataStorage;
             DecClient = DecStorageBuilder.CreateAzureClient(new Uri("https://testnet2.eppie.io/api"));
