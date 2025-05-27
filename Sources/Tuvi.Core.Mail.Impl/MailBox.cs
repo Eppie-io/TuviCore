@@ -20,7 +20,6 @@ namespace Tuvi.Core.Mail.Impl
     internal class MailBox : IMailBox
     {
         protected readonly Account AccountSettings;
-        private readonly ICredentialsProvider CredentialsProvider;
 
         private SenderService Sender;
         private ReceiverService Receiver;
@@ -30,65 +29,64 @@ namespace Tuvi.Core.Mail.Impl
         public MailBox(Account accountData, ICredentialsProvider credentialsProvider)
         {
             AccountSettings = accountData;
-            CredentialsProvider = credentialsProvider;
 
-            Sender = CreateSenderService();
-            Receiver = CreateReceiverService();
+            Sender = CreateSenderService(credentialsProvider);
+            Receiver = CreateReceiverService(credentialsProvider);
         }
 
-        private SenderService CreateSenderService()
+        private SenderService CreateSenderService(ICredentialsProvider credentialsProvider)
         {
-            return new Protocols.SMTP.SMTPMailService(AccountSettings.OutgoingServerAddress, AccountSettings.OutgoingServerPort);
+            return new Protocols.SMTP.SMTPMailService(AccountSettings.OutgoingServerAddress, AccountSettings.OutgoingServerPort, credentialsProvider);
         }
 
-        private ReceiverService CreateReceiverService()
+        private ReceiverService CreateReceiverService(ICredentialsProvider credentialsProvider)
         {
-            return new Protocols.IMAP.IMAPMailService(AccountSettings.IncomingServerAddress, AccountSettings.IncomingServerPort);
+            return new Protocols.IMAP.IMAPMailService(AccountSettings.IncomingServerAddress, AccountSettings.IncomingServerPort, credentialsProvider);
         }
 
         public virtual async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
         {
             SendCommand sendCommand = new SendCommand(Sender, message);
-            var messageID = await sendCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+            var messageID = await sendCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
 
             AppendSentMessageCommand appendSentMessageCommand = new AppendSentMessageCommand(Receiver, null, message, messageID);
-            await appendSentMessageCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+            await appendSentMessageCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
         {
             GetFoldersStructureCommand getFoldersStructureCommand = new GetFoldersStructureCommand(Receiver);
-            return getFoldersStructureCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return getFoldersStructureCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<Folder> GetDefaultInboxFolderAsync(CancellationToken cancellationToken)
         {
             GetDefaultInboxFolder getDefaultInboxFolder = new GetDefaultInboxFolder(Receiver);
-            return getDefaultInboxFolder.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return getDefaultInboxFolder.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public virtual Task<IReadOnlyList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken)
         {
             GetMessagesCommand getMessagesCommand = new GetMessagesCommand(Receiver, folder, count);
-            return getMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return getMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken = default)
         {
             var command = new GetMessageByIDCommand(Receiver, folder, id);
-            return command.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return command.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<Message> GetMessageByIDHighPriorityAsync(Folder folder, uint id, CancellationToken cancellationToken = default)
         {
             var command = new GetMessageByIDHighPriorityCommand(Receiver, folder, id);
-            return command.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return command.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public virtual Task<IReadOnlyList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default)
         {
             GetLaterMessagesCommand getLaterMessagesCommand = new GetLaterMessagesCommand(Receiver, folder, count, lastMessage);
-            return getLaterMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return getLaterMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken = default)
@@ -107,7 +105,7 @@ namespace Tuvi.Core.Mail.Impl
             {
                 MarkMessagesAsReadCommand markMessagesAsReadCommand
                     = new MarkMessagesAsReadCommand(Receiver, groupMessages.Key, groupMessages.Select(message => message.Id).ToList());
-                await markMessagesAsReadCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+                await markMessagesAsReadCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -117,32 +115,32 @@ namespace Tuvi.Core.Mail.Impl
             {
                 MarkMessagesAsUnReadCommand markMessagesAsUnReadCommand
                     = new MarkMessagesAsUnReadCommand(Receiver, groupMessages.Key, groupMessages.Select(message => message.Id).ToList());
-                await markMessagesAsUnReadCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+                await markMessagesAsUnReadCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
             }
         }
 
         public Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folder, bool permanentDelete, CancellationToken cancellationToken)
         {
             DeleteMessagesCommand deleteMessagesCommand = new DeleteMessagesCommand(Receiver, ids, folder, permanentDelete);
-            return deleteMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return deleteMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
         {
             MoveMessagesCommand moveMessagesCommand = new MoveMessagesCommand(Receiver, ids, folder, targetFolder);
-            return moveMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return moveMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)
         {
             AppendDraftMessageCommand appendDraftMessageCommand = new AppendDraftMessageCommand(Receiver, message);
-            return appendDraftMessageCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return appendDraftMessageCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public Task<Message> ReplaceDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken)
         {
             ReplaceDraftMessageCommand replaceDraftMessageCommand = new ReplaceDraftMessageCommand(Receiver, message, id);
-            return replaceDraftMessageCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return replaceDraftMessageCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
 
         public async Task FlagMessagesAsync(IEnumerable<Message> messages, CancellationToken cancellationToken)
@@ -151,7 +149,7 @@ namespace Tuvi.Core.Mail.Impl
             {
                 FlagMessagesCommand flagMessagesCommand
                     = new FlagMessagesCommand(Receiver, groupMessages.Key, groupMessages.Select(message => message.Id).ToList());
-                await flagMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+                await flagMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -161,7 +159,7 @@ namespace Tuvi.Core.Mail.Impl
             {
                 UnflagMessagesCommand unflagMessagesCommand
                     = new UnflagMessagesCommand(Receiver, groupMessages.Key, groupMessages.Select(message => message.Id).ToList());
-                await unflagMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken).ConfigureAwait(false);
+                await unflagMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -174,7 +172,7 @@ namespace Tuvi.Core.Mail.Impl
         private Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool forSync, CancellationToken cancellationToken)
         {
             GetEarlierMessagesCommand getEarlierMessagesCommand = new GetEarlierMessagesCommand(Receiver, folder, count, lastMessage, forSync);
-            return getEarlierMessagesCommand.RunCommand(AccountSettings.Email.Address, CredentialsProvider, cancellationToken);
+            return getEarlierMessagesCommand.RunCommand(AccountSettings.Email.Address, cancellationToken);
         }
     }
 }
