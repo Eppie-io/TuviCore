@@ -1512,7 +1512,14 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var account = connection.Find<Account>(contact.LastMessageData.AccountId);
-                contact.LastMessageData.AccountEmail = account?.Email;
+                if (account is null)
+                {
+                    contact.LastMessageData = null; // Account has been deleted, so we remove LastMessageData
+                }
+                else
+                {
+                    contact.LastMessageData.AccountEmail = account.Email;
+                }
             }
             cancellationToken.ThrowIfCancellationRequested();
             contact.Email = GetEmailAddressData(connection, contact.EmailId).ToEmailAddress();
