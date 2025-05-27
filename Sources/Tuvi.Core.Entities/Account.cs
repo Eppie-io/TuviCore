@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Tuvi.Core.Entities
@@ -53,8 +54,34 @@ namespace Tuvi.Core.Entities
         public int Id { get; set; }
 
         [SQLite.Ignore]
-        public EmailAddress Email { get; set; }
-        [SQLite.Indexed]
+        public EmailAddress Email
+        {
+            get
+            {
+#pragma warning disable CS0618 // Only for SQLite and internal using
+                if (_Email is null && EmailAddress != null)
+                {
+                    _Email = new EmailAddress(EmailAddress, EmailName);
+                }
+                return _Email;
+            }
+            set
+            {
+                EmailAddress = value?.Address;
+                EmailName = value?.Name;
+                _Email = null;
+#pragma warning restore CS0618 // Only for SQLite and internal using
+            }
+        }
+        private EmailAddress _Email;
+
+        [Obsolete("only for SQLite and internal using")]
+        public string EmailAddress { get; set; }
+        [Obsolete("only for SQLite internal using")]
+        public string EmailName { get; set; }
+
+        // TODO: remove this property after migration (18.05.2025)
+        [Obsolete("use property Email")]
         public int EmailId { get; set; }
 
         public int GroupId { get; set; }
