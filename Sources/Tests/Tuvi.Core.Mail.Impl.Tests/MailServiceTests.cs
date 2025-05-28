@@ -50,7 +50,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             var imapClientMock = CreateClientMockForConnectTests();
             imapClientMock.Setup(a => a.IsConnected).Returns(true);
-            using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, ServerPort);
+            var credentialsProviderMock = new Mock<ICredentialsProvider>();
+            using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, ServerPort, credentialsProviderMock.Object);
             await service.ConnectAsync(default).ConfigureAwait(false);
             Assert.That(service.IsConnected, Is.True);
         }
@@ -59,7 +60,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
         public void ConnectWithIncorrectServerAddressTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
-            using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", ServerPort);
+            var credentialsProviderMock = new Mock<ICredentialsProvider>();
+            using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", ServerPort, credentialsProviderMock.Object);
             Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
@@ -67,7 +69,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
         public void ConnectWithIncorrectPortNumberTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
-            using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, 54321);
+            var credentialsProviderMock = new Mock<ICredentialsProvider>();
+            using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, 54321, credentialsProviderMock.Object);
             Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
@@ -75,7 +78,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
         public void ConnectWithIncorrectAddressNameAndPortNumberTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
-            using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", 54321);
+            var credentialsProviderMock = new Mock<ICredentialsProvider>();
+            using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", 54321, credentialsProviderMock.Object);
             Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
