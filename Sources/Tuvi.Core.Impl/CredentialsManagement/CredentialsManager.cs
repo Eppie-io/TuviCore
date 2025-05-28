@@ -33,29 +33,6 @@ namespace Tuvi.Core.Impl.CredentialsManagement
             ICredentialsProvider provider = null;
             switch (account?.AuthData)
             {
-                case BasicAuthData basicAuthData:
-
-                    provider = new BasicCredentialsProvider()
-                    {
-                        BasicCredentials = new BasicCredentials()
-                        {
-                            UserName = account.Email.Address,
-                            Password = basicAuthData.Password
-                        }
-                    };
-
-                    break;
-                case OAuth2Data data:
-
-                    _tokenResolver.AddOrUpdateToken(account.Email, data.AuthAssistantId, data.RefreshToken);
-
-                    provider = new OAuth2CredentialsProvider(_storage, account, data)
-                    {
-                        TokenResolver = (EmailAddress address, CancellationToken ct) => _tokenResolver.GetAccessTokenAsync(address, ct)
-                    };
-
-                    break;
-
                 case ProtonAuthData protonData:
 
                     provider = new ProtonCredentialsProvider()
@@ -71,6 +48,121 @@ namespace Tuvi.Core.Impl.CredentialsManagement
                     break;
             }
 
+            return provider;
+        }
+
+        public ICredentialsProvider CreateIncomingCredentialsProvider(Account account)
+        {
+            ICredentialsProvider provider = null;
+            switch (account?.AuthData)
+            {
+                case BasicAuthData basicAuthData:
+                    {
+                        BasicCredentials basicCredentials = null;
+
+                        basicCredentials = CreateIncomingBasicCredentials(account, basicAuthData);
+
+                        provider = new BasicCredentialsProvider()
+                        {
+                            BasicCredentials = basicCredentials
+                        };
+                        break;
+                    }
+
+                case OAuth2Data data:
+                    {
+                        provider = CreateOAuth2CredentialsProvider(account, data);
+
+                        break;
+                    }
+            }
+
+            return provider;
+        }
+
+        public ICredentialsProvider CreateOutgoingCredentialsProvider(Account account)
+        {
+            ICredentialsProvider provider = null;
+            switch (account?.AuthData)
+            {
+                case BasicAuthData basicAuthData:
+                    {
+                        BasicCredentials basicCredentials = null;
+                        basicCredentials = CreateOutgoingBasicCredentials(account, basicAuthData);
+
+                        provider = new BasicCredentialsProvider()
+                        {
+                            BasicCredentials = basicCredentials
+                        };
+                        break;
+                    }
+
+                case OAuth2Data data:
+                    {
+                        provider = CreateOAuth2CredentialsProvider(account, data);
+
+                        break;
+                    }
+            }
+
+            return provider;
+        }
+
+        private static BasicCredentials CreateIncomingBasicCredentials(Account account, BasicAuthData basicAuthData)
+        {
+            BasicCredentials basicCredentials;
+            if (string.IsNullOrEmpty(basicAuthData.IncomingLogin))
+            {
+                basicCredentials = new BasicCredentials()
+                {
+                    UserName = account.Email.Address,
+                    Password = basicAuthData.Password
+                };
+            }
+            else
+            {
+                basicCredentials = new BasicCredentials()
+                {
+                    UserName = basicAuthData.IncomingLogin,
+                    Password = basicAuthData.IncomingPassword
+                };
+            }
+
+            return basicCredentials;
+        }
+
+        private static BasicCredentials CreateOutgoingBasicCredentials(Account account, BasicAuthData basicAuthData)
+        {
+            BasicCredentials basicCredentials;
+            if (string.IsNullOrEmpty(basicAuthData.OutgoingLogin))
+            {
+                basicCredentials = new BasicCredentials()
+                {
+                    UserName = account.Email.Address,
+                    Password = basicAuthData.Password
+                };
+            }
+            else
+            {
+                basicCredentials = new BasicCredentials()
+                {
+                    UserName = basicAuthData.OutgoingLogin,
+                    Password = basicAuthData.OutgoingPassword
+                };
+            }
+
+            return basicCredentials;
+        }
+
+        private ICredentialsProvider CreateOAuth2CredentialsProvider(Account account, OAuth2Data data)
+        {
+            ICredentialsProvider provider;
+            _tokenResolver.AddOrUpdateToken(account.Email, data.AuthAssistantId, data.RefreshToken);
+
+            provider = new OAuth2CredentialsProvider(_storage, account, data)
+            {
+                TokenResolver = (EmailAddress address, CancellationToken ct) => _tokenResolver.GetAccessTokenAsync(address, ct)
+            };
             return provider;
         }
 

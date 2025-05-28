@@ -21,7 +21,11 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                     case nameof(AuthenticationType.Basic):
                         result = new BasicAuthData()
                         {
-                            Password = GetString(doc.RootElement, nameof(BasicAuthData.Password))
+                            Password = GetString(doc.RootElement, nameof(BasicAuthData.Password)),
+                            IncomingLogin = GetString(doc.RootElement, nameof(BasicAuthData.IncomingLogin)),
+                            IncomingPassword = GetString(doc.RootElement, nameof(BasicAuthData.IncomingPassword)),
+                            OutgoingLogin = GetString(doc.RootElement, nameof(BasicAuthData.OutgoingLogin)),
+                            OutgoingPassword = GetString(doc.RootElement, nameof(BasicAuthData.OutgoingPassword))
                         };
                         break;
                     case nameof(AuthenticationType.OAuth2):
@@ -62,6 +66,10 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
             {
                 case BasicAuthData basicData:
                     writer.WriteString(nameof(BasicAuthData.Password), basicData.Password);
+                    writer.WriteString(nameof(BasicAuthData.IncomingLogin), basicData.IncomingLogin);
+                    writer.WriteString(nameof(BasicAuthData.IncomingPassword), basicData.IncomingPassword);
+                    writer.WriteString(nameof(BasicAuthData.OutgoingLogin), basicData.OutgoingLogin);
+                    writer.WriteString(nameof(BasicAuthData.OutgoingPassword), basicData.OutgoingPassword);
                     break;
                 case OAuth2Data oauth2Data:
                     writer.WriteString(nameof(OAuth2Data.RefreshToken), oauth2Data.RefreshToken);

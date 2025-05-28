@@ -19,7 +19,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         private ICredentialsProvider CredentialsProvider { get; set; }
 
-        protected MailService(string serverAddress, int serverPort)
+        protected MailService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
         {
             if (string.IsNullOrEmpty(serverAddress))
             {
@@ -32,8 +32,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                 // We can throw ArgumentOutOfRangeException
                 throw new ArgumentException($"{nameof(serverPort)} must be in [0,65535] range", nameof(serverPort));
             }
+            if (credentialsProvider is null)
+            {
+                throw new ArgumentNullException(nameof(credentialsProvider));
+            }
             ServerAddress = serverAddress;
             ServerPort = serverPort;
+            CredentialsProvider = credentialsProvider;
         }
 
         public async Task ConnectAsync(CancellationToken cancellationToken)
@@ -85,19 +90,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             }
         }
 
-        protected async Task AuthenticateAsync(CancellationToken cancellationToken)
+        public async Task AuthenticateAsync(CancellationToken cancellationToken)
         {
-            await AuthenticateAsync(CredentialsProvider, cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task AuthenticateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
-        {
-            if (credentialsProvider is null)
-            {
-                return;
-            }
-
-            CredentialsProvider = credentialsProvider;
             var userName = string.Empty;
 
             try

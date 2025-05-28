@@ -33,6 +33,14 @@
 
         public string Password { get; set; }
 
+        // For outgoing server authentication if it differs
+        public string OutgoingLogin { get; set; }
+        public string OutgoingPassword { get; set; }
+
+        // For incoming server authentication if it differs
+        public string IncomingLogin { get; set; }
+        public string IncomingPassword { get; set; }
+
         public BasicAuthData()
         {
             Type = AuthenticationType.Basic;
@@ -40,8 +48,12 @@
 
         public override bool Equals(object obj)
         {
-            return obj is BasicAuthData other &&
-                IsSame(Password, other.Password);
+            return obj is BasicAuthData other 
+                && IsSame(Password, other.Password)
+                && IsSame(IncomingLogin, other.IncomingLogin)
+                && IsSame(IncomingPassword, other.IncomingPassword)
+                && IsSame(OutgoingLogin, other.OutgoingLogin)
+                && IsSame(OutgoingPassword, other.OutgoingPassword);
         }
 
         public override int GetHashCode()

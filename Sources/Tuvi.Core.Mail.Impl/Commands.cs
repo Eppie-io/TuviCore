@@ -111,9 +111,8 @@ namespace Tuvi.Core.Mail.Impl
 
         protected virtual bool IsHighPriority { get => false; }
 
-        public async Task<T> RunCommand(string email, ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
+        public async Task<T> RunCommand(string email, CancellationToken cancellationToken)
         {
-            //TODO: get rid of ICredentialsProvider
             var requestUniqueeID = GetUniqueCommandIdentifier(email);
 
             ConcurrentQueue<object> tcsList = null;
@@ -144,7 +143,7 @@ namespace Tuvi.Core.Mail.Impl
                 await serviceSemaphore.WaitAsync(IsHighPriority, cancellationToken).ConfigureAwait(true);
                 try
                 {
-                    await PrepareToUse(credentialsProvider, cancellationToken).ConfigureAwait(true);
+                    await PrepareToUse(cancellationToken).ConfigureAwait(true);
                     var res = await Execute(cancellationToken).ConfigureAwait(true);
                     if (!String.IsNullOrEmpty(requestUniqueeID))
                     {
@@ -187,7 +186,7 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        private async Task PrepareToUse(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
+        private async Task PrepareToUse(CancellationToken cancellationToken)
         {
             if (!Service.IsConnected)
             {
@@ -196,7 +195,7 @@ namespace Tuvi.Core.Mail.Impl
 
             if (!Service.IsAuthentificated)
             {
-                await Service.AuthenticateAsync(credentialsProvider, cancellationToken).ConfigureAwait(false);
+                await Service.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 

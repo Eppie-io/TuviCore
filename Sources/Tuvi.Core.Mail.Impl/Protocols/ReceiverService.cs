@@ -8,8 +8,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 {
     abstract class ReceiverService : MailService, IDisposable
     {
-        protected ReceiverService(string serverAddress, int serverPort)
-            : base(serverAddress, serverPort)
+        protected ReceiverService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
+            : base(serverAddress, serverPort, credentialsProvider)
         {
         }
 

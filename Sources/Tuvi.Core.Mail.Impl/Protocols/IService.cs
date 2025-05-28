@@ -9,7 +9,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
     {
         Task ConnectAsync(CancellationToken cancellationToken);
         Task AuthenticateAsync(System.Net.NetworkCredential credential, CancellationToken cancellationToken);
-        Task AuthenticateAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken);
+        Task AuthenticateAsync(CancellationToken cancellationToken);
         Task DisconnectAsync();
 
         bool IsConnected { get; }

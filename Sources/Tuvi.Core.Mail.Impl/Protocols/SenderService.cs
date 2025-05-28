@@ -7,8 +7,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 {
     internal abstract class SenderService : MailService, IDisposable
     {
-        protected SenderService(string serverAddress, int serverPort)
-            : base(serverAddress, serverPort)
+        protected SenderService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
+            : base(serverAddress, serverPort, credentialsProvider)
         {
         }
 
