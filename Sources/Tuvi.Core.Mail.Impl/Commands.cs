@@ -111,7 +111,7 @@ namespace Tuvi.Core.Mail.Impl
 
         protected virtual bool IsHighPriority { get => false; }
 
-        public async Task<T> RunCommand(string email, CancellationToken cancellationToken)
+        public async Task<T> RunCommandAsync(string email, CancellationToken cancellationToken)
         {
             var requestUniqueeID = GetUniqueCommandIdentifier(email);
 
