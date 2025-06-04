@@ -144,8 +144,8 @@ namespace Tuvi.Core.Mail.Impl
                 await serviceSemaphore.WaitAsync(IsHighPriority, cancellationToken).ConfigureAwait(true);
                 try
                 {
-                    await PrepareToUse(credentialsProvider, cancellationToken).ConfigureAwait(true);
-                    var res = await Execute(cancellationToken).ConfigureAwait(true);
+                    await PrepareAsync(credentialsProvider, cancellationToken).ConfigureAwait(true);
+                    var res = await ExecuteAsync(cancellationToken).ConfigureAwait(true);
                     if (!String.IsNullOrEmpty(requestUniqueeID))
                     {
                         // delete first, don't move to to finally
@@ -187,7 +187,7 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        private async Task PrepareToUse(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
+        private async Task PrepareAsync(ICredentialsProvider credentialsProvider, CancellationToken cancellationToken)
         {
             if (!Service.IsConnected)
             {
@@ -200,7 +200,7 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        protected abstract Task<T> Execute(CancellationToken cancellationToken);
+        protected abstract Task<T> ExecuteAsync(CancellationToken cancellationToken);
     }
 
     internal class SendCommand : Command<string>
@@ -215,7 +215,7 @@ namespace Tuvi.Core.Mail.Impl
             Message = msg;
         }
 
-        protected override async Task<string> Execute(CancellationToken cancellationToken)
+        protected override async Task<string> ExecuteAsync(CancellationToken cancellationToken)
         {
             Message.Date = DateTime.Now;
             var result = await Sender.SendMessageAsync(Message, cancellationToken).ConfigureAwait(false);
@@ -253,7 +253,7 @@ namespace Tuvi.Core.Mail.Impl
             MessageID = messageID;
         }
 
-        protected override async Task<bool> Execute(CancellationToken cancellationToken)
+        protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.AppendSentMessageAsync(Message, MessageID, cancellationToken).ConfigureAwait(false);
             return true;
@@ -272,7 +272,7 @@ namespace Tuvi.Core.Mail.Impl
         {
         }
 
-        protected override async Task<IList<Folder>> Execute(CancellationToken cancellationToken)
+        protected override async Task<IList<Folder>> ExecuteAsync(CancellationToken cancellationToken)
         {
             return await Receiver.GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -285,7 +285,7 @@ namespace Tuvi.Core.Mail.Impl
         {
         }
 
-        protected async override Task<Folder> Execute(CancellationToken cancellationToken)
+        protected async override Task<Folder> ExecuteAsync(CancellationToken cancellationToken)
         {
             return await Task.Run(Receiver.GetDefaultInboxFolder, cancellationToken).ConfigureAwait(false);
         }
@@ -300,7 +300,7 @@ namespace Tuvi.Core.Mail.Impl
             Count = count;
         }
 
-        protected override Task<IReadOnlyList<Message>> Execute(CancellationToken cancellationToken)
+        protected override Task<IReadOnlyList<Message>> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.GetMessagesAsync(FolderPath, Count, cancellationToken);
         }
@@ -321,7 +321,7 @@ namespace Tuvi.Core.Mail.Impl
             ID = id;
         }
 
-        protected override Task<Message> Execute(CancellationToken cancellationToken)
+        protected override Task<Message> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.GetMessageAsync(FolderPath, ID, cancellationToken);
         }
@@ -354,7 +354,7 @@ namespace Tuvi.Core.Mail.Impl
             Count = count;
         }
 
-        protected override Task<IReadOnlyList<Message>> Execute(CancellationToken cancellationToken)
+        protected override Task<IReadOnlyList<Message>> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.GetLaterMessagesAsync(FolderPath, Count, LastMessage, cancellationToken);
         }
@@ -379,7 +379,7 @@ namespace Tuvi.Core.Mail.Impl
             Fast = fast;
         }
 
-        protected override Task<IReadOnlyList<Message>> Execute(CancellationToken cancellationToken)
+        protected override Task<IReadOnlyList<Message>> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.GetEarlierMessagesAsync(FolderPath, Count, LastMessage, Fast, cancellationToken);
         }
@@ -410,7 +410,7 @@ namespace Tuvi.Core.Mail.Impl
             UIDs = uids;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.MarkMessagesAsReadAsync(UIDs, FolderPath, cancellationToken).ConfigureAwait(false);
             return true;
@@ -432,7 +432,7 @@ namespace Tuvi.Core.Mail.Impl
             UIDs = uids;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.MarkMessagesAsUnReadAsync(UIDs, FolderPath, cancellationToken).ConfigureAwait(false);
             return true;
@@ -456,7 +456,7 @@ namespace Tuvi.Core.Mail.Impl
             PermanentDelete = permanentDelete;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.DeleteMessagesAsync(UIDS, FolderPath, PermanentDelete, cancellationToken).ConfigureAwait(false);
             return true;
@@ -483,7 +483,7 @@ namespace Tuvi.Core.Mail.Impl
             TargetFolder = targetFolder;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.MoveMessagesAsync(UIDS, FolderPath, TargetFolder, cancellationToken).ConfigureAwait(false);
             return true;
@@ -508,7 +508,7 @@ namespace Tuvi.Core.Mail.Impl
             UIDs = uids;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.FlagMessagesAsync(UIDs, FolderPath, cancellationToken).ConfigureAwait(false);
             return true;
@@ -530,7 +530,7 @@ namespace Tuvi.Core.Mail.Impl
             UIDs = uids;
         }
 
-        protected async override Task<bool> Execute(CancellationToken cancellationToken)
+        protected async override Task<bool> ExecuteAsync(CancellationToken cancellationToken)
         {
             await Receiver.UnflagMessagesAsync(UIDs, FolderPath, cancellationToken).ConfigureAwait(false);
             return true;
@@ -552,7 +552,7 @@ namespace Tuvi.Core.Mail.Impl
             Message = message;
         }
 
-        protected override Task<Message> Execute(CancellationToken cancellationToken)
+        protected override Task<Message> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.AppendDraftMessageAsync(Message, cancellationToken);
         }
@@ -580,7 +580,7 @@ namespace Tuvi.Core.Mail.Impl
             UID = uid;
         }
 
-        protected override Task<Message> Execute(CancellationToken cancellationToken)
+        protected override Task<Message> ExecuteAsync(CancellationToken cancellationToken)
         {
             return Receiver.ReplaceDraftMessageAsync(UID, Message, cancellationToken);
         }
