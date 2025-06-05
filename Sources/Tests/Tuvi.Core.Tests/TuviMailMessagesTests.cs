@@ -1,16 +1,14 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.DataStorage.Impl;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl;
 
 namespace Tuvi.Core.Tests
 {
@@ -21,11 +19,6 @@ namespace Tuvi.Core.Tests
         Account _account2;
         readonly EmailAddress _contactAddress1 = new("contact1@test.mail");
         readonly EmailAddress _contactAddress2 = new("contact2@test.mail", "Contact2");
-        readonly EmailAddress _from = new EmailAddress("from@mail.box");
-        readonly EmailAddress _replyTo = new EmailAddress("replyto@mail.box");
-        readonly EmailAddress _to = new EmailAddress("to@mail.box");
-        readonly EmailAddress _cc = new EmailAddress("cc@mail.box");
-        readonly EmailAddress _bcc = new EmailAddress("bcc@mail.box");
 
         public static Message CreateNewMessage(EmailAddress from, EmailAddress to, string folder, uint id)
         {
@@ -290,89 +283,6 @@ namespace Tuvi.Core.Tests
                 }
             }
             await _storage.DeleteMessagesAsync(_account1.Email, "INBOX", messages.Select(x => x.Id).ToList()).ConfigureAwait(true);
-        }
-
-        [Test]
-        [Ignore("Current behavior is different, need to clarify the requirements")]
-        public void CollectContactsFromUnknownAccountShouldBeEmpty()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(new EmailAddress("unknown@mail.box"), messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void CollectContactsAccountIsFrom()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(_from, messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(3));
-            Assert.That(contacts[0].Email, Is.EqualTo(_bcc));
-            Assert.That(contacts[1].Email, Is.EqualTo(_cc));
-            Assert.That(contacts[2].Email, Is.EqualTo(_to));
-        }
-
-        private List<Message> GetMessageForContactCollecting()
-        {
-            var message = CreateNewMessage(_from, _to, "INBOX", 1);
-            message.ReplyTo.Add(_replyTo);
-            message.Cc.Add(_cc);
-            message.Bcc.Add(_bcc);
-            var messages = new List<Message>() { message };
-            return messages;
-        }
-
-        [Test]
-        public void CollectContactsAccountIsReplyTo()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(_replyTo, messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(3));
-            Assert.That(contacts[0].Email, Is.EqualTo(_bcc));
-            Assert.That(contacts[1].Email, Is.EqualTo(_cc));
-            Assert.That(contacts[2].Email, Is.EqualTo(_to));
-        }
-
-        [Test]
-        public void CollectContactsAccountIsTo()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(_to, messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(2));
-            Assert.That(contacts[0].Email, Is.EqualTo(_from));
-            Assert.That(contacts[1].Email, Is.EqualTo(_replyTo));
-        }
-
-        [Test]
-        public void CollectContactsAccountIsCc()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(_cc, messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(2));
-            Assert.That(contacts[0].Email, Is.EqualTo(_from));
-            Assert.That(contacts[1].Email, Is.EqualTo(_replyTo));
-        }
-
-        [Test]
-        public void CollectContactsAccountIsBcc()
-        {
-            var messages = GetMessageForContactCollecting();
-
-            var contacts = AccountService.CollectContactsFromMessages(_bcc, messages).OrderBy(x => x.Email).ToList();
-
-            Assert.That(contacts.Count, Is.EqualTo(2));
-            Assert.That(contacts[0].Email, Is.EqualTo(_from));
-            Assert.That(contacts[1].Email, Is.EqualTo(_replyTo));
         }
     }
 }

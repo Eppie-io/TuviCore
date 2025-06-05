@@ -136,7 +136,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.UpdateAccountAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                var updatedAccount = accounts.First(x => x.Email == account.Email);
+                var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
                 Assert.That(newName, Is.EqualTo(updatedAccount.Email.Name), "Account was not updated properly.");
 
@@ -161,7 +161,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.UpdateAccountAuthAsync(account).ConfigureAwait(true);
 
                 var accounts = await db.GetAccountsAsync().ConfigureAwait(true);
-                var updatedAccount = accounts.First(x => x.Email == account.Email);
+                var updatedAccount = accounts.First(x => x.Email.Address == account.Email.Address);
 
                 Assert.That(newAuth, Is.EqualTo(updatedAccount.AuthData), "Account AuthData wasn't updated properly.");
 
