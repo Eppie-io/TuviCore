@@ -43,8 +43,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
     {
         private MailKit.Net.Imap.ImapClient ImapClient { get; }
 
-        public IMAPMailService(string serverAddress, int serverPort)
-            : base(serverAddress, serverPort)
+        public IMAPMailService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
+            : base(serverAddress, serverPort, credentialsProvider)
         {
 #pragma warning disable CA2000 // Dispose objects before losing scope
             ImapClient = new MailKit.Net.Imap.ImapClient(new IMAPLogger());
@@ -52,8 +52,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         }
 
         // this constructor need for tests
-        internal IMAPMailService(MailKit.Net.Imap.ImapClient client, string serverAddress, int serverPort)
-            : base(serverAddress, serverPort)
+        internal IMAPMailService(MailKit.Net.Imap.ImapClient client, string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
+            : base(serverAddress, serverPort, credentialsProvider)
         {
             ImapClient = client;
         }

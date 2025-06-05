@@ -10,8 +10,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
 
         protected override MailKit.MailService Service { get => SmtpClient; }
 
-        public SMTPMailService(string serverAddress, int serverPort)
-            : base(serverAddress, serverPort)
+        public SMTPMailService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
+            : base(serverAddress, serverPort, credentialsProvider)
         {
             SmtpClient = new MailKit.Net.Smtp.SmtpClient();
         }

@@ -44,7 +44,9 @@ namespace Tuvi
                 return Proton.MailBoxCreator.Create(account, credentialsProvider, DataStorage as IStorage);
             }
 
-            return Tuvi.Core.Mail.Impl.MailBoxCreator.Create(account, credentialsProvider);
+            var outgoingCredentialsProvider = CredentialsManager.CreateOutgoingCredentialsProvider(account);
+            var incomingCredentialsProvider = CredentialsManager.CreateIncomingCredentialsProvider(account);
+            return Tuvi.Core.Mail.Impl.MailBoxCreator.Create(account, outgoingCredentialsProvider, incomingCredentialsProvider);
         }
     }
 }
