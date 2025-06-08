@@ -1,4 +1,5 @@
-﻿using MimeKit;
+﻿using Microsoft.Extensions.Logging;
+using MimeKit;
 using MimeKit.Cryptography;
 using MimeKit.Utils;
 using Org.BouncyCastle.Bcpg;
@@ -24,6 +25,7 @@ using System.Threading.Tasks;
 using Tuvi.Auth.Proton.Exceptions;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
+using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
 using Tuvi.Proton.Client;
 using Tuvi.Proton.Impl;
@@ -258,7 +260,10 @@ namespace Tuvi.Proton
                 {
                     Import(pgpBundle, default);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    this.Log().LogError(ex, "An error occurred while adding the key.");
+                }
 #pragma warning restore CA1031 // Do not catch general exception types
             }
         }
@@ -487,6 +492,8 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("Entering GetMessageByIDAsync.");
+
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
 
             var labelId = await GetMessageLabelIdAsync(folder, cancellationToken).ConfigureAwait(false);
@@ -556,9 +563,9 @@ namespace Tuvi.Proton
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-
+                    this.Log().LogError(ex, "An error occurred while processing the attachments.");
                 }
 #pragma warning restore CA1031 // Do not catch general exception types
             }
@@ -580,6 +587,8 @@ namespace Tuvi.Proton
             //{
             message.Protection.Type = MessageProtectionType.None;
             //}
+
+            this.Log().LogDebug("Exiting GetMessageByIDAsync.");
 
             return message;
         }
@@ -918,6 +927,8 @@ namespace Tuvi.Proton
         {
             if (_client != null)
             {
+                this.Log().LogDebug("GetClientAsync returning existing _client.");
+
                 return _client;
             }
 
@@ -946,6 +957,9 @@ namespace Tuvi.Proton
                 {
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
+                
+                this.Log().LogDebug("GetClientAsync create new _client.");
+
                 var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
 
@@ -972,6 +986,8 @@ namespace Tuvi.Proton
                 _clientSemaphore.Release();
             }
 
+            this.Log().LogDebug("GetClientAsync returning new _client.");
+
             return _client;
         }
 
@@ -993,8 +1009,10 @@ namespace Tuvi.Proton
             }
         }
 
-        private static async Task<MyOpenPgpContext> GetCryptoContextAsync(Impl.Client client, Account account, CancellationToken cancellationToken)
+        private async Task<MyOpenPgpContext> GetCryptoContextAsync(Impl.Client client, Account account, CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("Entering GetCryptoContextAsync.");
+
             var userTask = client.GetUserAsync(cancellationToken);
             var addressesTask = client.GetAddressesAsync(cancellationToken);
             await Task.WhenAll(userTask, addressesTask).ConfigureAwait(false);
@@ -1002,16 +1020,32 @@ namespace Tuvi.Proton
             var user = userTask.Result;
             var addresses = addressesTask.Result;
             var saltedKeyPass = (account.AuthData as ProtonAuthData).SaltedPassword;
-            var primaryKey = user.Keys.Where(x => x.Primary > 0).First();
+            
+            var primaryKey = user.Keys.FirstOrDefault(x => x.Primary > 0);
+            if (primaryKey.Equals(default(Key)))
+            {
+                throw new InvalidOperationException("Proton: No primary key found for the account.");
+            }
+
             var context = new MyOpenPgpContext();
             context.AddKey(primaryKey.PrivateKey, saltedKeyPass);
+
+            this.Log().LogDebug("Primary key was added to the crypto context.");
 
             try
             {
                 foreach (var address in addresses)
                 {
-                    var key = address.Keys.Where(x => x.Active == 1).First();
+                    var key = address.Keys.FirstOrDefault(x => x.Active == 1);
+                    if (key.Equals(default(Key)))
+                    {
+                        this.Log().LogWarning("No active key found for address. Skipping.");
+                        continue;
+                    }
+
                     context.AddKey(key.PrivateKey, Crypto.DecryptArmored(context, key.Token));
+
+                    this.Log().LogDebug("Active address key added for address.");
                 }
             }
             catch (System.UnauthorizedAccessException)
@@ -1019,6 +1053,9 @@ namespace Tuvi.Proton
                 // invalid password
                 throw new AuthorizationException("Proton: invalid mailbox password");
             }
+
+            this.Log().LogDebug("Exiting GetCryptoContextAsync.");
+
             return context;
         }
 
