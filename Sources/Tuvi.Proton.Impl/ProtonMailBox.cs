@@ -492,7 +492,7 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
-            this.Log().LogDebug("Entering GetMessageByIDAsync.");
+            this.Log().LogTrace("Entering GetMessageByIDAsync.");
 
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
 
@@ -588,7 +588,7 @@ namespace Tuvi.Proton
             message.Protection.Type = MessageProtectionType.None;
             //}
 
-            this.Log().LogDebug("Exiting GetMessageByIDAsync.");
+            this.Log().LogTrace("Exiting GetMessageByIDAsync.");
 
             return message;
         }
@@ -927,7 +927,7 @@ namespace Tuvi.Proton
         {
             if (_client != null)
             {
-                this.Log().LogDebug("GetClientAsync returning existing _client.");
+                this.Log().LogTrace("GetClientAsync returning existing _client.");
 
                 return _client;
             }
@@ -958,7 +958,7 @@ namespace Tuvi.Proton
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
                 
-                this.Log().LogDebug("GetClientAsync create new _client.");
+                this.Log().LogTrace("GetClientAsync create new _client.");
 
                 var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
@@ -986,7 +986,7 @@ namespace Tuvi.Proton
                 _clientSemaphore.Release();
             }
 
-            this.Log().LogDebug("GetClientAsync returning new _client.");
+            this.Log().LogTrace("GetClientAsync returning new _client.");
 
             return _client;
         }
@@ -1011,7 +1011,7 @@ namespace Tuvi.Proton
 
         private async Task<MyOpenPgpContext> GetCryptoContextAsync(Impl.Client client, Account account, CancellationToken cancellationToken)
         {
-            this.Log().LogDebug("Entering GetCryptoContextAsync.");
+            this.Log().LogTrace("Entering GetCryptoContextAsync.");
 
             var userTask = client.GetUserAsync(cancellationToken);
             var addressesTask = client.GetAddressesAsync(cancellationToken);
@@ -1054,7 +1054,7 @@ namespace Tuvi.Proton
                 throw new AuthorizationException("Proton: invalid mailbox password");
             }
 
-            this.Log().LogDebug("Exiting GetCryptoContextAsync.");
+            this.Log().LogTrace("Exiting GetCryptoContextAsync.");
 
             return context;
         }
