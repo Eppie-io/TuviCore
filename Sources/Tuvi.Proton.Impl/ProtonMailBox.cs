@@ -327,9 +327,9 @@ namespace Tuvi.Proton
         private readonly Account _account;
         private readonly ICredentialsProvider _credentialsProvider;
         private readonly IStorage _storage;
-        private Impl.Client _client;
+        private volatile Impl.Client _client;
         private MyOpenPgpContext _context;
-        private SemaphoreSlim _clientSemaphore = new SemaphoreSlim(1);
+        private SemaphoreSlim _clientMutex = new SemaphoreSlim(1, 1);
         private SemaphoreSlim _syncSemaphore = new SemaphoreSlim(1);
         private DateTime _lastSyncTime = DateTime.MinValue;
         private bool _isDisposed;
@@ -352,7 +352,7 @@ namespace Tuvi.Proton
             }
             _context?.Dispose();
             _client?.Dispose();
-            _clientSemaphore.Dispose();
+            _clientMutex.Dispose();
             _syncSemaphore.Dispose();
             _isDisposed = true;
         }
@@ -932,7 +932,7 @@ namespace Tuvi.Proton
                 return _client;
             }
 
-            await _clientSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _clientMutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
 #pragma warning disable CA1508 // Avoid dead conditional code
@@ -983,7 +983,7 @@ namespace Tuvi.Proton
             }
             finally
             {
-                _clientSemaphore.Release();
+                _clientMutex.Release();
             }
 
             this.Log().LogTrace("GetClientAsync returning new _client.");
