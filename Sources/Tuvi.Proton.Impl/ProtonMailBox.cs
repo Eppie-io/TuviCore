@@ -337,6 +337,8 @@ namespace Tuvi.Proton
 
         public ProtonMailBox(Func<HttpClient> httpClientCreator, Account account, ICredentialsProvider credentialsProvider, IStorage storage)
         {
+            this.Log().LogTrace("ProtonMailBox {Account.Id}", account?.Id);
+
             Debug.Assert(storage != null);
             _httpClientCreator = httpClientCreator;
             _account = account;
@@ -350,6 +352,9 @@ namespace Tuvi.Proton
             {
                 return;
             }
+            
+            this.Log().LogTrace("ProtonMailBox Dispose");
+
             _context?.Dispose();
             _client?.Dispose();
             _clientMutex.Dispose();
@@ -492,16 +497,25 @@ namespace Tuvi.Proton
 
         public async Task<Core.Entities.Message> GetMessageByIDAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
-            this.Log().LogTrace("Entering GetMessageByIDAsync.");
+            this.Log().LogTrace("Entering GetMessageByIDAsync {AccountId}, {Folder}, {MessageId}", folder?.AccountId, folder?.FullName, id);
 
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
 
+            this.Log().LogTrace("GetMessageByIDAsync client != null {Client}", client != null);
+
             var labelId = await GetMessageLabelIdAsync(folder, cancellationToken).ConfigureAwait(false);
+
+            this.Log().LogTrace("GetMessageByIDAsync {LabelId}", labelId);
+
             var storedLastMessage = await _storage.GetMessageAsync(folder.AccountId, labelId, id, cancellationToken).ConfigureAwait(false);
-            Debug.Assert(storedLastMessage != null);
+            //Debug.Assert(storedLastMessage != null);
+
+            this.Log().LogTrace("GetMessageByIDAsync {StoredLastMessage.MessageId}", storedLastMessage?.MessageId);
 
             var messageData = await client.GetMessageAsync(storedLastMessage.MessageId, cancellationToken)
                                           .ConfigureAwait(false);
+
+            this.Log().LogTrace("GetMessageByIDAsync {MessageData.ID}", messageData?.ID);
 
             //if (!storedLastMessage.IsEncrypted && !storedLastMessage.IsSigned)
             //{
@@ -509,11 +523,19 @@ namespace Tuvi.Proton
             //}
 
             var message = storedLastMessage.ToCoreMessage();
+
+            this.Log().LogTrace("GetMessageByIDAsync message != null {Message}", message != null);
+
             message.Folder = folder;
+
+            this.Log().LogTrace("GetMessageByIDAsync _context != null {Context}", _context != null);
+            this.Log().LogTrace("GetMessageByIDAsync Body != null {Body}", messageData?.Body != null);
             // TODO: handle signature verification
             var decryptedBody = Crypto.DecryptArmored(_context, messageData.Body, verifySignature: false);
 
             bool replaceInlinedImages = false;
+
+            this.Log().LogTrace("GetMessageByIDAsync {MIMEType}", messageData?.MIMEType);
 
             switch (messageData.MIMEType)
             {
@@ -958,7 +980,7 @@ namespace Tuvi.Proton
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
                 
-                this.Log().LogTrace("GetClientAsync create new _client.");
+                this.Log().LogTrace("GetClientAsync create new _client for {Account.Id}", _account?.Id);
 
                 var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
