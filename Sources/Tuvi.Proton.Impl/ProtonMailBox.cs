@@ -234,7 +234,10 @@ namespace Tuvi.Proton
 
         public void AddKeyPassword(long keyId, string password)
         {
-            _passwords[keyId] = password;
+            if(!_passwords.ContainsKey(keyId))
+            {
+                _passwords[keyId] = password;
+            }
         }
 
         public string GetPassword(PgpSecretKey key)
