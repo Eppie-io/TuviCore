@@ -76,9 +76,23 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                             await folder.StatusAsync(StatusItems.Unread | StatusItems.Count, cancellationToken).ConfigureAwait(false);
                             result.Add(folder.ToTuviMailFolder());
                         }
+                        catch (System.IO.IOException)
+                        {
+                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            // after exception connection may be lost
+                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (MailKit.Net.Imap.ImapProtocolException)
+                        {
+                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            // after exception connection may be lost
+                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                        }
                         catch (MailKit.Net.Imap.ImapCommandException)
                         {
                             this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            // after exception connection may be lost
+                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }
@@ -461,35 +475,61 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task AppendSentMessageAsync(Message message, string messageId, CancellationToken cancellationToken)
         {
-            var sentFolder = GetSentFolder();
-
             try
             {
-                await sentFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-                var uids = await sentFolder.SearchAsync(MailKit.Search.SearchQuery.HeaderContains("Message-Id", $"<{messageId}>"), cancellationToken).ConfigureAwait(false);
-                await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-                if (uids.Any())
-                {
-                    return;
-                }
+                await AppendMessageAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await AppendMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await AppendMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                if (sentFolder.IsOpen)
-                {
-                    await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                }
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                await AppendMessageAsync().ConfigureAwait(false);
             }
 
-            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-            sentFolder = GetSentFolder();
-            await sentFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-            using (var mimeMessage = message.ToMimeMessage())
+            async Task AppendMessageAsync()
             {
-                mimeMessage.MessageId = messageId;
-                var result = await sentFolder.AppendAsync(mimeMessage, MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
-                await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                var sentFolder = GetSentFolder();
+                try
+                {
+                    await sentFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+
+                    var uids = await sentFolder
+                        .SearchAsync(MailKit.Search.SearchQuery.HeaderContains("Message-Id", $"<{messageId}>"), cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (uids.Any())
+                    {
+                        return;
+                    }
+
+                    using (var mimeMessage = message.ToMimeMessage())
+                    {
+                        mimeMessage.MessageId = messageId;
+                        await sentFolder.AppendAsync(mimeMessage, MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (sentFolder.IsOpen)
+                    {
+                        await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    }
+                }
             }
         }
 
