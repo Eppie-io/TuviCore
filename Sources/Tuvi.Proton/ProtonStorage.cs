@@ -63,13 +63,13 @@ namespace Tuvi.Proton
 
     public interface IStorage : IDisposable
     {
-        Task AddMessageIDs(IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(CancellationToken cancellationToken = default);
+        Task AddMessageIDs(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(int accountId, CancellationToken cancellationToken = default);
         Task AddOrUpdateMessagesAsync(int accountId, IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<Message>> GetMessagesAsync(int accountId, string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken = default);
         Task<Message> GetMessageAsync(int accountId, string labelId, uint id, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<Message>> GetMessagesAsync(IReadOnlyList<uint> ids, CancellationToken cancellationToken = default);
-        Task DeleteMessageByMessageIdsAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
-        Task DeleteMessagesByIds(IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Message>> GetMessagesAsync(int accountId, IReadOnlyList<uint> ids, CancellationToken cancellationToken = default);
+        Task DeleteMessageByMessageIdsAsync(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken = default);
+        Task DeleteMessagesByIds(int accountId, IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken = default);
     }
 }

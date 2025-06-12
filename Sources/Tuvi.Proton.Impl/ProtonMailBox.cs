@@ -378,7 +378,7 @@ namespace Tuvi.Proton
             }
 
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
-            var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
+            var messages = await _storage.GetMessagesAsync(_account.Id, ids, cancellationToken).ConfigureAwait(false);
 
             if (permanentDelete)
             {
@@ -389,13 +389,13 @@ namespace Tuvi.Proton
                 await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), LabelID.TrashLabel, cancellationToken).ConfigureAwait(false);
             }
 
-            await _storage.DeleteMessagesByIds(ids, labelId, cancellationToken).ConfigureAwait(false);
+            await _storage.DeleteMessagesByIds(_account.Id, ids, labelId, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken)
         {
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
-            var messages = await _storage.GetMessagesAsync(ids, cancellationToken).ConfigureAwait(false);
+            var messages = await _storage.GetMessagesAsync(_account.Id, ids, cancellationToken).ConfigureAwait(false);
 
             var targetLabelId = await GetMessageLabelIdAsync(targetFolder, cancellationToken).ConfigureAwait(false);
             await client.LabelMessagesAsync(messages.Select(x => x.MessageId).ToList(), targetLabelId, cancellationToken).ConfigureAwait(false);
@@ -403,7 +403,7 @@ namespace Tuvi.Proton
 
         public async Task FlagMessagesAsync(IEnumerable<Core.Entities.Message> messages, CancellationToken cancellationToken)
         {
-            var storedMessages = await _storage.GetMessagesAsync(messages.Select(x => x.Id).ToList(), cancellationToken).ConfigureAwait(false);
+            var storedMessages = await _storage.GetMessagesAsync(_account.Id, messages.Select(x => x.Id).ToList(), cancellationToken).ConfigureAwait(false);
             var messageIds = storedMessages.Select(x => x.MessageId).ToList();
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             await client.LabelMessagesAsync(messageIds, LabelID.StarredLabel, cancellationToken).ConfigureAwait(false);
@@ -411,7 +411,7 @@ namespace Tuvi.Proton
 
         public async Task UnflagMessagesAsync(IEnumerable<Core.Entities.Message> messages, CancellationToken cancellationToken)
         {
-            var storedMessages = await _storage.GetMessagesAsync(messages.Select(x => x.Id).ToList(), cancellationToken).ConfigureAwait(false);
+            var storedMessages = await _storage.GetMessagesAsync(_account.Id, messages.Select(x => x.Id).ToList(), cancellationToken).ConfigureAwait(false);
             var messageIds = storedMessages.Select(x => x.MessageId).ToList();
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             await client.UnlabelMessagesAsync(messageIds, LabelID.StarredLabel, cancellationToken).ConfigureAwait(false);
@@ -733,15 +733,15 @@ namespace Tuvi.Proton
                 var remoteIds = await client.GetMessageIDsAsync("", cancellationToken)
                                             .ConfigureAwait(false);
 
-                var storedlds = await _storage.LoadMessageIDsAsync(cancellationToken).ConfigureAwait(false);
+                var storedlds = await _storage.LoadMessageIDsAsync(_account.Id, cancellationToken).ConfigureAwait(false);
                 var localIds = storedlds.Select(x => x.Key).ToList();
                 // should be stored in the same order
                 var deletedIds = localIds.Except(remoteIds).ToList();
-                await _storage.DeleteMessageByMessageIdsAsync(deletedIds, cancellationToken).ConfigureAwait(false);
+                await _storage.DeleteMessageByMessageIdsAsync(_account.Id, deletedIds, cancellationToken).ConfigureAwait(false);
                 var newIds = remoteIds.Except(localIds).ToList();
                 if (newIds.Count > 0)
                 {
-                    await _storage.AddMessageIDs(newIds, cancellationToken).ConfigureAwait(false);
+                    await _storage.AddMessageIDs(_account.Id, newIds, cancellationToken).ConfigureAwait(false);
                 }
 
                 var anyMessageFilter = new MessageFilter();
