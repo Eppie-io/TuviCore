@@ -80,20 +80,24 @@ namespace Tuvi.Core.DataStorage.Impl
         public int ContactId { get; set; }
     }
 
-    class ProtonMessageId
+    class ProtonMessageIdV2
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
-        [Indexed(Unique = true)]
+        [Indexed]
         public string MessageId { get; set; }
+        [Indexed]
+        public int AccountId { get; set; } 
     }
 
-    class ProtonLabel
+    class ProtonLabelV2
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
-        [Indexed(Unique = true)]
+        [Indexed]
         public string LabelId { get; set; }
+        [Indexed]
+        public int AccountId { get; set; }
     }
 
     class ProtonMessageLabel
@@ -104,6 +108,8 @@ namespace Tuvi.Core.DataStorage.Impl
         public int MessageId { get; set; }
         [Indexed]
         public int LabelId { get; set; }
+        [Indexed]
+        public int AccountId { get; set; }
     }
 
     #endregion
@@ -1913,17 +1919,18 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                                        .Distinct()
                                        .OrderBy(x => x)
                                        .ToList(ct);
-                var storedLabels = connection.Table<ProtonLabel>().Select(x => x.LabelId)
+                var storedLabels = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId)
+                                                                  .Select(x => x.LabelId)
                                                                   .OrderBy(x => x)
                                                                   .ToList(ct);
                 var newLabels = labelIds.Except(storedLabels);
-                foreach (var label in newLabels.Select(x => new ProtonLabel() { LabelId = x }))
+                foreach (var label in newLabels.Select(x => new ProtonLabelV2() { LabelId = x, AccountId = accountId }))
                 {
                     ct.ThrowIfCancellationRequested();
                     connection.Insert(label);
                 }
 
-                var labelLookup = connection.Table<ProtonLabel>().ToDictionary(x => x.LabelId);
+                var labelLookup = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId).ToDictionary(x => x.LabelId);
 
                 foreach (var message in messages)
                 {
@@ -1943,9 +1950,9 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                         messageId = existingMessage.Id;
                         connection.Update(message);
                         // remove existing labels
-                        connection.Table<ProtonMessageLabel>().Delete(x => x.MessageId == existingMessage.Id);
+                        connection.Table<ProtonMessageLabel>().Delete(x => x.AccountId == accountId && x.MessageId == existingMessage.Id);
                     }
-                    foreach (var label in message.LabelIds.Select(x => new ProtonMessageLabel() { MessageId = messageId, LabelId = labelLookup[x].Id }))
+                    foreach (var label in message.LabelIds.Select(x => new ProtonMessageLabel() { MessageId = messageId, LabelId = labelLookup[x].Id, AccountId = accountId }))
                     {
                         connection.Insert(label);
                     }
@@ -1957,13 +1964,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).FirstOrDefault();
+                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).FirstOrDefault();
                 if (label is null)
                 {
                     return new List<Proton.Message>();
                 }
                 var labeledMessages = connection.Table<ProtonMessageLabel>()
-                                                .Where(x => x.LabelId == label.Id)
+                                                .Where(x => x.AccountId == accountId && x.LabelId == label.Id)
                                                 .Select(x => x.MessageId);
                 var query = connection.Table<Proton.Message>()
                                       .Where(x => x.AccountId == accountId && labeledMessages.Contains(x.Id))
@@ -1997,9 +2004,9 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).First();
+                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
                 var labeledMessage = connection.Table<ProtonMessageLabel>()
-                                               .Where(x => x.LabelId == label.Id && x.MessageId == id)
+                                               .Where(x => x.AccountId == accountId && x.LabelId == label.Id && x.MessageId == id)
                                                .FirstOrDefault();
                 if (labeledMessage is null)
                 {
@@ -2011,17 +2018,17 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(IReadOnlyList<uint> ids, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(int accountId, IReadOnlyList<uint> ids, CancellationToken cancellationToken)
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
                 return (IReadOnlyList<Proton.Message>)connection.Table<Proton.Message>()
-                                                                .Where(x => ids.Contains((uint)x.Id))
+                                                                .Where(x => x.AccountId == accountId && ids.Contains((uint)x.Id))
                                                                 .ToList(ct);
             }, cancellationToken);
         }
 
-        public Task AddMessageIDs(IReadOnlyList<string> ids, CancellationToken cancellationToken)
+        public Task AddMessageIDs(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken)
         {
             if (ids.Count == 0)
             {
@@ -2030,27 +2037,28 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var table = connection.Table<ProtonMessageId>();
+                var table = connection.Table<ProtonMessageIdV2>();
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Insert(new ProtonMessageId() { MessageId = id });
+                    connection.Insert(new ProtonMessageIdV2() { MessageId = id, AccountId = accountId });
                 }
             }, cancellationToken);
         }
 
-        public Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(CancellationToken cancellationToken)
+        public Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(int accountId, CancellationToken cancellationToken)
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                return (IReadOnlyList<KeyValuePair<string, uint>>)connection.Table<ProtonMessageId>()
+                return (IReadOnlyList<KeyValuePair<string, uint>>)connection.Table<ProtonMessageIdV2>()
+                                                                            .Where(x => x.AccountId == accountId)
                                                                             .OrderBy(x => x.Id)
                                                                             .Select(x => new KeyValuePair<string, uint>(x.MessageId, (uint)x.Id))
                                                                             .ToList(ct);
             }, cancellationToken);
         }
 
-        public Task DeleteMessageByMessageIdsAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken)
+        public Task DeleteMessageByMessageIdsAsync(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken)
         {
             if (ids.Count == 0)
             {
@@ -2062,13 +2070,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Table<ProtonMessageId>().Delete(x => x.MessageId == id);
-                    connection.Table<Proton.Message>().Delete(x => x.MessageId == id);
+                    connection.Table<ProtonMessageIdV2>().Delete(x => x.AccountId == accountId && x.MessageId == id);
+                    connection.Table<Proton.Message>().Delete(x => x.AccountId == accountId && x.MessageId == id);
                 }
             }, cancellationToken);
         }
 
-        public Task DeleteMessagesByIds(IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken)
+        public Task DeleteMessagesByIds(int accountId, IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken)
         {
             if (ids.Count == 0)
             {
@@ -2077,11 +2085,11 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var label = connection.Table<ProtonLabel>().Where(x => x.LabelId == labelId).First();
+                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Table<ProtonMessageLabel>().Delete(x => x.MessageId == id && x.LabelId == label.Id);
+                    connection.Table<ProtonMessageLabel>().Delete(x => x.AccountId == accountId && x.MessageId == id && x.LabelId == label.Id);
                 }
             }, cancellationToken);
         }
