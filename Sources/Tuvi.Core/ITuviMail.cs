@@ -87,8 +87,8 @@ namespace Tuvi.Core
         /// Get number of unread stored messages for each email the list of <paramref name="contacts"/>.
         /// </summary>
         /// <param name="contacts"></param>
-        /// <returns>List of pairs where the key is contact email an the value in the number of the stored unread messages</returns>/>
-        Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken = default);
+        /// <returns>Dictionary where the key is contact email an the value in the number of the stored unread messages</returns>/>
+        Task<IReadOnlyDictionary<EmailAddress, int>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken = default);
 
         Task DeleteMessagesAsync(IReadOnlyList<Message> messages, CancellationToken cancellationToken = default);
 

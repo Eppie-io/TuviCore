@@ -964,7 +964,7 @@ namespace Tuvi.Core.Impl
             return unreadCount;
         }
 
-        public Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyDictionary<EmailAddress, int>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken = default)
         {
             CheckDisposed();
             return DataStorage.GetUnreadMessagesCountByContactAsync(cancellationToken);
