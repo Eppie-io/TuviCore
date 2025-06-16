@@ -1785,16 +1785,16 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        public Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken)
+        public Task<IReadOnlyDictionary<EmailAddress, int>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken)
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
                 var counts = connection.Table<Contact>()
                                        .Deferred()
-                                       .Select(x => new KeyValuePair<EmailAddress, int>(GetEmailAddressData(connection, x.EmailId).ToEmailAddress(), x.UnreadCount))
-                                       .ToList(ct);
+                                       .Select(x => new { Email = GetEmailAddressData(connection, x.EmailId).ToEmailAddress(), x.UnreadCount })
+                                       .ToDictionary(x => x.Email, x => x.UnreadCount);
 
-                return (IEnumerable<KeyValuePair<EmailAddress, int>>)counts;
+                return (IReadOnlyDictionary<EmailAddress, int>)counts;
             }, cancellationToken);
         }
 

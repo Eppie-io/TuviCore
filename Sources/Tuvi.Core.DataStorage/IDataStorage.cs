@@ -331,12 +331,12 @@ namespace Tuvi.Core.DataStorage
         Task<int> GetContactUnreadMessagesCountAsync(EmailAddress contactEmail, CancellationToken cancellationToken);
 
         /// <summary>
-        /// Get number of unread stored messages for each email the list of <paramref name="contacts"/> in the <paramref name="accountEmail"/>.
+        /// Get number of unread stored messages for each email the dictionary of <paramref name="contacts"/> in the <paramref name="accountEmail"/>.
         /// </summary>
         /// <param name="accountEmail"></param>
         /// <param name="contacts"></param>
         /// <exception cref="DataBaseException"/>
-        Task<IEnumerable<KeyValuePair<EmailAddress, int>>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken);
+        Task<IReadOnlyDictionary<EmailAddress, int>> GetUnreadMessagesCountByContactAsync(CancellationToken cancellationToken);
 
         /// <summary>
         /// Get all the settings.
