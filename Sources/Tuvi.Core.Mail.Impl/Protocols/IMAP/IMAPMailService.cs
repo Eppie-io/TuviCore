@@ -508,13 +508,20 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 {
                     await sentFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
 
-                    var uids = await sentFolder
-                        .SearchAsync(MailKit.Search.SearchQuery.HeaderContains("Message-Id", $"<{messageId}>"), cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (uids.Any())
+                    try
                     {
-                        return;
+                        var uids = await sentFolder
+                            .SearchAsync(MailKit.Search.SearchQuery.HeaderContains("Message-Id", $"<{messageId}>"), cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (uids.Any())
+                        {
+                            return;
+                        }
+                    }
+                    catch (MailKit.Net.Imap.ImapCommandException)
+                    {
+                        // Ignore exception if search is not supported
                     }
 
                     using (var mimeMessage = message.ToMimeMessage())
