@@ -55,9 +55,9 @@ namespace Tuvi.Proton.Impl
         {
             var signer = email.ToMailboxAddress();
             var encrypted = EncryptAndSign(context, email, plain);
-            var privateKey = GetEncryptionPrivateKey(context, signer);
             (var encKey, var encBody) = Split(encrypted);
-            return (DecryptSessionKey(privateKey, encrypted), encBody.ToArray());// here we pass encrypted since BC makes prefetch and read fails if there is nothing after session key packet
+
+            return (DecryptSessionKey(context, signer, encrypted), encBody.ToArray());// here we pass encrypted since BC makes prefetch and read fails if there is nothing after session key packet
         }
 
         public static Stream EncryptAndSignArmored(MyOpenPgpContext context, EmailAddress emailAddress, byte[] data)
@@ -104,7 +104,7 @@ namespace Tuvi.Proton.Impl
 
         public static byte[] SignDetached(PgpPrivateKey privateKey, byte[] data)
         {
-            PgpSignatureGenerator signGen = new PgpSignatureGenerator(PublicKeyAlgorithmTag.EdDsa, HashAlgorithmTag.Sha512);
+            PgpSignatureGenerator signGen = new PgpSignatureGenerator(privateKey.PublicKeyPacket.Algorithm, HashAlgorithmTag.Sha512);
             signGen.InitSign(PgpSignature.BinaryDocument, privateKey);
 
             signGen.Update(data);
@@ -133,10 +133,11 @@ namespace Tuvi.Proton.Impl
 
         public static (DecrypedSessionKey, byte[], byte[]) EncryptAttachment(MyOpenPgpContext context, EmailAddress emailAddress, byte[] data)
         {
-            var privateKey = GetEncryptionPrivateKey(context, emailAddress.ToMailboxAddress());
+            var signer = emailAddress.ToMailboxAddress();
             var bytes = ReadArmoredStream(EncryptArmored(context, emailAddress, data));
             var (encKey, encData) = Split(bytes);
-            return (DecryptSessionKey(privateKey, bytes), encKey.ToArray(), encData.ToArray());
+
+            return (DecryptSessionKey(context, signer, bytes), encKey.ToArray(), encData.ToArray());
         }
 
         public static byte[] EncryptSessionKey(PgpPublicKey publicKey, DecrypedSessionKey sessionKey)
@@ -149,24 +150,77 @@ namespace Tuvi.Proton.Impl
             }
         }
 
-        public static DecrypedSessionKey DecryptSessionKey(PgpPrivateKey privateKey, byte[] encSessionKey)
+        private static DecrypedSessionKey DecryptSessionKey(MyOpenPgpContext context, MailboxAddress email, byte[] encSessionKey)
         {
             var pgpF = new PgpObjectFactory(encSessionKey);
             var encList = (PgpEncryptedDataList)pgpF.NextPgpObject();
-            var encP = (PgpPublicKeyEncryptedData)encList[0];
-            var res = new DecrypedSessionKey();
+            if (encList is null)
+            {
+                throw new ArgumentException("No encrypted data found.");
+            }
 
-            // HACK 
-            var methodInfo = typeof(PgpPublicKeyEncryptedData).GetMethod("RecoverSessionData", BindingFlags.NonPublic | BindingFlags.Instance);
-            Debug.Assert(methodInfo != null);
-            byte[] sessionData = (byte[])methodInfo.Invoke(encP, new[] { privateKey });
-            SymmetricKeyAlgorithmTag symmAlg = (SymmetricKeyAlgorithmTag)sessionData[0];
-            Debug.Assert(symmAlg != SymmetricKeyAlgorithmTag.Null);
+            foreach (PgpPublicKeyEncryptedData encData in encList.GetEncryptedDataObjects())
+            {
+                try
+                {
+                    // Find secret key by KeyId
+                    var secretKey = context.EnumerateSecretKeyRings(email)
+                                           .SelectMany(ring => ring.GetSecretKeys())
+                                           .FirstOrDefault(k => k.KeyId == encData.KeyId);
 
-            res.Algo = symmAlg;
-            res.Key = sessionData.AsSpan(1, sessionData.Length - 1 - 2).ToArray();
+                    if (secretKey is null)
+                    {
+                        continue; // This KeyId doesn't work for us, let's check the next one
+                    }
 
-            return res;
+                    // Retrieve the private key
+                    var password = context.GetPassword(secretKey);
+                    var privateKey = secretKey.ExtractPrivateKey(password.ToCharArray());
+
+                    if (privateKey is null)
+                    {
+                        continue; // Incorrect password or key is corrupted
+                    }
+
+
+                    // HACK: Call RecoverSessionData via Reflection
+                    var methodInfo = typeof(PgpPublicKeyEncryptedData)
+                                     .GetMethod("RecoverSessionData", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (methodInfo is null)
+                    {
+                        throw new MissingMethodException("RecoverSessionData not found via reflection.");
+                    }
+
+                    byte[] sessionData = (byte[])methodInfo.Invoke(encData, new object[] { privateKey });
+
+                    if (sessionData is null || sessionData.Length < 1)
+                    {
+                        continue;
+                    }
+
+                    var symmAlg = (SymmetricKeyAlgorithmTag)sessionData[0];
+                    if (symmAlg is SymmetricKeyAlgorithmTag.Null)
+                    {
+                        continue;
+                    }
+
+                    // PGP usually adds 2 CRC bytes at the end - remove them
+                    var keyData = sessionData.AsSpan(1, sessionData.Length - 1 - 2).ToArray();
+
+                    return new DecrypedSessionKey
+                    {
+                        Algo = symmAlg,
+                        Key = keyData
+                    };
+                }
+                catch (PgpException)
+                {
+                    // This key didn't match, continue the search
+                    continue;
+                }
+            }
+
+            throw new InvalidOperationException("Failed to decrypt session key: no suitable private key found.");
         }
 
         public static string DecryptArmored(MyOpenPgpContext context, string encrypted, bool verifySignature = true)
@@ -250,14 +304,6 @@ namespace Tuvi.Proton.Impl
                 return await multipartFormData.ReadAsByteArrayAsync().ConfigureAwait(false);
             }
         }
-
-        public static PgpSecretKey GetEncryptionKey(MyOpenPgpContext context, MailboxAddress signer)
-        {
-            return context.EnumerateSecretKeyRings(signer)
-                                   .SelectMany(x => x.GetSecretKeys())
-                                   .Where(x => !x.IsMasterKey && x.PublicKey.IsEncryptionKey).First();
-        }
-
         #endregion
 
         #region Private methods
@@ -372,13 +418,6 @@ namespace Tuvi.Proton.Impl
             }
             res.Position = 0;
             return res;
-        }
-
-        private static PgpPrivateKey GetEncryptionPrivateKey(MyOpenPgpContext context, MailboxAddress signer)
-        {
-            var secretKey = GetEncryptionKey(context, signer);
-            var privateKey = secretKey.ExtractPrivateKey(context.GetPassword(secretKey).ToCharArray());
-            return privateKey;
         }
 
         #endregion
