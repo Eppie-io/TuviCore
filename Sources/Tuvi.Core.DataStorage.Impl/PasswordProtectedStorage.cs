@@ -85,8 +85,8 @@ namespace Tuvi.Core.DataStorage.Impl
                 t.CreateTable<SettingsTable>();
                 t.CreateTable<AccountGroup>();
                 t.CreateTable<Proton.Message>();
-                t.CreateTable<ProtonMessageId>();
-                t.CreateTable<ProtonLabel>();
+                t.CreateTable<ProtonMessageIdV2>();
+                t.CreateTable<ProtonLabelV2>();
                 t.CreateTables<ProtonMessageLabel, ProtonAuthData>();
                 t.CreateTable<LocalAIAgent>();
                 t.CreateIndex(nameof(Message), new[] { nameof(Message.Path), nameof(Message.Id) }, unique: true); // A hack, SQLite.Net still doesn't allow several [Indexed] attributes per property
