@@ -11,6 +11,7 @@ namespace Tuvi.Core.Impl
     {
         private System.Timers.Timer _timer { get; }
 
+        private readonly object _lock = new object();
         private bool _isBusy { get; set; }
         private Func<CancellationToken, Task> _actionAsync;
         private CancellationTokenSource _actionCancellationSource;
@@ -74,8 +75,11 @@ namespace Tuvi.Core.Impl
         private async Task ExecuteActionAsync()
         {
             // If previous action is not finished, ignore this one
-            if (_isBusy) return;
-            _isBusy = true;
+            lock (_lock)
+            {
+                if (_isBusy) return;
+                _isBusy = true;
+            }
 
             try
             {
@@ -98,6 +102,20 @@ namespace Tuvi.Core.Impl
                 _actionCancellationSource = null;
                 _isBusy = false;
             }
+        }
+
+        /// <summary>
+        /// Force execution of the action.
+        /// </summary>
+        public async Task ExecuteActionForceAsync()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(SchedulerWithTimer));
+            }
+
+            await GetActionTask().ConfigureAwait(false);
+            await ExecuteActionAsync().ConfigureAwait(false);
         }
 
         /// <summary>

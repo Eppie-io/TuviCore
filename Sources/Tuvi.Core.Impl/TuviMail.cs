@@ -219,10 +219,13 @@ namespace Tuvi.Core.Impl
             ExceptionOccurred?.Invoke(sender, args);
         }
 
-        private Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken, bool silent = false)
+        private async Task CheckForNewMessagesForceAsync(Account account, CancellationToken cancellationToken, bool silent = false)
         {
-            return CheckForNewMessagesAsync(account, f => true, cancellationToken, silent);
-        }
+            if (AccountSchedulers.TryGetValue(account.Email, out SchedulerWithTimer scheduler))
+            {                
+                await scheduler.ExecuteActionForceAsync().ConfigureAwait(false);
+            }                
+        }        
 
         private void CheckDisposed()
         {
@@ -232,7 +235,7 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        private async Task CheckForNewMessagesAsync(Account account, Func<Folder, bool> folderPredicate, CancellationToken cancellationToken, bool silent = false)
+        private async Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken, bool silent = false)
         {
             List<EmailFolderError> failedEmailFolders = new List<EmailFolderError>();
 
@@ -241,7 +244,7 @@ namespace Tuvi.Core.Impl
                 CheckDisposed();
                 var accountService = GetAccountService(account);
                 await accountService.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
-                foreach (var folder in account.FoldersStructure.Where(x => folderPredicate(x)))
+                foreach (var folder in account.FoldersStructure)
                 {
                     CheckDisposed();
                     await LoadNewMessagesAsync(folder, accountService, cancellationToken).ConfigureAwait(true);
@@ -587,39 +590,20 @@ namespace Tuvi.Core.Impl
             }
         }
 
-
-        // TODO: create sync scheduler and remove this block flag
-        // TVM-240
-        private bool _isCheckingForNewMessages;
-        // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
-        // TVM-240
         public async Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
             Debug.Assert(folder != null);
-            if (_isCheckingForNewMessages)
-            {
-                return;
-            }
-            _isCheckingForNewMessages = true;
+
             try
             {
-                var tasks = folder.Folders.Select(async f =>
-                {
-                    var account = await GetAccountAsync(f.AccountEmail, cancellationToken).ConfigureAwait(false);
-                    await CheckForNewMessagesAsync(account, x => x.Equals(f), cancellationToken).ConfigureAwait(false);
-                }).ToArray();
-
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-
+                var accountEmail = folder.Folders[0].AccountEmail;
+                var account = await GetAccountAsync(accountEmail, cancellationToken).ConfigureAwait(false);
+                await CheckForNewMessagesForceAsync(account, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 // ignore
-            }
-            finally
-            {
-                _isCheckingForNewMessages = false;
             }
         }
 
@@ -635,27 +619,13 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        // TODO: Review and replace method with scheduler logic of requests with ignoring equal requests
-        // TVM-240
         public async Task CheckForNewInboxMessagesAsync(CancellationToken cancellationToken = default)
         {
             CheckDisposed();
-            if (_isCheckingForNewMessages)
-            {
-                return;
-            }
-            _isCheckingForNewMessages = true;
 
-            try
-            {
-                var accounts = await GetAccountsAsync(cancellationToken).ConfigureAwait(true);
-                var tasks = accounts.Select(x => CheckForNewMessagesAsync(x, f => f.IsInbox, cancellationToken)).ToArray();
-                await Task.WhenAll(tasks).ConfigureAwait(true);
-            }
-            finally
-            {
-                _isCheckingForNewMessages = false;
-            }
+            var accounts = await GetAccountsAsync(cancellationToken).ConfigureAwait(true);
+            var tasks = accounts.Select(x => CheckForNewMessagesForceAsync(x, cancellationToken)).ToArray();
+            await Task.WhenAll(tasks).ConfigureAwait(true);
         }
 
         private void OnMessageDeleted(object sender, MessageDeletedEventArgs args)
