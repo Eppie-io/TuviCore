@@ -205,7 +205,7 @@ namespace Tuvi.Core.Impl
                     {
                         return Task.CompletedTask;
                     }
-                    return CheckForNewMessagesAsync(account, schedulerCancellation, silent: true);
+                    return CheckForNewMessagesAsync(account, schedulerCancellation);
                 },
                 TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds);
             scheduler.ExceptionOccurred += OnSchedulerExceptionOccurred;
@@ -235,7 +235,7 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        private async Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken, bool silent = false)
+        private async Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken)
         {
             List<EmailFolderError> failedEmailFolders = new List<EmailFolderError>();
 
@@ -259,7 +259,7 @@ namespace Tuvi.Core.Impl
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
             {
-                RegisterException(ex, "An error occurred while checking for new messages", silent);
+                RegisterException(ex, "An error occurred while checking for new messages");
             }
         }
 
@@ -597,9 +597,17 @@ namespace Tuvi.Core.Impl
 
             try
             {
-                var accountEmail = folder.Folders[0].AccountEmail;
-                var account = await GetAccountAsync(accountEmail, cancellationToken).ConfigureAwait(false);
-                await CheckForNewMessagesForceAsync(account, cancellationToken).ConfigureAwait(false);
+                var uniqueAccountEmails = folder.Folders
+                    .Select(f => f.AccountEmail)
+                    .Distinct();
+
+                var tasks = uniqueAccountEmails.Select(async email =>
+                {
+                    var account = await GetAccountAsync(email, cancellationToken).ConfigureAwait(false);
+                    await CheckForNewMessagesForceAsync(account, cancellationToken).ConfigureAwait(false);
+                });
+
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
