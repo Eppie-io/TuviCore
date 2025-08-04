@@ -32,12 +32,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var receiverAddress = AccountInfo.GetAccount2().Email;
                 var senderAddress = AccountInfo.GetAccount().Email;
 
-                pgpContext.DeriveKeyPair(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity());
-                pgpContext.DeriveKeyPair(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity(), AccountInfo.GetAccount().GetKeyTag());
 
                 using MimeMessage mimeMessage = new MimeMessage();
-                mimeMessage.To.Add(receiverAddress.ToMailBoxAddres());
-                mimeMessage.From.Add(senderAddress.ToMailBoxAddres());
+                mimeMessage.To.Add(receiverAddress.ToMailboxAddress());
+                mimeMessage.From.Add(senderAddress.ToMailboxAddress());
                 mimeMessage.Subject = EncryptionTestsData.Subject;
                 mimeMessage.Body = new TextPart { Text = EncryptionTestsData.PlainText };
                 mimeMessage.Sign(pgpContext);
@@ -71,12 +71,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var receiverAddress = AccountInfo.GetAccount2().Email;
                 var senderAddress = AccountInfo.GetAccount().Email;
 
-                pgpContext.DeriveKeyPair(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity());
-                pgpContext.DeriveKeyPair(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity(), AccountInfo.GetAccount().GetKeyTag());
 
                 using MimeMessage mimeMessage = new MimeMessage();
-                mimeMessage.To.Add(receiverAddress.ToMailBoxAddres());
-                mimeMessage.From.Add(senderAddress.ToMailBoxAddres());
+                mimeMessage.To.Add(receiverAddress.ToMailboxAddress());
+                mimeMessage.From.Add(senderAddress.ToMailboxAddress());
                 mimeMessage.Subject = EncryptionTestsData.Subject;
                 mimeMessage.Body = new TextPart { Text = EncryptionTestsData.PlainText };
                 mimeMessage.SignAndEncrypt(pgpContext);
@@ -112,14 +112,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
             // export receiver pub key - used to encrypt message
             using (var pgpContext = InitializePgpContext())
             {
-                pgpContext.DeriveKeyPair(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
                 pgpContext.ExportPublicKeys(new List<UserIdentity> { AccountInfo.GetAccount2().Email.ToUserIdentity() }, receiverPubKey, true);
             }
 
             // export sender pub key - used to verify signature
             using (var pgpContext = InitializePgpContext())
             {
-                pgpContext.DeriveKeyPair(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity(), AccountInfo.GetAccount().GetKeyTag());
                 pgpContext.ExportPublicKeys(new List<UserIdentity> { AccountInfo.GetAccount().Email.ToUserIdentity() }, senderPubKey, true);
             }
 
@@ -129,7 +129,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             // sign and encrypt message
             using (var pgpContext = InitializePgpContext())
             {
-                pgpContext.DeriveKeyPair(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity(), AccountInfo.GetAccount().GetKeyTag());
                 pgpContext.ImportPublicKeys(receiverPubKey, true);
 
                 Message message = new Message();
@@ -160,7 +160,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             // decrypt and verify message
             using (var pgpContext = InitializePgpContext())
             {
-                pgpContext.DeriveKeyPair(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
                 pgpContext.ImportPublicKeys(senderPubKey, true);
 
                 var message = mimeMessage.ToTuviMailMessage(new Folder());

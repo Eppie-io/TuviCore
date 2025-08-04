@@ -137,5 +137,20 @@ namespace Tuvi.Core
         /// Get backup protector instance.
         /// </summary>
         IBackupProtector GetBackupProtector();
+
+        /// <summary>
+        /// Remove PGP keys for <paramref name="account"/>.
+        /// </summary>
+        void RemovePgpKeys(Account account);
+
+        /// <summary>
+        /// Get next decentralized account public key and index.
+        /// </summary> 
+        Task<(string, int)> GetNextDecAccountPublicKeyAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Get email public key string for <paramref name="email"/>.
+        /// </summary>
+        string GetEmailPublicKeyString(EmailAddress email);
     }
 }

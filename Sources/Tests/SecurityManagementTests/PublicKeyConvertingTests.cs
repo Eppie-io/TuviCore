@@ -1,5 +1,7 @@
-﻿using MimeKit;
+﻿using KeyDerivationLib;
+using MimeKit;
 using NUnit.Framework;
+using Org.BouncyCastle.Bcpg;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
 using System;
@@ -14,15 +16,12 @@ namespace SecurityManagementTests
 {
     public class PublicKeyConvertingTests
     {
-        private readonly DateTime KeyCreationTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-
         [Test]
         public void ECPubKeyConverting()
         {            
             for (int i = 0; i < 50; i++)
             {
-                var keyPair = EccPgpContext.DeriveKeyPair(TestData.MasterKey, i);
-                var publicKey = keyPair.Public as ECPublicKeyParameters;
+                var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, i);
 
                 byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(true);
                 string emailName = Base32EConverter.ConvertBytesToEmailName(publicKeyAsBytes);
@@ -36,9 +35,8 @@ namespace SecurityManagementTests
         public void ECPubKeyParametersConverting()
         {
             for (int i = 0; i < 50; i++)
-            {
-                var keyPair = EccPgpContext.DeriveKeyPair(TestData.MasterKey, i);
-                var publicKey = keyPair.Public as ECPublicKeyParameters;
+            {   
+                var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, i);
 
                 string emailName = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKey);
                 var reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(emailName);
@@ -53,10 +51,10 @@ namespace SecurityManagementTests
             string emailName = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(emailName);
 
-            PgpPublicKey publicKey = new PgpPublicKey(Org.BouncyCastle.Bcpg.PublicKeyAlgorithmTag.ECDH, reconvertedPublicKey, DateTime.Now);
+            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailName);
 
             using TuviPgpContext ctx = InitializeTuviPgpContext();
-            ctx.Import(new PgpPublicKeyRing(publicKey.GetEncoded()));
+            ctx.Import(publicKeyRing);
 
             Assert.That(1, Is.EqualTo(ctx.PublicKeyRingBundle.Count), "Public key was not imported");
         }
@@ -74,12 +72,13 @@ namespace SecurityManagementTests
 
             ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(emailName);
 
-            PgpPublicKey publicKey = new PgpPublicKey(Org.BouncyCastle.Bcpg.PublicKeyAlgorithmTag.ECDH, reconvertedPublicKey, KeyCreationTime);
+            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailName);
+            PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey );
 
             using EccPgpContext ctx = InitializeTuviPgpContext();
             var encryptedMime = ctx.Encrypt(new List<PgpPublicKey> { publicKey }, inputData);
 
-            ctx.DeriveKeyPair(TestData.MasterKey, TestData.GetAccount().GetPgpIdentity());
+            ctx.GeneratePgpKeysByTagOld(TestData.MasterKey, TestData.GetAccount().GetPgpIdentity(), TestData.GetAccount().GetPgpIdentity());
 
             encryptedMime.WriteTo(encryptedData);
             encryptedData.Position = 0;
@@ -103,9 +102,8 @@ namespace SecurityManagementTests
         [TestCase(3)]
         [TestCase(15)]
         public void ECPubKeyConvertingTooLongPubKeyThrowArgumentException(int childKeyNum)
-        {
-            var keyPair = EccPgpContext.DeriveKeyPair(TestData.MasterKey, childKeyNum);
-            var publicKey = keyPair.Public as ECPublicKeyParameters;
+        {            
+            var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, childKeyNum);
 
             byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(false);
 

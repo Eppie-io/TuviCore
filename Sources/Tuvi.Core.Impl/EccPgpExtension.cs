@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Core;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Utils;
 using TuviPgpLib;
@@ -27,6 +28,7 @@ namespace Tuvi.Core.Impl
         {
             _externalKeyStorage = keyStorage;
         }
+
         public Task<MasterKey> GetMasterKeyAsync(CancellationToken cancellationToken = default)
         {
             return _externalKeyStorage.GetMasterKeyAsync(cancellationToken);
@@ -65,7 +67,9 @@ namespace Tuvi.Core.Impl
 
     public static class EccPgpExtension
     {
-        private static readonly DateTime KeyCreationTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+        const int EppieCoinType = 3630;
+        const int EmailChannel = 10;
+        const int KeyIndex = 0;
 
         public static async Task<TuviPgpContext> GetTemporalContextAsync(IKeyStorage storage)
         {
@@ -74,17 +78,7 @@ namespace Tuvi.Core.Impl
             return context;
         }
 
-        public static OpenPgpContext TryToAddDecEncryptionKey(this OpenPgpContext context, EmailAddress emailAddress)
-        {
-            return context.TryToAddDecPublicKey(emailAddress, PublicKeyAlgorithmTag.ECDH, x => x.IsEncryptionKey);
-        }
-
-        public static OpenPgpContext TryToAddDecSignerPublicKey(this OpenPgpContext context, EmailAddress emailAddress)
-        {
-            return context.TryToAddDecPublicKey(emailAddress, PublicKeyAlgorithmTag.ECDsa, x => !x.IsEncryptionKey);
-        }
-
-        public static byte[] Encrypt(GnuPGContext pgpContext, string address, string message, CancellationToken cancellationToken = default)
+        public static byte[] Encrypt(TuviPgpContext pgpContext, string address, string message, CancellationToken cancellationToken = default)
         {
             if (pgpContext is null)
             {
@@ -92,7 +86,8 @@ namespace Tuvi.Core.Impl
             }
 
             ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(address);
-            PgpPublicKey publicKey = new PgpPublicKey(PublicKeyAlgorithmTag.ECDH, reconvertedPublicKey, KeyCreationTime);
+            PgpPublicKeyRing publicKeyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, address);
+            PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey);
 
             using (var inputData = new MemoryStream(Encoding.UTF8.GetBytes(message ?? "")))
             {
@@ -114,7 +109,7 @@ namespace Tuvi.Core.Impl
             Contract.Requires(identity != null);
             Contract.Requires(data != null);
 
-            pgpContext.DeriveKeyPair(masterKey, identity, tag);
+            pgpContext.GeneratePgpKeysByTag(masterKey, identity, tag);
 
             using (var encryptedData = new MemoryStream(data))
             using (var decryptedData = new MemoryStream(data.Length))
@@ -123,22 +118,52 @@ namespace Tuvi.Core.Impl
                 return Encoding.UTF8.GetString(decryptedData.ToArray());
             }
         }
+
+        public static string Decrypt(TuviPgpContext pgpContext, MasterKey masterKey, string identity, int account, byte[] data, CancellationToken cancellationToken = default)
+        {
+            Contract.Requires(pgpContext != null);
+            Contract.Requires(masterKey != null);
+            Contract.Requires(identity != null);
+            Contract.Requires(data != null);
+
+            pgpContext.GeneratePgpKeysByBip44(masterKey, identity, EppieCoinType, account, EmailChannel, KeyIndex);
+
+            using (var encryptedData = new MemoryStream(data))
+            using (var decryptedData = new MemoryStream(data.Length))
+            {
+                pgpContext.DecryptTo(encryptedData, decryptedData, cancellationToken);
+                return Encoding.UTF8.GetString(decryptedData.ToArray());
+            }
+        }
+
         public static MailboxAddress ToMailboxAddress(this EmailAddress emailAddress)
         {
             Contract.Requires(emailAddress != null);
             return new MailboxAddress(emailAddress.Name ?? "", emailAddress.Address);
         }
 
-        private static OpenPgpContext TryToAddDecPublicKey(this OpenPgpContext context, EmailAddress emailAddress, PublicKeyAlgorithmTag tag, Func<PgpPublicKey, bool> keyPredicate)
+        public static string GetPublicKeyString(MasterKey masterKey, int account)
+        {
+            var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, EppieCoinType, account, EmailChannel, KeyIndex);
+
+            return PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+        }
+
+        public static string GetPublicKeyString(MasterKey masterKey, string keyTag)
+        {            
+            var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, keyTag);
+
+            return PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+        }
+
+        public static OpenPgpContext TryToAddDecPublicKeys(this OpenPgpContext context, EmailAddress emailAddress)
         {
             Contract.Requires(context != null);
             Contract.Requires(emailAddress != null);
             try
             {
                 var keys = context.GetPublicKeys(new List<MailboxAddress>() { emailAddress.ToMailboxAddress() }).ToList();
-                var existingPublicKey = keys
-                                        .Where(keyPredicate)
-                                        .FirstOrDefault();
+                var existingPublicKey = keys.FirstOrDefault();
                 if (existingPublicKey != null)
                 {
                     return context;
@@ -154,11 +179,41 @@ namespace Tuvi.Core.Impl
             }
 
             ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ConvertEmailNameToPublicKey(decAddress);
-            PgpPublicKey publicKey = new PgpPublicKey(tag, reconvertedPublicKey, KeyCreationTime);
+            PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
 
-            var keyRing = new PgpPublicKeyRing(publicKey.GetEncoded());
             context.Import(keyRing);
             return context;
+        }
+
+        public static void CreatePgpKeys(this ITuviPgpContext pgpContext, MasterKey masterKey, Account account)
+        {
+            if (pgpContext is null)
+            {
+                throw new ArgumentNullException(nameof(pgpContext));
+            }
+
+            if (masterKey is null)
+            {
+                throw new ArgumentNullException(nameof(masterKey));
+            }
+
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            if (account.Email.IsHybrid)
+            {
+                pgpContext.GeneratePgpKeysByTag(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+            }
+            else if (account.Email.IsDecentralized)
+            {
+                pgpContext.GeneratePgpKeysByBip44(masterKey, account.GetPgpUserIdentity(), EppieCoinType, account.DecentralizedAccountIndex, EmailChannel, KeyIndex);
+            }
+            else
+            {
+                pgpContext.GeneratePgpKeysByTagOld(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+            }
         }
     }
 }

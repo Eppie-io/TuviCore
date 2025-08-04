@@ -8,13 +8,6 @@ using Tuvi.Proton;
 [assembly: System.Runtime.CompilerServices.InternalsVisibleToAttribute("TuviMailLibTests")]
 namespace Tuvi
 {
-    public enum MailBoxType : int
-    {
-        Email,
-        Dec,
-        Hybrid,
-        Proton
-    }
     internal class MailBoxFactory : IMailBoxFactory
     {
         private readonly IDataStorage _dataStorage;
@@ -33,7 +26,7 @@ namespace Tuvi
 
         public IMailBox CreateMailBox(Account account)
         {
-            var type = (MailBoxType)account.Type;
+            var type = account.Type;
             if (type == MailBoxType.Hybrid || type == MailBoxType.Dec)
             {
                 return Tuvi.Core.Dec.Impl.MailBoxCreator.Create(account, DataStorage);

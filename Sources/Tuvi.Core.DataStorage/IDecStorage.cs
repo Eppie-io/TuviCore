@@ -34,7 +34,7 @@ namespace Tuvi.Core.DataStorage
                 return;
 
             From = message.From[0].Address;
-            To = String.Join(";", message.To.ConvertAll(x => x.Address));
+            To = String.Join(";", message.AllRecipients.Select(x => x.Address));
             Date = message.Date;
             Subject = message.Subject;
             HtmlBody = message.HtmlBody;

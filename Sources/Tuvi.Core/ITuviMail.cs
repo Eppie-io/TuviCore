@@ -59,11 +59,10 @@ namespace Tuvi.Core
         Task<List<Account>> GetAccountsAsync(CancellationToken cancellationToken = default);
         Task<IReadOnlyList<CompositeAccount>> GetCompositeAccountsAsync(CancellationToken cancellationToken = default);
         Task<IAccountService> GetAccountServiceAsync(EmailAddress email, CancellationToken cancellationToken = default);
-        Task<Account> NewDecentralizedAccountAsync(CancellationToken cancellationToken = default);
         Task AddAccountAsync(Account account, CancellationToken cancellationToken = default);
         Task DeleteAccountAsync(Account account, CancellationToken cancellationToken = default);
         Task UpdateAccountAsync(Account account, CancellationToken cancellationToken = default);
-        Task CreateHybridEmailAsync(EmailAddress email, CancellationToken cancellationToken = default);
+        Task CreateHybridAccountAsync(Account account, CancellationToken cancellationToken = default);
 
         Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default);
         Task CheckForNewInboxMessagesAsync(CancellationToken cancellationToken = default);

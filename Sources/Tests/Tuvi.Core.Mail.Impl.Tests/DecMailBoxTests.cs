@@ -1,6 +1,9 @@
-﻿using KeyDerivationLib;
+﻿using Azure;
+using KeyDerivationLib;
 using MimeKit;
 using Moq;
+using NBitcoin;
+using NBitcoin.RPC;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Org.BouncyCastle.Bcpg.OpenPgp;
@@ -64,14 +67,6 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
     }
 
-    internal class MyKeyMatcher : IKeyMatcher
-    {
-        public bool IsMatch(PgpPublicKey key, MailboxAddress mailbox)
-        {
-            var encodedPublicKey = PublicKeyConverter.ConvertPublicKeyToEmailName(key.GetKey() as ECPublicKeyParameters);
-            return string.Equals(mailbox.ToEmailAddress().DecentralizedAddress, encodedPublicKey, StringComparison.OrdinalIgnoreCase);
-        }
-    }
     public class DecMailBoxTests
     {
         private static string GetSHA256(byte[] data)
@@ -83,39 +78,90 @@ namespace Tuvi.Core.Mail.Impl.Tests
             }
         }
 
-        private static async Task<EmailAddress> GetDecAddressAsync(IKeyStorage storage, string keyTag)
+        private static async Task<string> GetDecAddressAsync(IKeyStorage storage, string keyTag)
         {
-            var pubKey = await TuviMail.GetDecAccountPublicKeyStringAsync(storage, keyTag, default).ConfigureAwait(true);
-            return new EmailAddress(pubKey + "@eppie", keyTag);
+            var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(false);
+
+            var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, keyTag);
+            var pubKey = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+
+            return pubKey;
+        }
+
+        const int CoinType = 3630; // Eppie coin type
+        const int Channel = 10; // Email channel
+        const int KeyIndex = 0; // Key index
+
+        private static async Task<string> GetDecAddressAsync(IKeyStorage storage, int accountIndex)
+        {
+            var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(false);
+
+            var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, CoinType, accountIndex, Channel, KeyIndex);
+            var pubKey = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+
+            return pubKey;
         }
 
         [Test]
-        public async Task DecTransportEncryptionDecryptionTest()
+        [Category("Dec")]
+        [TestCase("agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier", "test@test.com")]
+        [TestCase("ahucekc2b364jcjnxigfnk3sqjixnahmrizhjcewmvn4munk7wm5d", "test1@test.com")]
+        [TestCase("agz5qyvbusf5tgwaawnn5zcntegpywzhuq2fzdc53it5mduxk9e77", "test2@test.com")]
+        public async Task DecTransportEncryptionDecryptionTest(string address, string keyTag)
         {
             var storage = CreateKeyStorageMock1();
             var protector = new PgpDecProtector(storage.Object);
             var data = "data to encrypt";
-            // encryption
-            var address = "ahgp4kj6bd68xntwsvv4tukxe2pxmrcve7p9u5hmzi6mwmrrz476f";
-            var keyTag = "Decentralized Account Demo #1";
-            var address2 = await GetDecAddressAsync(storage.Object, keyTag).ConfigureAwait(true);
+            // encryption            
+            var pubKey = await GetDecAddressAsync(storage.Object, keyTag).ConfigureAwait(true);
+            var address2 = new EmailAddress("abc+" + pubKey + "@abc.com", keyTag);
             var ecnryptedData = await protector.EncryptAsync(address, data, default).ConfigureAwait(true);
 
-            var parts = address2.Address.Split('@');
+            var parts = address2.Address.Split('+')[1].Split('@');
             Assert.That(address, Is.EqualTo(parts[0]));
 
             // decryption
-            var decryptedData = await protector.DecryptAsync(address, keyTag, ecnryptedData, default).ConfigureAwait(true);
+            var decryptedData = await protector.DecryptAsync(address2.Address, keyTag, ecnryptedData, default).ConfigureAwait(true);
             Assert.That(decryptedData, Is.EqualTo(data));
         }
 
         [Test]
-        public async Task DecMessageEncryptionDecryptionTest()
+        [Category("Dec")]
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(100)]
+        [TestCase(111)]
+        [TestCase(999)]
+        [TestCase(1000)]
+        [TestCase(10000)]
+        public async Task DecTransportEncryptionDecryptionTest(int accountIndex)
+        {
+            var storage = CreateKeyStorageMock1();
+            var protector = new PgpDecProtector(storage.Object);
+            var data = "data to encrypt";
+            // encryption            
+            var pubKey = await GetDecAddressAsync(storage.Object, accountIndex).ConfigureAwait(true);
+            var address2 = new EmailAddress(pubKey + "@eppie", pubKey);
+            var ecnryptedData = await protector.EncryptAsync(address2.DecentralizedAddress, data, default).ConfigureAwait(true);
+
+            // decryption
+            var decryptedData = await protector.DecryptAsync(address2.Address, accountIndex, ecnryptedData, default).ConfigureAwait(true);
+            Assert.That(decryptedData, Is.EqualTo(data));
+        }
+
+        const string HybridAddressType = "Hybrid";
+        const string DecentralizedAddressType = "Decentralized";
+
+        [Test]
+        [Category("Dec")]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecMessageEncryptionDecryptionTest(string addressType)
         {
             var senderStorage = CreateKeyStorageMock1();
             var receiverStorage = CreateKeyStorageMock1();
-            var senderAddress = await GetAddress1Async(senderStorage.Object).ConfigureAwait(true);
-            var receiverAddress = await GetAddress2Async(receiverStorage.Object).ConfigureAwait(true);
+            var senderAddress = await GetAddress1Async(senderStorage.Object, addressType).ConfigureAwait(true);
+            var receiverAddress = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
             using var senderContext = await CreateDecPgpContextAsync(senderStorage.Object, senderAddress).ConfigureAwait(true); ;
 
             var pubKeys = senderContext.EnumeratePublicKeys().ToList();
@@ -134,12 +180,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         [Test]
         [Category("Dec")]
-        public async Task DecMessageSignatureTest()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecMessageSignatureTest(string addressType)
         {
             var senderStorage = CreateKeyStorageMock1();
             var receiverStorage = CreateKeyStorageMock1();
-            var senderAddress = await GetAddress1Async(senderStorage.Object).ConfigureAwait(true);
-            var receiverAddress = await GetAddress2Async(receiverStorage.Object).ConfigureAwait(true);
+            var senderAddress = await GetAddress1Async(senderStorage.Object, addressType).ConfigureAwait(true);
+            var receiverAddress = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
             using var senderContext = await CreateDecPgpContextAsync(senderStorage.Object, senderAddress).ConfigureAwait(true);
 
             var pubKeys = senderContext.EnumeratePublicKeys().ToList();
@@ -149,7 +197,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var encryptedMessage = senderMessageProtector.Sign(message);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage.Object, receiverAddress).ConfigureAwait(true);
-            receiverContext.TryToAddDecSignerPublicKey(senderAddress);
+            receiverContext.TryToAddDecPublicKeys(senderAddress);
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(encryptedMessage).ConfigureAwait(true);
             Assert.That(decryptedMessage, Is.EqualTo(message));
@@ -159,12 +207,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         [Test]
         [Category("Dec")]
-        public async Task DecMessageSignAndEncryptTest()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecMessageSignAndEncryptTest(string addressType)
         {
             using var senderStorage = await CreateKeyStorage1Async().ConfigureAwait(true);
             using var receiverStorage = await CreateKeyStorage1Async().ConfigureAwait(true); // same seed but another key
-            var senderAddress = await GetAddress1Async(senderStorage).ConfigureAwait(true);
-            var receiverAddress = await GetAddress2Async(receiverStorage).ConfigureAwait(true);
+            var senderAddress = await GetAddress1Async(senderStorage, addressType).ConfigureAwait(true);
+            var receiverAddress = await GetAddress2Async(receiverStorage, addressType).ConfigureAwait(true);
             using var senderContext = await CreateDecPgpContextAsync(senderStorage, senderAddress).ConfigureAwait(true); ;
 
             var pubKeys = senderContext.EnumeratePublicKeys().ToList();
@@ -181,7 +231,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(AreEqualMessages(encryptedMessage, receiverEncryptedMessage), Is.True);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage, receiverAddress).ConfigureAwait(true);
-            receiverContext.TryToAddDecSignerPublicKey(senderAddress);
+            receiverContext.TryToAddDecPublicKeys(senderAddress);
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(receiverEncryptedMessage).ConfigureAwait(true);
             Assert.That(AreEqualMessages(decryptedMessage, message), Is.False);
@@ -196,14 +246,18 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var rawMessage = new DecMessageRaw(messageToSend);
             var data = JsonConvert.SerializeObject(rawMessage);
             var receivedRawMessage = JsonConvert.DeserializeObject<DecMessageRaw>(data);
-            return receivedRawMessage.ToMessage();
+            var message = receivedRawMessage.ToMessage();
+            message.Folder = new Folder("Inbox", FolderAttributes.Inbox);
+            return message;
         }
 
         [Test]
-        public async Task DecAddressTranslationAsync()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecAddressTranslationAsync(string addressType)
         {
             var storage = CreateKeyStorageMock1();
-            var address = await GetAddress1Async(storage.Object).ConfigureAwait(true);
+            var address = await GetAddress1Async(storage.Object, addressType).ConfigureAwait(true);
             using var context = await CreateDecPgpContextAsync(storage.Object, address).ConfigureAwait(true);
             var publicKey = context.EnumeratePublicKeys().Where(x => !x.IsMasterKey && x.IsEncryptionKey).First();
             var s1 = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKey.GetKey() as ECPublicKeyParameters);
@@ -212,25 +266,31 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         private static async Task<TuviPgpContext> CreateDecPgpContextAsync(IDecStorage storage, EmailAddress emailAddress)
         {
-            var context = new TuviPgpContext(storage, new MyKeyMatcher());
+            var context = new TuviPgpContext(storage);
             await context.LoadContextAsync().ConfigureAwait(true);
             var masterKey = await storage.GetMasterKeyAsync(default).ConfigureAwait(true);
-            context.DeriveKeyForDec(masterKey, emailAddress.Address, emailAddress.Name);
+            if (emailAddress.IsHybrid)
+            {
+                context.GeneratePgpKeysByTag(masterKey, emailAddress.Address, emailAddress.StandardAddress);
+            }
+            else
+            {
+                Assert.That(int.TryParse(emailAddress.Name, out int accountIndex));
+                context.GeneratePgpKeysByBip44(masterKey, emailAddress.Address, CoinType, accountIndex, Channel, KeyIndex);
+            }
             return context;
         }
 
         [Test]
-        public async Task SendReceiveDecSelfTest()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task SendReceiveDecSelfTest(string addressType)
         {
-            var address = GetAddress1();
+            var address = GetAddress1(addressType);
             Message message = CreateMessage(address, address);
             var storage = CreateKeyStorageMock1();
             var client = CreateDecClient();
-            var account = new Account()
-            {
-                Email = address,
-                KeyTag = address.Name
-            };
+            Account account = CreateAccount(addressType, address);
             using var mailBox = new DecMailBox(account, storage.Object, client.Object, new PgpDecProtector(storage.Object));
             var folders = await mailBox.GetFoldersStructureAsync(default).ConfigureAwait(true);
             Assert.That(folders, Is.Not.Null);
@@ -262,12 +322,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public async Task SendReceiveDifferentAccountsSameSeedTest()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task SendReceiveDifferentAccountsSameSeedTest(string addressType)
         {
-            var senderAddress = GetAddress1();
+            var senderAddress = GetAddress1(addressType);
             using var senderStorage = await CreateKeyStorage1Async().ConfigureAwait(true);
             using var receiverStorage = await CreateKeyStorage1Async().ConfigureAwait(true); // same seed but another key
-            var receiverAddress = await GetAddress2Async(receiverStorage).ConfigureAwait(true);
+            var receiverAddress = await GetAddress2Async(receiverStorage, addressType).ConfigureAwait(true);
 
             Message message = CreateMessage(senderAddress, receiverAddress);
             var client = CreateDecClient(); // shared client to emulate transport layer
@@ -288,12 +350,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public async Task SendReceiveTwoMessagesTest()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task SendReceiveTwoMessagesTest(string addresstype)
         {
             using var senderStorage = await CreateKeyStorage1Async().ConfigureAwait(true);
             using var receiverStorage = await CreateKeyStorage1Async().ConfigureAwait(true); // same seed but another key
-            var senderAddress = await GetAddress1Async(senderStorage).ConfigureAwait(true);
-            var receiverAddress = await GetAddress2Async(receiverStorage).ConfigureAwait(true);
+            var senderAddress = await GetAddress1Async(senderStorage, addresstype).ConfigureAwait(true);
+            var receiverAddress = await GetAddress2Async(receiverStorage, addresstype).ConfigureAwait(true);
 
             Message message1 = CreateMessage(senderAddress, receiverAddress, 12, TimeSpan.Zero);
             Message message2 = CreateMessage(senderAddress, receiverAddress, 145, TimeSpan.FromSeconds(1));
@@ -340,14 +404,16 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public async Task SendReceiveTwoRecepients()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task SendReceiveTwoRecepients(string addressType)
         {
-            var senderAddress = GetAddress1();
+            var senderAddress = GetAddress1(addressType);
             var senderStorage = CreateKeyStorageMock1();
             var receiverStorage1 = CreateKeyStorageMock1(); // same seed but another key
             var receiverStorage2 = CreateKeyStorageMock1(); // same seed but another key
-            var receiverAddress1 = await GetAddress2Async(receiverStorage1.Object).ConfigureAwait(true);
-            var receiverAddress2 = await GetAddress3Async(receiverStorage2.Object).ConfigureAwait(true);
+            var receiverAddress1 = await GetAddress2Async(receiverStorage1.Object, addressType).ConfigureAwait(true);
+            var receiverAddress2 = await GetAddress3Async(receiverStorage2.Object, addressType).ConfigureAwait(true);
 
             Message message = CreateMessage(senderAddress, receiverAddress1);
             message.To.Add(receiverAddress2);
@@ -395,25 +461,24 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         private static DecMailBox CreateDecMailBox(EmailAddress address, IDecStorageClient client, IDecStorage storage)
         {
-            var senderAccount = new Account()
-            {
-                Email = address,
-                KeyTag = address.Name
-            };
+            var addressType = address.IsHybrid ? HybridAddressType : DecentralizedAddressType;
+            var senderAccount = CreateAccount(addressType, address);
             return new DecMailBox(senderAccount, storage, client, new PgpDecProtector(storage));
         }
 
         [Test]
-        public async Task DecEncryptMessage()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecEncryptMessage(string addressType)
         {
             DateTime KeyCreationTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            var from = GetAddress1();
+            var from = GetAddress1(addressType);
             var message = CreateMessage(from, from);
             var storageMock = CreateKeyStorageMock1();
             var storage = storageMock.Object;
             using var pgpContext = await EccPgpExtension.GetTemporalContextAsync(storage).ConfigureAwait(true);
             var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(true);
-            pgpContext.DeriveKeyForDec(masterKey, from.StandardAddress, from.Name);
+            pgpContext.GeneratePgpKeysByTag(masterKey, from.Address, from.StandardAddress);
             var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
 
             var messageToSign = message.ShallowCopy();
@@ -437,19 +502,18 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public async Task DecSeveralTransportsNoFaults()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecSeveralTransportsNoFaults(string addressType)
         {
-            var address = GetAddress1();
+            var address = GetAddress1(addressType);
             Message message = CreateMessage(address, address);
             var storage = CreateKeyStorageMock1();
             var client1 = CreateDecClient();
             var client2 = CreateDecClient();
             var clients = new List<IDecStorageClient>() { client1.Object, client2.Object };
-            var account = new Account()
-            {
-                Email = address,
-                KeyTag = address.Name
-            };
+            Account account = CreateAccount(addressType, address);
+
             using var mailBox = new DecMailBox(account, storage.Object, clients, new PgpDecProtector(storage.Object));
 
             var folders = await mailBox.GetFoldersStructureAsync(default).ConfigureAwait(true);
@@ -470,22 +534,36 @@ namespace Tuvi.Core.Mail.Impl.Tests
             client2.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
         }
 
-        [Test]
-        [Ignore("The concept of unreliable transportation has yet to be implemented")]
-        public async Task DecSeveralTransportsWithFaults()
+        private static Account CreateAccount(string addressType, EmailAddress address)
         {
-            var address = GetAddress1();
+            var account = new Account()
+            {
+                Email = address
+            };
+
+            if (addressType == DecentralizedAddressType)
+            {
+                Assert.That(int.TryParse(address.Name, out int accountIndex));
+                account.DecentralizedAccountIndex = accountIndex;
+            }
+
+            return account;
+        }
+
+        [Test]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        [Ignore("The concept of unreliable transportation has yet to be implemented")]
+        public async Task DecSeveralTransportsWithFaults(string addressType)
+        {
+            var address = GetAddress1(addressType);
             Message message = CreateMessage(address, address);
             var storage = CreateKeyStorageMock1();
             var client1 = CreateFaultyDecClient();
             var client2 = CreateDecClient();
             var client3 = CreateFaultyDecClient();
             var clients = new List<IDecStorageClient>() { client1.Object, client2.Object, client3.Object };
-            var account = new Account()
-            {
-                Email = address,
-                KeyTag = address.Name
-            };
+            Account account = CreateAccount(addressType, address);
             using var mailBox = new DecMailBox(account, storage.Object, clients, new PgpDecProtector(storage.Object));
 
             var folders = await mailBox.GetFoldersStructureAsync(default).ConfigureAwait(true);
@@ -511,18 +589,17 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public async Task DecAllTransportsWithFaults()
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task DecAllTransportsWithFaults(string addressType)
         {
-            var address = GetAddress1();
+            var address = GetAddress1(addressType);
             Message message = CreateMessage(address, address);
             var storage = CreateKeyStorageMock1();
             var client1 = CreateFaultyDecClient();
             var client2 = CreateFaultyDecClient();
             var clients = new List<IDecStorageClient>() { client1.Object, client2.Object };
-            var account = new Account()
-            {
-                Email = address
-            };
+            Account account = CreateAccount(addressType, address);
             using var mailBox = new DecMailBox(account, storage.Object, clients, new PgpDecProtector(storage.Object));
 
             var folders = await mailBox.GetFoldersStructureAsync(default).ConfigureAwait(true);
@@ -672,6 +749,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             message.TextBody = $"Text of the test message {id}";
             message.Id = id;
             message.Date = DateTime.Now.Add(timeSpan);
+            message.Folder = new Folder("Inbox", FolderAttributes.Inbox);
             return message;
         }
 
@@ -690,8 +768,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return //a.Id == b.Id &&
                    a.Date == b.Date &&
                    a.Subject == b.Subject &&
-                   // TODO: uncomment 
-                   //Folder.Equals(other.Folder) &&
+                   a.Folder.Equals(b.Folder) &&
                    a.PreviewText == b.PreviewText &&
                    a.HtmlBody == b.HtmlBody &&
                    a.TextBody == b.TextBody &&
@@ -718,24 +795,79 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return Enumerable.SequenceEqual(left, right);
         }
 
-        private static EmailAddress GetAddress1()
+        private static EmailAddress GetAddress1(string addressType)
         {
-            return new EmailAddress("ahgp4kj6bd68xntwsvv4tukxe2pxmrcve7p9u5hmzi6mwmrrz476f@eppie", "Decentralized Account Demo #1");
+            if (addressType == HybridAddressType)
+            {
+                return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
+            }
+            
+            if (addressType == DecentralizedAddressType)
+            {
+                return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
-        private static Task<EmailAddress> GetAddress1Async(IKeyStorage keyStorage)
+        private static async Task<EmailAddress> GetAddress1Async(IKeyStorage keyStorage, string addressType)
         {
-            return GetDecAddressAsync(keyStorage, "Decentralized Account Demo #1");
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test1@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test1+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {   
+                var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "1");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
-        private static Task<EmailAddress> GetAddress2Async(IKeyStorage keyStorage)
+        private static async Task<EmailAddress> GetAddress2Async(IKeyStorage keyStorage, string addressType)
         {
-            return GetDecAddressAsync(keyStorage, "Decentralized Account Demo #2");
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test2@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test2+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                var pubKey = await GetDecAddressAsync(keyStorage, 2).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "2");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");            
         }
 
-        private static Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage)
+        private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
         {
-            return GetDecAddressAsync(keyStorage, "Decentralized Account Demo #3");
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test3@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test3+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                var pubKey = await GetDecAddressAsync(keyStorage, 3).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "3");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");            
         }
 
         private static readonly string[] TestSeedPhrase1 = {
