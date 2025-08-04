@@ -29,7 +29,7 @@ namespace BackupTests
             var keyStorage = new MockPgpKeyStorage().Get();
             using var context = new TuviPgpContext(keyStorage);
             context.LoadContextAsync().Wait();
-            context.DeriveKeyPair(TestData.MasterKey, TestData.BackupPgpKeyIdentity);
+            context.GeneratePgpKeysByTagOld(TestData.MasterKey, TestData.BackupPgpKeyIdentity, TestData.BackupPgpKeyIdentity);
 
             var mailbox = TestData.GetAccount().GetMailbox();
 
@@ -53,7 +53,7 @@ namespace BackupTests
 
                 PublicKey = context.GetSigningKey(mailbox).PublicKey;
 
-                Assert.That(!PublicKey.IsMasterKey, Is.True);
+                Assert.That(PublicKey.IsMasterKey, Is.True);
                 Assert.That(!PublicKey.IsEncryptionKey, Is.True);
                 
                 var fingerprint = PublicKey.CreatePgpKeyInfo().Fingerprint;
@@ -67,7 +67,7 @@ namespace BackupTests
 
                 verificationContext.ImportPublicKeys(publicKeyStream, false);
 
-                var verificationPublicKey = verificationContext.EnumeratePublicKeys().Where(key => key.IsMasterKey == false && key.IsEncryptionKey == false).First();
+                var verificationPublicKey = verificationContext.EnumeratePublicKeys().Where(key => key.IsMasterKey == true && key.IsEncryptionKey == false).First();
                 var verificationPublicKeyFingerprint = verificationPublicKey.CreatePgpKeyInfo().Fingerprint;
                 Assert.That(verificationPublicKeyFingerprint, Is.Not.Empty);
                 Assert.That(Fingerprint == verificationPublicKeyFingerprint, Is.True);

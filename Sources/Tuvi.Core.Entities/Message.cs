@@ -148,6 +148,7 @@ namespace Tuvi.Core.Entities
             }
             return Address.CompareTo(other.Address);
         }
+
         [JsonIgnore]
         public bool IsHybrid
         {
@@ -156,6 +157,16 @@ namespace Tuvi.Core.Entities
                 return !String.IsNullOrEmpty(new EmailStructure(Address).PubKey);
             }
         }
+
+        [JsonIgnore]
+        public bool IsDecentralized
+        {
+            get
+            {
+                return IsDecentralizedEmail(this) || IsHybrid;
+            }
+        }
+
         [JsonIgnore]
         public string StandardAddress
         {
@@ -172,6 +183,7 @@ namespace Tuvi.Core.Entities
         {
             get => new EmailAddress(StandardAddress, Name);
         }
+
         [JsonIgnore]
         public string DecentralizedAddress
         {
@@ -179,8 +191,30 @@ namespace Tuvi.Core.Entities
             {
                 return IsHybrid
                         ? new EmailStructure(Address).PubKey
-                        : StringHelper.GetDecentralizedAddress(this);
+                        : GetDecentralizedAddress(this);
             }
+        }
+
+        private static string DecEppiePostfix = "@eppie";
+
+        private static bool IsDecentralizedEmail(EmailAddress email)
+        {
+            return email.Address.IndexOf(DecEppiePostfix, StringComparison.CurrentCultureIgnoreCase) == email.Address.Length - DecEppiePostfix.Length;
+        }
+
+        public static EmailAddress CreateDecentralizedAddress(string address, string name)
+        {
+            return new EmailAddress(address + DecEppiePostfix, name);
+        }
+
+        private static string GetDecentralizedAddress(EmailAddress email)
+        {
+            int pos = email.Address.IndexOf(DecEppiePostfix, StringComparison.OrdinalIgnoreCase);
+            if (pos == -1)
+            {
+                return string.Empty;
+            }
+            return email.Address.Substring(0, pos);
         }
     }
 

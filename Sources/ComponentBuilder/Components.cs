@@ -22,14 +22,6 @@ using TuviPgpLibImpl;
 
 namespace ComponentBuilder
 {
-    internal class MyKeyMatcher : IKeyMatcher
-    {
-        public bool IsMatch(PgpPublicKey key, MailboxAddress mailbox)
-        {
-            var encodedPublicKey = PublicKeyConverter.ConvertPublicKeyToEmailName(key.GetKey() as ECPublicKeyParameters);
-            return string.Equals(mailbox.ToEmailAddress().DecentralizedAddress, encodedPublicKey, StringComparison.OrdinalIgnoreCase);
-        }
-    }
     public static class Components
     {
         public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher, ILoggerFactory loggerFactory = null)
@@ -52,7 +44,7 @@ namespace ComponentBuilder
 
         private static ISecurityManager GetSecurityManager(IDataStorage dataStorage)
         {
-            var pgpContext = GetPgpContext(dataStorage, new MyKeyMatcher());
+            var pgpContext = GetPgpContext(dataStorage);
             var messageProtector = GetMessageProtector(pgpContext);
             var backupProtector = GetBackupProtector(pgpContext);
 
@@ -78,9 +70,9 @@ namespace ComponentBuilder
             return DataStorageProvider.GetDataStorage(dataStorageFilePath);
         }
 
-        private static ITuviPgpContext GetPgpContext(IKeyStorage keyStorage, IKeyMatcher keyMatcher)
+        private static ITuviPgpContext GetPgpContext(IKeyStorage keyStorage)
         {
-            return TuviPgpLibImpl.TuviPgpContextCreator.GetPgpContext(keyStorage, keyMatcher);
+            return TuviPgpLibImpl.TuviPgpContextCreator.GetPgpContext(keyStorage);
         }
 
         private static IMessageProtector GetMessageProtector(ITuviPgpContext pgpContext)

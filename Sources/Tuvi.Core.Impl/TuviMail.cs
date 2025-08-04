@@ -1,8 +1,5 @@
 ﻿using BackupServiceClientLibrary;
 using Microsoft.Extensions.Logging;
-using MimeKit;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Crypto.Parameters;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,7 +15,6 @@ using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
 using Tuvi.Core.Web.BackupService;
 using TuviPgpLib;
-using TuviPgpLibImpl;
 
 namespace Tuvi.Core.Impl
 {
@@ -345,8 +341,9 @@ namespace Tuvi.Core.Impl
                     {
                         if (!AccountGroupCache.TryGetValue(accountGroup.Key, out group))
                         {
-                            // skip, unknown group
-                            continue;
+                            // TODO: Need to create grours after backup restoring
+                            account.GroupId = 0; // HACK: Unknown group, reset group id to default.
+                            //continue; // skip, unknown group
                         }
                     }
                     var accountService = GetAccountService(account);
@@ -487,8 +484,27 @@ namespace Tuvi.Core.Impl
 
             using (var mailBox = CreateMailBox(account))
             {
+                await IncreaseDecentralizedAccountIndexIfNeededAsync(account, cancellationToken).ConfigureAwait(true);
                 await AccountService.TryToAccountUpdateFolderStructureAsync(account, mailBox, cancellationToken).ConfigureAwait(false);
                 await AddAccountToStorageAsync(account, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async Task IncreaseDecentralizedAccountIndexIfNeededAsync(Account account, CancellationToken cancellationToken)
+        {
+            if (account.Type == MailBoxType.Dec)
+            {
+                var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+                var index = settings.DecentralizedAccountCounter;
+
+                if (index != account.DecentralizedAccountIndex)
+                {
+                    throw new InvalidOperationException($"Decentralized account index mismatch. Expected: {account.DecentralizedAccountIndex}, Actual: {index}");
+                }
+
+                index++;
+                settings.DecentralizedAccountCounter = index;
+                await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -503,62 +519,6 @@ namespace Tuvi.Core.Impl
             AccountAdded?.Invoke(this, new AccountEventArgs(account));
         }
 
-        private const string DecentralizedAccountIdentity = "Decentralized Account";
-        public static async Task<string> GetDecAccountPublicKeyStringAsync(IKeyStorage keyStorage,
-                                                                           string tag,
-                                                                           CancellationToken cancellationToken)
-        {
-            Debug.Assert(keyStorage != null);
-            var masterKey = await keyStorage.GetMasterKeyAsync(cancellationToken).ConfigureAwait(false);
-            using (var pgpContext = await EccPgpExtension.GetTemporalContextAsync(keyStorage).ConfigureAwait(false))
-            {
-                await pgpContext.LoadContextAsync().ConfigureAwait(false);
-                pgpContext.DeriveKeyForDec(masterKey, tag, tag);
-                var publicKeys = pgpContext.EnumeratePublicKeys();
-                return GetEncryptionPublicKeyAsString(publicKeys);
-            }
-        }
-
-        private static async Task<string> GetEmailPublicKeyStringAsync(IKeyStorage keyStorage,
-                                                                       EmailAddress email,
-                                                                       CancellationToken cancellationToken)
-        {
-            using (var pgpContext = new TuviPgpContext(keyStorage))
-            {
-                await pgpContext.LoadContextAsync().ConfigureAwait(false);
-
-                var publicKeys = await pgpContext.GetPublicKeysAsync(new List<MailboxAddress>() { new MailboxAddress(email.Name, email.Address) }, cancellationToken).ConfigureAwait(false);
-                return GetEncryptionPublicKeyAsString(publicKeys);
-            }
-        }
-
-        private static string GetEncryptionPublicKeyAsString(IEnumerable<PgpPublicKey> publicKeys)
-        {
-            var publicKey = publicKeys.First(key => key.IsEncryptionKey && !key.IsMasterKey);
-            return PublicKeyConverter.ConvertPublicKeyToEmailName(publicKey.GetKey() as ECPublicKeyParameters);
-        }
-
-        // TODO: move to Dec namespace
-        public async Task<Account> NewDecentralizedAccountAsync(CancellationToken cancellationToken)
-        {
-            CheckDisposed();
-            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-            var index = settings.DecentralizedAccountCounter;
-            var accountName = $"{DecentralizedAccountIdentity} Demo #{index}";
-            var emailName = await GetDecAccountPublicKeyStringAsync(DataStorage, accountName, cancellationToken).ConfigureAwait(false);
-            settings.DecentralizedAccountCounter++;
-            await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
-
-            var email = new EmailAddress(StringHelper.MakeDecentralizedEmail(emailName), accountName);
-            return new Account()
-            {
-                Email = email,
-                IsBackupAccountSettingsEnabled = true,
-                IsBackupAccountMessagesEnabled = true,
-                KeyTag = accountName
-            };
-        }
-
         public async Task DeleteAccountAsync(Account account, CancellationToken cancellationToken)
         {
             CheckDisposed();
@@ -570,6 +530,8 @@ namespace Tuvi.Core.Impl
             {
                 await DataStorage.DeleteFolderAsync(account.Email, folder.FullName, cancellationToken).ConfigureAwait(false);
             }
+
+            SecurityManager.RemovePgpKeys(account);
 
             RemoveAccountServiceByKey(account.Email);
             RemoveAccountSchedulerByKey(account.Email);
@@ -691,17 +653,18 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        public async Task CreateHybridEmailAsync(EmailAddress email, CancellationToken cancellationToken)
+        public async Task CreateHybridAccountAsync(Account account, CancellationToken cancellationToken)
         {
             CheckDisposed();
-            if (email is null)
+            
+            if (account is null)
             {
-                throw new ArgumentNullException(nameof(email));
+                throw new ArgumentNullException(nameof(account));
             }
-            // TODO: make this search better
-            var existingAccount = AccountCache.Values.Where(x => x.Email == email).First();
 
-            var deckey = await GetEmailPublicKeyStringAsync(DataStorage, email, cancellationToken).ConfigureAwait(false);
+            var email = account.Email;
+
+            var deckey = SecurityManager.GetEmailPublicKeyString(email);
             var hybridAddress = email.MakeHybrid(deckey);
 
             var decAccountService = GetAccountService(hybridAddress);
@@ -710,13 +673,14 @@ namespace Tuvi.Core.Impl
                 // we already have created hybrid account
                 return;
             }
-            if (existingAccount.GroupId == 0)
+
+            if (account.GroupId == 0)
             {
                 var group = new AccountGroup() { Name = email.Name };
                 await DataStorage.AddAccountGroupAsync(group, cancellationToken).ConfigureAwait(false);
                 AccountGroupCache.AddOrReplace(group.Id, group);
-                existingAccount.GroupId = group.Id;
-                await DataStorage.UpdateAccountAsync(existingAccount, cancellationToken).ConfigureAwait(false);
+                account.GroupId = group.Id;
+                await DataStorage.UpdateAccountAsync(account, cancellationToken).ConfigureAwait(false);
             }
 
             var decAccount = new Account()
@@ -724,9 +688,10 @@ namespace Tuvi.Core.Impl
                 Email = hybridAddress,
                 IsBackupAccountSettingsEnabled = true,
                 IsBackupAccountMessagesEnabled = true,
-                GroupId = existingAccount.GroupId,
-                KeyTag = email.Address
+                GroupId = account.GroupId,
+                Type = MailBoxType.Hybrid
             };
+
             await AddAccountAsync(decAccount, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1051,10 +1016,39 @@ namespace Tuvi.Core.Impl
             {
                 throw new ArgumentException($"{nameof(message.From)} property should contain at least on address", nameof(message));
             }
-            var from = message.From.First();
-            var subAddresses = SplitAddress(from);
+
+            var subAddresses = SplitAddress(message);
             var tasks = subAddresses.Select(x => GetAccountService(x).SendMessageAsync(message, encrypt, sign, cancellationToken));
             await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private static IReadOnlyList<EmailAddress> SplitAddress(Message message)
+        {
+            var address = message.From.First();
+            var res = new List<EmailAddress>();
+
+            if (address.IsHybrid)
+            {
+                var decentralized = message.AllRecipients.Where(x => x.IsDecentralized).Any();
+                if (decentralized)
+                {
+                    // if we have decentralized email recipients
+                    res.Add(address);
+                }
+
+                var traditional = message.AllRecipients.Where( x => !x.IsDecentralized).Any();
+                if(traditional)
+                {
+                    // if we have traditional email recipients
+                    res.Add(address.OriginalAddress);
+                }
+            }
+            else
+            {
+                res.Add(address);
+            }
+
+            return res;
         }
 
         public async Task<Message> CreateDraftMessageAsync(Message message, CancellationToken cancellationToken)
@@ -1073,17 +1067,6 @@ namespace Tuvi.Core.Impl
             Debug.Assert(message.From.Count > 0);
             var accountService = await GetAccountServiceAsync(message.From.First(), cancellationToken).ConfigureAwait(false);
             return await accountService.UpdateDraftMessageAsync(id, message, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static IReadOnlyList<EmailAddress> SplitAddress(EmailAddress address)
-        {
-            var res = new List<EmailAddress>();
-            res.Add(address);
-            if (address.IsHybrid)
-            {
-                res.Add(address.OriginalAddress);
-            }
-            return res;
         }
 
         delegate Task MessageCommandAsync(IAccountService accountService, IEnumerable<Message> messages, CancellationToken cancellationToken);

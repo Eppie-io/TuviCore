@@ -141,7 +141,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public async Task ResetAsync()
         {
-            // TODO Zero master key
+            // TODO: Zero master key
             MasterKey = null;
             SeedQuiz = null;
             await DataStorage.ResetAsync().ConfigureAwait(false);
@@ -179,10 +179,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 string keyIdentity = specialKey.Value;
                 var dummyBackupAddress = new EmailAddress(keyIdentity);
 
-                if (!PgpContext.IsSecretKeyExist(dummyBackupAddress.ToUserIdentity()))
-                {
-                    PgpContext.DeriveKeyPair(MasterKey, keyIdentity);
-                }
+                PgpContext.GeneratePgpKeysByTagOld(MasterKey, keyIdentity, keyIdentity);
             }
         }
 
@@ -202,15 +199,13 @@ namespace Tuvi.Core.Impl.SecurityManagement
             {
                 return;
             }
+
             if (account == null)
             {
-                throw new PgpArgumentNullException(nameof(account));
+                throw new ArgumentNullException(nameof(account));
             }
 
-            if (!PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()))
-            {
-                PgpContext.DeriveKeyPair(MasterKey, account.GetPgpUserIdentity(), account.GetPgpKeyTag());
-            }
+            PgpContext.CreatePgpKeys(MasterKey, account);
         }
 
         public ICollection<PgpKeyInfo> GetPublicPgpKeysInfo()
@@ -282,6 +277,29 @@ namespace Tuvi.Core.Impl.SecurityManagement
         public IBackupProtector GetBackupProtector()
         {
             return BackupProtector;
+        }
+
+        public void RemovePgpKeys(Account account)
+        {
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            PgpContext.RemoveKeys(account.GetPgpUserIdentity());
+        }
+
+        public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(CancellationToken cancellationToken)
+        {
+            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            var account = settings.DecentralizedAccountCounter;
+
+            return (EccPgpExtension.GetPublicKeyString(MasterKey, account), account);
+        }
+
+        public string GetEmailPublicKeyString(EmailAddress email)
+        {
+            return EccPgpExtension.GetPublicKeyString(MasterKey, email.GetKeyTag());
         }
 
         private MasterKey MasterKey;

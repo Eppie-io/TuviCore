@@ -63,8 +63,6 @@ namespace Tuvi.Core.Backup.Impl
             }
 
             PgpContext = pgpContext;
-
-            PgpContext.DefaultEncryptionAlgorithm = EncryptionAlgorithm.Aes256;
         }
 
         public void SetPgpKeyIdentity(string backupPgpKeyIdentity)

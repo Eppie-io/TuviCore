@@ -20,6 +20,7 @@ namespace Tuvi.Core.Mail.Impl
 
     internal class PgpMessageProtector : IMessageProtector
     {
+        private const DigestAlgorithm DefaultDigestAlgorithm = DigestAlgorithm.Sha256;
         private readonly OpenPgpContext PgpContext;
 
         /// <summary>
@@ -111,7 +112,7 @@ namespace Tuvi.Core.Mail.Impl
         {
             using (var mimeMessage = message.ToMimeMessage())
             {
-                mimeMessage.Sign(PgpContext);
+                mimeMessage.Sign(PgpContext, DefaultDigestAlgorithm);
 
                 message.SetMimeBody(mimeMessage.Body);
                 message.ClearUnprotectedBody();
@@ -141,7 +142,7 @@ namespace Tuvi.Core.Mail.Impl
             AddReceiverKeysToContext(message);
             using (var mimeMessage = message.ToMimeMessage())
             {
-                mimeMessage.SignAndEncrypt(PgpContext);
+                mimeMessage.SignAndEncrypt(PgpContext, DefaultDigestAlgorithm);
 
                 message.SetMimeBody(mimeMessage.Body);
                 message.ClearUnprotectedBody();
@@ -186,7 +187,7 @@ namespace Tuvi.Core.Mail.Impl
             var mimeBody = message.MimeBody.ToMimeEntity(cancellationToken);
             if (mimeBody is MultipartEncrypted encryptedBody)
             {
-                //AddSenderKeysToContext(message);
+                AddSenderKeysToContext(message);
                 var body = encryptedBody.Decrypt(PgpContext, out DigitalSignatureCollection signatures, cancellationToken);
                 if (body is MultipartSigned signedBody)
                 {
@@ -213,7 +214,7 @@ namespace Tuvi.Core.Mail.Impl
             var mimeBody = message.MimeBody.ToMimeEntity(cancellationToken);
             if (mimeBody is MultipartSigned signedBody)
             {
-                //AddSenderKeysToContext(message);
+                AddSenderKeysToContext(message);
                 var signatures = await TryVerifySignedBodyAsync(signedBody, cancellationToken).ConfigureAwait(false);
 
                 var body = signedBody[0];
@@ -247,16 +248,16 @@ namespace Tuvi.Core.Mail.Impl
         {
             foreach (var recipient in message.AllRecipients)
             {
-                PgpContext.TryToAddDecEncryptionKey(recipient);
+                PgpContext.TryToAddDecPublicKeys(recipient);
             }
         }
 
-        //private void AddSenderKeysToContext(Message message)
-        //{
-        //    foreach (var sender in message.From)
-        //    {
-        //        PgpContext.TryToAddDecSignerPublicKey(sender);
-        //    }
-        //}
+        private void AddSenderKeysToContext(Message message)
+        {
+            foreach (var sender in message.From)
+            {
+                PgpContext.TryToAddDecPublicKeys(sender);
+            }
+        }
     }
 }
