@@ -21,11 +21,11 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
             MimeKit.MimeMessage mimeMessage = new MimeKit.MimeMessage();
 
-            mimeMessage.From.AddRange(from address in message.From select address.ToMailBoxAddres());
-            mimeMessage.ReplyTo.AddRange(from address in message.ReplyTo select address.ToMailBoxAddres());
-            mimeMessage.To.AddRange(from address in message.To select address.ToMailBoxAddres());
-            mimeMessage.Cc.AddRange(from address in message.Cc select address.ToMailBoxAddres());
-            mimeMessage.Bcc.AddRange(from address in message.Bcc select address.ToMailBoxAddres());
+            mimeMessage.From.AddRange(from address in message.From select address.ToMailboxAddress());
+            mimeMessage.ReplyTo.AddRange(from address in message.ReplyTo select address.ToMailboxAddress());
+            mimeMessage.To.AddRange(from address in message.To select address.ToMailboxAddress());
+            mimeMessage.Cc.AddRange(from address in message.Cc select address.ToMailboxAddress());
+            mimeMessage.Bcc.AddRange(from address in message.Bcc select address.ToMailboxAddress());
 
             mimeMessage.Subject = message.Subject;
 
@@ -41,7 +41,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             return mimeMessage;
         }
 
-        public static MimeKit.MailboxAddress ToMailBoxAddres(this EmailAddress emailAddress)
+        public static MimeKit.MailboxAddress ToMailboxAddress(this EmailAddress emailAddress)
         {
             if (emailAddress == null)
             {

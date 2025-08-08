@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Core.Entities;
 
@@ -51,10 +52,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.SMTP
             {
                 using (var mimeMessage = message.ToMimeMessage())
                 {
+                    RemoveDecentralizedEmails(message, mimeMessage);
+
                     await SmtpClient.SendAsync(mimeMessage, cancellationToken).ConfigureAwait(false);
                     return mimeMessage.MessageId;
                 }
             }
+        }
+
+        private static void RemoveDecentralizedEmails(Message message, MimeKit.MimeMessage mimeMessage)
+        {
+            mimeMessage.From.Clear();
+            mimeMessage.To.Clear();
+            mimeMessage.Cc.Clear();
+            mimeMessage.Bcc.Clear();
+
+            mimeMessage.From.AddRange(from address in message.From select address.OriginalAddress.ToMailboxAddress());
+            mimeMessage.To.AddRange(from address in message.To where !address.IsDecentralized select address.ToMailboxAddress());
+            mimeMessage.Cc.AddRange(from address in message.Cc where !address.IsDecentralized select address.ToMailboxAddress());
+            mimeMessage.Bcc.AddRange(from address in message.Bcc where !address.IsDecentralized select address.ToMailboxAddress());
         }
 
         public override void Dispose()

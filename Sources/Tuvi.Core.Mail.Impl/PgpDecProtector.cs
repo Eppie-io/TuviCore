@@ -28,6 +28,16 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
+        public async Task<string> DecryptAsync(string identity, int account, byte[] data, CancellationToken cancellationToken)
+        {
+            //return DecryptImplAsync(identity, tag, data, cancellationToken);
+            using (var pgpContext = await EccPgpExtension.GetTemporalContextAsync(_keyStorage).ConfigureAwait(false))
+            {
+                var masterKey = await _keyStorage.GetMasterKeyAsync(cancellationToken).ConfigureAwait(false);
+                return EccPgpExtension.Decrypt(pgpContext, masterKey, identity, account, data, cancellationToken);
+            }
+        }
+
         public async Task<byte[]> EncryptAsync(string address, string data, CancellationToken cancellationToken)
         {
             //return EncryptImplAsync(address, data, cancellationToken);

@@ -8,5 +8,7 @@ namespace Tuvi.Core.Dec
         Task<byte[]> EncryptAsync(string address, string data, CancellationToken cancellationToken);
 
         Task<string> DecryptAsync(string identity, string tag, byte[] data, CancellationToken cancellationToken);
+
+        Task<string> DecryptAsync(string identity, int account, byte[] data, CancellationToken cancellationToken);
     }
 }

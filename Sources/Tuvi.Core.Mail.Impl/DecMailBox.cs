@@ -64,19 +64,14 @@ namespace Tuvi.Core.Dec.Impl
 
         public async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
         {
-            if (message.To.Exists(x => !StringHelper.IsDecentralizedEmail(x) && !x.IsHybrid))
-            {
-                throw new ArgumentException($"Message should contain only decentralized recipients.");
-            }
-
             message.Date = DateTime.Now;
             var rawMessage = new DecMessageRaw(message);
             var data = JsonConvert.SerializeObject(rawMessage);
             string finalHash = "";
 
-            foreach (var email in message.To)
+            foreach (var email in message.AllRecipients.Where(x => x.IsDecentralized))
             {
-                var address = GetDecAddress(email);
+                var address = email.DecentralizedAddress;
                 var encryptedData = await Protector.EncryptAsync(address, data, cancellationToken).ConfigureAwait(false);
                 finalHash += await SendToDecClientsAsync(address, encryptedData, cancellationToken).ConfigureAwait(false);
             }
@@ -86,13 +81,6 @@ namespace Tuvi.Core.Dec.Impl
 
             // save dec message to sent folder
             await Storage.AddDecMessageAsync(AccountSettings.Email, new DecMessage(GetStringHashSha256(finalHash), message), cancellationToken).ConfigureAwait(false);
-        }
-
-        private static string GetDecAddress(EmailAddress email)
-        {
-            return email.IsHybrid
-                ? email.DecentralizedAddress
-                : StringHelper.GetDecentralizedAddress(email);
         }
 
         public Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
@@ -120,7 +108,7 @@ namespace Tuvi.Core.Dec.Impl
             var email = AccountSettings.Email;
             if (folder.IsInbox)
             {
-                var address = GetDecAddress(email);
+                var address = email.DecentralizedAddress;
                 var list = await ListDecClientsMessagesAsync(address).ConfigureAwait(false);
                 var trash = (await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false)).Where(f => f.IsTrash).FirstOrDefault();
 
@@ -142,10 +130,23 @@ namespace Tuvi.Core.Dec.Impl
                 return;
             }
             var data = await GetDecClientsMessageAsync(address, hash).ConfigureAwait(false);
-            var json = await Protector.DecryptAsync(AccountSettings.GetPgpUserIdentity(),
-                                                    AccountSettings.GetPgpKeyTag(),
+
+            var json = string.Empty;
+            if (AccountSettings.Email.IsHybrid)
+            {
+                json = await Protector.DecryptAsync(AccountSettings.GetPgpUserIdentity(),
+                                                    AccountSettings.GetKeyTag(),
                                                     data,
                                                     cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                json = await Protector.DecryptAsync(AccountSettings.GetPgpUserIdentity(),
+                                                    AccountSettings.DecentralizedAccountIndex,
+                                                    data,
+                                                    cancellationToken).ConfigureAwait(false);
+            }
+
             var message = JsonConvert.DeserializeObject<DecMessageRaw>(json).ToMessage();
             message.Folder = folder;
             await Storage.AddDecMessageAsync(email, new DecMessage(hash, message), cancellationToken).ConfigureAwait(false);

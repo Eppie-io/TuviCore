@@ -23,6 +23,14 @@ namespace Tuvi.Core.Entities
         IMAP
     }
 
+    public enum MailBoxType : int
+    {
+        Email,
+        Dec,
+        Hybrid,
+        Proton
+    }
+
     public class Account
     {
         public static Account Default
@@ -86,9 +94,9 @@ namespace Tuvi.Core.Entities
 
         public int GroupId { get; set; }
 
-        public string KeyTag { get; set; }
+        public int DecentralizedAccountIndex { get; set; } = -1; // -1 means that account is not decentralized
 
-        public int Type { get; set; }
+        public MailBoxType Type { get; set; }
 
         [SQLite.Ignore]
         public IAuthenticationData AuthData { get; set; }

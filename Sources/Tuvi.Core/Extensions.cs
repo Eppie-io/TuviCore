@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Diagnostics.Contracts;
 using Tuvi.Core.Entities;
 using TuviPgpLib.Entities;
 
-namespace Tuvi.Core.Impl.SecurityManagement
+namespace Tuvi.Core
 {
     public static class AccountExtensions
     {
@@ -12,24 +11,20 @@ namespace Tuvi.Core.Impl.SecurityManagement
             EmailAddress email = account?.Email;
             if (email is null)
             {
-                System.Diagnostics.Debug.Assert(false, "TuviPgpLib.AccountExtensions: Email is null.");
-                throw new PgpArgumentNullException("PGP user id is impossible to get.", new ArgumentException($"Email is null."));
+                throw new ArgumentNullException(nameof(account), "PGP user id is impossible to get.");
             }
-            if (email.IsHybrid)
-            {
-                return email.StandardAddress.ToString();
-            }
+
             return email.Address;
         }
 
-        public static string GetPgpKeyTag(this Account account)
+        public static string GetKeyTag(this Account account)
         {
-            Contract.Requires(account != null);
-            if (string.IsNullOrEmpty(account.KeyTag))
+            if (account?.Email is null)
             {
-                return account.Email.Address;
+                throw new ArgumentNullException(nameof(account), "Key tag is impossible to get.");
             }
-            return account.KeyTag;
+
+            return account.Email.GetKeyTag();
         }
     }
 
@@ -43,6 +38,17 @@ namespace Tuvi.Core.Impl.SecurityManagement
             }
 
             return new UserIdentity(emailAddress.Name, emailAddress.Address);
+        }
+
+        public static string GetKeyTag(this EmailAddress emailAddress)
+        {
+            if (emailAddress is null)
+            {
+                throw new ArgumentNullException(nameof(emailAddress));
+            }
+
+            var keyTag = emailAddress.IsHybrid ? emailAddress.StandardAddress : emailAddress.Address;
+            return keyTag;
         }
     }
 }

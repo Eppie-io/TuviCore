@@ -33,7 +33,8 @@ namespace Tuvi.Proton.Impl
     {
         public static MailboxAddress ToMailboxAddress(this EmailAddress emailAddress)
         {
-            return new MailboxAddress(emailAddress.Name ?? "", emailAddress.Address);
+            var address = emailAddress.IsHybrid ? emailAddress.StandardAddress : emailAddress.Address;
+            return new MailboxAddress(emailAddress.Name ?? "", address);
         }
     }
 

@@ -790,9 +790,9 @@ namespace Tuvi.Proton
             {
                 Subject = message.Subject,
                 Sender = _account.Email,
-                ToList = message.To,
-                CCList = message.Cc,
-                BCCList = message.Bcc,
+                ToList = message.To.Where(x => !x.IsDecentralized).ToList(),
+                CCList = message.Cc.Where(x => !x.IsDecentralized).ToList(),
+                BCCList = message.Bcc.Where(x => !x.IsDecentralized).ToList(),
                 MIMEType = MIMEType,
                 Body = Encoding.UTF8.GetString(Streams.ReadAll(encryptedBody)),
                 ExternalID = MimeUtils.GenerateMessageId()
@@ -830,7 +830,7 @@ namespace Tuvi.Proton
             };
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             var package = sendReq.Packages.FirstOrDefault();
-            foreach (var recipient in message.AllRecipients)
+            foreach (var recipient in message.AllRecipients.Where(x => !x.IsDecentralized))
             {
                 (var keys, var recipientType) = await client.GetPublicKeysAsync(recipient.Address, cancellationToken)
                                                             .ConfigureAwait(false);

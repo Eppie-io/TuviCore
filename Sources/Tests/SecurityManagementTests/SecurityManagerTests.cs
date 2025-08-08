@@ -1,12 +1,16 @@
 ﻿using Moq;
 using NUnit.Framework;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
+using Tuvi.Core.Impl;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
+using Tuvi.Core.Utils;
 using TuviPgpLib;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
@@ -22,13 +26,13 @@ namespace SecurityManagementTests
 
         private static ISecurityManager GetSecurityManager(IDataStorage storage)
         {
-            var pgpContentMock = new Mock<ITuviPgpContext>();
+            var pgpContent = EccPgpExtension.GetTemporalContextAsync(storage).Result;
             var messageProtectorMock = new Mock<IMessageProtector>();
             var backupProtectorMock = new Mock<IBackupProtector>();
 
             var manager = SecurityManagerCreator.GetSecurityManager(
                 storage,
-                pgpContentMock.Object,
+                pgpContent,
                 messageProtectorMock.Object,
                 backupProtectorMock.Object);
             manager.SetKeyDerivationDetails(new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
@@ -170,6 +174,79 @@ namespace SecurityManagementTests
                 ISecurityManager manager = GetSecurityManager(storage);
                 Assert.ThrowsAsync<DataBasePasswordException>(() => manager.StartAsync(Password));
                 Assert.DoesNotThrowAsync(() => manager.StartAsync(NewPassword));
+            }
+        }
+
+        [Test]
+        public void EmailPublicKeyStringGenerated()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                var testSeed = TestData.GetTestSeed();
+                manager.RestoreSeedPhraseAsync(testSeed).Wait();
+                manager.StartAsync(Password).Wait();
+
+                var email = new EmailAddress("user@example.com");
+                var keyString = manager.GetEmailPublicKeyString(email);
+
+                Assert.That(keyString, Is.Not.Null);
+                Assert.That(keyString, Is.Not.Empty);
+                Assert.That(keyString, Is.EqualTo("agd5r3j32csbqxy5j9tqs5xwqvh48rfht9ursj3vbamnjycbbseup"));
+                Assert.DoesNotThrow(() => PublicKeyConverter.ConvertEmailNameToPublicKey(keyString));
+            }
+        }
+
+        [Test]
+        public void NextDecentralizedAccountPublicKeyGenerated()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                var testSeed = TestData.GetTestSeed();
+                manager.RestoreSeedPhraseAsync(testSeed).Wait();
+                manager.StartAsync(Password).Wait();
+
+                var (keyString, accountIndex) = manager.GetNextDecAccountPublicKeyAsync(default).Result;
+
+                Assert.That(accountIndex, Is.EqualTo(0));
+                Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
+                Assert.DoesNotThrow(() => PublicKeyConverter.ConvertEmailNameToPublicKey(keyString));
+            }
+        }
+
+        [Test]
+        public void RemovePgpKeysForAccountRemovesExpectedIdentity()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                manager.CreateSeedPhraseAsync().Wait();
+                manager.StartAsync(Password).Wait();
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+
+                var account = new Account { Email = new EmailAddress("remove@example.com") };
+
+                manager.CreateDefaultPgpKeys(account);
+
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                Assert.That(
+                    pgpKeys.Any(k => k.UserIdentity.Contains("remove@example.com", StringComparison.Ordinal)),
+                    Is.True,
+                    "Pgp key was not created"
+                );
+
+                manager.RemovePgpKeys(account);
+
+                pgpKeys = manager.GetPublicPgpKeysInfo();
+                Assert.That(
+                    pgpKeys.All(k => !k.UserIdentity.Contains("remove@example.com", StringComparison.Ordinal)),
+                    Is.True,
+                    "Pgp key was not removed"
+                );
             }
         }
     }
