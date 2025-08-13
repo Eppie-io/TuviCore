@@ -167,7 +167,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                     BitcoinAddress derivedAddress = pubKey.GetAddress(config.SupportedAddressType, config.Network);
                     if (derivedAddress == bitcoinAddress)
                     {
-                        return Base32EConverter.ConvertBytesToEmailName(pubKey.ToBytes());
+                        return Base32EConverter.ToEmailBase32(pubKey.ToBytes());
                     }
                 }
             }

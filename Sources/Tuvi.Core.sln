@@ -84,6 +84,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tuvi.Core.Dec.Bitcoin", "Tuvi.Core.Dec.Bitcoin\Tuvi.Core.Dec.Bitcoin.csproj", "{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tuvi.Core.Dec.Bitcoin.Tests", "Tests\Tuvi.Core.Dec.Bitcoin.Tests\Tuvi.Core.Dec.Bitcoin.Tests.csproj", "{AFD76E47-5039-4040-AFD2-E631257EAE7F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -230,6 +234,14 @@ Global
 		{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AFD76E47-5039-4040-AFD2-E631257EAE7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AFD76E47-5039-4040-AFD2-E631257EAE7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AFD76E47-5039-4040-AFD2-E631257EAE7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AFD76E47-5039-4040-AFD2-E631257EAE7F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -270,6 +282,8 @@ Global
 		{FB10E7EC-1D86-4316-94F9-9DB0B12EB898} = {84300297-036B-4D32-8969-B485498BA9C5}
 		{20E2C608-6BFC-4098-AD56-5EF6DD9C0ACE} = {1664D779-F6AC-49DF-A496-EB9276FCE90A}
 		{DEA1A9D0-CF3C-4960-BB10-8C88BFB07C9C} = {1664D779-F6AC-49DF-A496-EB9276FCE90A}
+		{5DBF4EAB-0E71-4DC8-8F00-2BD75D6AD16C} = {11AC4318-911E-4679-A7DD-5FAC465C37F1}
+		{AFD76E47-5039-4040-AFD2-E631257EAE7F} = {1664D779-F6AC-49DF-A496-EB9276FCE90A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {211859C9-0E4B-4012-AD5F-1C071A6EDD38}
