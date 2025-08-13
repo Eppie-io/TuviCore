@@ -27,7 +27,7 @@ namespace Tuvi.Core.Utils
             }
 
             byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(true);
-            return Base32EConverter.ConvertBytesToEmailName(publicKeyAsBytes);
+            return Base32EConverter.ToEmailBase32(publicKeyAsBytes);
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace Tuvi.Core.Utils
             DerObjectIdentifier curveOid = ECNamedCurveTable.GetOid(BitcoinEllipticCurveName);
             ECKeyGenerationParameters keyParams = new ECKeyGenerationParameters(curveOid, new SecureRandom());
 
-            var encodedKey = Base32EConverter.ConvertStringToByteArray(name);
+            var encodedKey = Base32EConverter.FromEmailBase32(name);
 
             if (encodedKey[0] == CaseCompressionYTildeIsFalse || encodedKey[0] == CaseCompressionYTildeIsTrue)
             {
