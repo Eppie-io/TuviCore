@@ -24,8 +24,8 @@ namespace SecurityManagementTests
                 var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, i);
 
                 byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(true);
-                string emailName = Base32EConverter.ConvertBytesToEmailName(publicKeyAsBytes);
-                var reconvertedPublicKeyAsBytes = Base32EConverter.ConvertStringToByteArray(emailName);
+                string emailName = Base32EConverter.ToEmailBase32(publicKeyAsBytes);
+                var reconvertedPublicKeyAsBytes = Base32EConverter.FromEmailBase32(emailName);
 
                 Assert.That(publicKeyAsBytes, Is.EqualTo(reconvertedPublicKeyAsBytes));
             }
@@ -107,7 +107,7 @@ namespace SecurityManagementTests
 
             byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(false);
 
-            Assert.Throws<ArgumentException>(() => Base32EConverter.ConvertBytesToEmailName(publicKeyAsBytes));
+            Assert.Throws<ArgumentException>(() => Base32EConverter.ToEmailBase32(publicKeyAsBytes));
         }
 
         [TestCase("")]
