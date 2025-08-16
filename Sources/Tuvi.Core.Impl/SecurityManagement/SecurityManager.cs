@@ -141,7 +141,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public async Task ResetAsync()
         {
-            // TODO: Zero master key
+            MasterKey.Dispose();
             MasterKey = null;
             SeedQuiz = null;
             await DataStorage.ResetAsync().ConfigureAwait(false);
