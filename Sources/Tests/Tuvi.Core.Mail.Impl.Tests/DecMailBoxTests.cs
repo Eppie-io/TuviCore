@@ -1,4 +1,5 @@
 ﻿using Azure;
+using KeyDerivation.Keys;
 using KeyDerivationLib;
 using MimeKit;
 using Moq;
@@ -679,9 +680,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return client;
         }
 
+        static MasterKey _masterKey;
         private static Mock<IDecStorage> CreateKeyStorageMock1()
         {
-            return CreateKeyStorageMock(TestSeedPhrase1);
+            _masterKey = EncryptionTestsData.CreateTestMasterKeyForSeed(TestSeedPhrase1);
+            return CreateKeyStorageMock(_masterKey);
         }
 
         private Task<IDataStorage> CreateKeyStorage1Async()
@@ -693,10 +696,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         private async Task<IDataStorage> CreateKeyStorageAsync(string[] seedPhrase)
         {
-            EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase);
             var keyFactory = new MasterKeyFactory(new ImplementationDetailsProvider("Tuvi seed", "Tuvi.Package", "backup@test"));
             keyFactory.RestoreSeedPhrase(seedPhrase);
-            var masterKey = keyFactory.GetMasterKey();
+            using var masterKey = keyFactory.GetMasterKey();
             string path = $"test{_storageId++}.db";
             File.Delete(path);
             var storage = DataStorageProvider.GetDataStorage(path);
@@ -705,11 +707,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return storage;
         }
 
-        private static Mock<IDecStorage> CreateKeyStorageMock(string[] seedPhrase)
+        private static Mock<IDecStorage> CreateKeyStorageMock(MasterKey masterKey)
         {
             var messages = new Dictionary<EmailAddress, List<DecMessage>>();
             var storage = new Mock<IDecStorage>();
-            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase));
+            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
             storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
                                          It.IsAny<Folder>(),
                                          It.IsAny<int>(),
