@@ -34,6 +34,14 @@ namespace Tuvi.Core
         Task<bool> IsSeedPhraseInitializedAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Initialize master key.
+        /// Seed has to be restored <see cref="RestoreSeedPhraseAsync(string[])"/>
+        /// or created <see cref="CreateSeedPhraseAsync()"/> previously to call this method.
+        /// </summary>
+        /// <exception cref="DataBaseException" />
+        Task InitializeMasterKeyAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Generates new random seed phrase.
         /// </summary>
         /// <returns>Seed phrase used to restore same master key on another device or after application reset</returns>

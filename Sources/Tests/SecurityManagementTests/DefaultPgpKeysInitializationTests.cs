@@ -1,5 +1,6 @@
 ﻿using Moq;
 using NUnit.Framework;
+using System.Threading.Tasks;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
@@ -44,7 +45,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void Explicit()
+        public async Task Explicit()
         {
             using (var storage = GetStorage())
             {
@@ -57,7 +58,7 @@ namespace SecurityManagementTests
 
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
-                manager.CreateDefaultPgpKeys(account);
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
 
                 Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
@@ -77,14 +78,13 @@ namespace SecurityManagementTests
                 account.Email = TestData.GetAccount().GetEmailAddress();
 
                 ISecurityManager manager = GetSecurityManager(storage);
+                manager.CreateSeedPhraseAsync().Wait();
                 manager.StartAsync(Password).Wait();
-                storage.AddAccountAsync(account).Wait();
 
+                storage.AddAccountAsync(account).Wait();
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.InitializeSeedPhraseAsync().Wait();
-
+                manager.CreateDefaultPgpKeysAsync(account).Wait();
                 Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
                     Is.True,
