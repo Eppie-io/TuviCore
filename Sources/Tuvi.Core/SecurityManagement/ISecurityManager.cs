@@ -34,15 +34,6 @@ namespace Tuvi.Core
         Task<bool> IsSeedPhraseInitializedAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Initialize application seed phrase.
-        /// Seed has to be restored <see cref="RestoreSeedPhraseAsync(string[])"/>
-        /// or created <see cref="CreateSeedPhraseAsync()"/> previously to call this method.
-        /// </summary>
-        /// <exception cref="DataBaseException" />
-        /// <exception cref="PgpArgumentNullException" />
-        Task InitializeSeedPhraseAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Generates new random seed phrase.
         /// </summary>
         /// <returns>Seed phrase used to restore same master key on another device or after application reset</returns>
@@ -83,7 +74,7 @@ namespace Tuvi.Core
         /// </summary>
         /// <param name="account">Account which PGP keys need to be initialized</param>
         /// <exception cref="PgpArgumentNullException"/>
-        void CreateDefaultPgpKeys(Account account);
+        Task CreateDefaultPgpKeysAsync(Account account);
 
         /// <summary>
         /// Get all public PGP keys information.
@@ -151,6 +142,6 @@ namespace Tuvi.Core
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.
         /// </summary>
-        string GetEmailPublicKeyString(EmailAddress email);
+        Task<string> GetEmailPublicKeyStringAsync(EmailAddress email);
     }
 }

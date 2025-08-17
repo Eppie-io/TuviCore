@@ -511,7 +511,7 @@ namespace Tuvi.Core.Impl
         private async Task AddAccountToStorageAsync(Account account, CancellationToken cancellationToken = default)
         {
             await DataStorage.AddAccountAsync(account, cancellationToken).ConfigureAwait(false);
-            SecurityManager.CreateDefaultPgpKeys(account);
+            await SecurityManager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(false);
 
             AddAndStartAccountScheduler(account);
             AccountCache.AddOrReplace(account.Id, account);
@@ -664,7 +664,7 @@ namespace Tuvi.Core.Impl
 
             var email = account.Email;
 
-            var deckey = SecurityManager.GetEmailPublicKeyString(email);
+            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email).ConfigureAwait(false);
             var hybridAddress = email.MakeHybrid(deckey);
 
             var decAccountService = GetAccountService(hybridAddress);
