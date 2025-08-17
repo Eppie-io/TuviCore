@@ -82,21 +82,20 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
             }
 
-            var seed = await Task.Run(() => KeyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
-            MasterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false);
-            SeedQuiz = new SeedQuiz(seed);
-            return seed;
+            var seedPhrase = await Task.Run(() => KeyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
+            SeedQuiz = new SeedQuiz(seedPhrase);
+
+            return seedPhrase;
         }
 
-        public async Task RestoreSeedPhraseAsync(string[] seedPhrase)
+        public Task RestoreSeedPhraseAsync(string[] seedPhrase)
         {
             if (KeyFactory is null)
             {
                 throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
             }
 
-            await Task.Run(() => KeyFactory.RestoreSeedPhrase(seedPhrase)).ConfigureAwait(false);
-            MasterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false);
+            return Task.Run(() => KeyFactory.RestoreSeedPhrase(seedPhrase));
         }
 
         public async Task StartAsync(string password, CancellationToken cancellationToken = default)
@@ -114,14 +113,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
                 await PgpContext.LoadContextAsync().ConfigureAwait(false);
 
-                if (await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    await LoadMasterKeyAsync(cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await InitializeSeedPhraseAsync(cancellationToken).ConfigureAwait(false);
-                }
+                await InitializeMasterKeyIfNeededAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (DataBasePasswordException)
             {
@@ -129,21 +121,24 @@ namespace Tuvi.Core.Impl.SecurityManagement
             }
         }
 
-        public async Task InitializeSeedPhraseAsync(CancellationToken cancellationToken = default)
+        private async Task InitializeMasterKeyIfNeededAsync(CancellationToken cancellationToken = default)
         {
-            if (MasterKey != null)
-            {
-                await KeyStorage.InitializeMasterKeyAsync(MasterKey, cancellationToken).ConfigureAwait(false);
-                await CreateDefaultPgpKeysForAllAccountsAsync(cancellationToken).ConfigureAwait(false);
-                CreateSpecialPgpKeys();
+            if (!await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
+            {   
+                using (var masterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false))
+                {
+                    await KeyStorage.InitializeMasterKeyAsync(masterKey, cancellationToken).ConfigureAwait(false);
+                    await CreateDefaultPgpKeysForAllAccountsAsync(cancellationToken).ConfigureAwait(false);
+                    await CreateSpecialPgpKeysAsync().ConfigureAwait(false);
+                }
             }
         }
 
         public async Task ResetAsync()
         {
-            MasterKey.Dispose();
-            MasterKey = null;
+            // TODO: Zeroise seed phrase.
             SeedQuiz = null;
+
             await DataStorage.ResetAsync().ConfigureAwait(false);
         }
 
@@ -167,19 +162,22 @@ namespace Tuvi.Core.Impl.SecurityManagement
             return SeedValidator;
         }
 
-        private async Task LoadMasterKeyAsync(CancellationToken cancellationToken = default)
+        private Task<MasterKey> GetMasterKeyAsync(CancellationToken cancellationToken = default)
         {
-            MasterKey = await KeyStorage.GetMasterKeyAsync(cancellationToken).ConfigureAwait(false);
+            return KeyStorage.GetMasterKeyAsync(cancellationToken);
         }
 
-        private void CreateSpecialPgpKeys()
+        private async Task CreateSpecialPgpKeysAsync()
         {
-            foreach (var specialKey in SpecialPgpKeyIdentities)
+            using( var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
-                string keyIdentity = specialKey.Value;
-                var dummyBackupAddress = new EmailAddress(keyIdentity);
+                foreach (var specialKey in SpecialPgpKeyIdentities)
+                {
+                    string keyIdentity = specialKey.Value;
+                    var dummyBackupAddress = new EmailAddress(keyIdentity);
 
-                PgpContext.GeneratePgpKeysByTagOld(MasterKey, keyIdentity, keyIdentity);
+                    PgpContext.GeneratePgpKeysByTagOld(masterKey, keyIdentity, keyIdentity);
+                }
             }
         }
 
@@ -187,25 +185,26 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             var accounts = await DataStorage.GetAccountsAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var account in accounts)
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                CreateDefaultPgpKeys(account);
+                foreach (var account in accounts)
+                {
+                    PgpContext.CreatePgpKeys(masterKey, account);
+                }
             }
         }
 
-        public void CreateDefaultPgpKeys(Account account)
+        public async Task CreateDefaultPgpKeysAsync(Account account)
         {
-            if (MasterKey == null)
-            {
-                return;
-            }
-
             if (account == null)
             {
                 throw new ArgumentNullException(nameof(account));
             }
 
-            PgpContext.CreatePgpKeys(MasterKey, account);
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            {
+                PgpContext.CreatePgpKeys(masterKey, account);
+            }
         }
 
         public ICollection<PgpKeyInfo> GetPublicPgpKeysInfo()
@@ -294,15 +293,20 @@ namespace Tuvi.Core.Impl.SecurityManagement
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
             var account = settings.DecentralizedAccountCounter;
 
-            return (EccPgpExtension.GetPublicKeyString(MasterKey, account), account);
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return (EccPgpExtension.GetPublicKeyString(masterKey, account), account);
+            }
         }
 
-        public string GetEmailPublicKeyString(EmailAddress email)
+        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
         {
-            return EccPgpExtension.GetPublicKeyString(MasterKey, email.GetKeyTag());
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            {
+                return EccPgpExtension.GetPublicKeyString(masterKey, email.GetKeyTag());
+            }
         }
 
-        private MasterKey MasterKey;
         private SeedQuiz SeedQuiz;
         private IKeyDerivationDetailsProvider KeyDerivationDetails;
         private MasterKeyFactory KeyFactory;
