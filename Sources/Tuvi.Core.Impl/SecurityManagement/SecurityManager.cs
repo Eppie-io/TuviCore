@@ -11,8 +11,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
+using Tuvi.Core.Dec.Bitcoin.TestNet4;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
+using Tuvi.Core.Utils;
 using TuviPgpLib;
 using TuviPgpLib.Entities;
 
@@ -195,17 +197,28 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public void CreateDefaultPgpKeys(Account account)
         {
-            if (MasterKey == null)
+            if (MasterKey is null)
             {
                 return;
             }
 
-            if (account == null)
+            if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
             }
 
-            PgpContext.CreatePgpKeys(MasterKey, account);
+            if (account.Email.IsHybrid)
+            {
+                PgpContext.GeneratePgpKeysByTag(MasterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+            }
+            else if (account.Email.IsDecentralized)
+            {
+                PgpContext.GeneratePgpKeysByBip44(MasterKey, account.GetPgpUserIdentity(), account.GetCoinType(), account.DecentralizedAccountIndex, account.GetChannel(), account.GetKeyIndex());
+            }
+            else
+            {
+                PgpContext.GeneratePgpKeysByTagOld(MasterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+            }
         }
 
         public ICollection<PgpKeyInfo> GetPublicPgpKeysInfo()
@@ -289,17 +302,55 @@ namespace Tuvi.Core.Impl.SecurityManagement
             PgpContext.RemoveKeys(account.GetPgpUserIdentity());
         }
 
-        public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(CancellationToken cancellationToken)
+        public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)
         {
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-            var account = settings.DecentralizedAccountCounter;
 
-            return (EccPgpExtension.GetPublicKeyString(MasterKey, account), account);
+            switch (network)
+            {
+                case NetworkType.Eppie:
+                    {
+                        var account = settings.EppieAccountCounter;
+                        return (PublicKeyConverter.ToPublicKeyBase32E(MasterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
+                    }
+                case NetworkType.Bitcoin:
+                    {
+                        var account = settings.BitcoinAccountCounter;
+                        return (GetBitcoinAddressString(MasterKey, account), account);
+                    }
+                default:
+                    throw new NotSupportedException($"Network type {network} is not supported.");
+            }
+        }
+
+        public string GetSecretKeyWIF(Account account)
+        {
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            if (account.Email.Network == NetworkType.Bitcoin)
+            {
+                return GetBitcoinSecretKeyWIF(MasterKey, account.DecentralizedAccountIndex);
+            }
+
+            throw new NotSupportedException($"Network type {account.Email.Network} is not supported.");
+        }
+
+        private string GetBitcoinAddressString(MasterKey masterKey, int account)
+        {
+            return Tools.DeriveBitcoinAddress(MasterKey, account, NetworkType.Bitcoin.GetKeyIndex());
+        }
+
+        private string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
+        {
+            return Tools.DeriveBitcoinSecretKeyWif(MasterKey, account, NetworkType.Bitcoin.GetKeyIndex());
         }
 
         public string GetEmailPublicKeyString(EmailAddress email)
         {
-            return EccPgpExtension.GetPublicKeyString(MasterKey, email.GetKeyTag());
+            return PublicKeyConverter.ToPublicKeyBase32E(MasterKey, email.GetKeyTag());
         }
 
         private MasterKey MasterKey;

@@ -1,6 +1,6 @@
-﻿using System.IO;
+﻿using NUnit.Framework;
+using System.IO;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Backup.Impl;
 using Tuvi.Core.Entities.Exceptions;
@@ -179,7 +179,8 @@ namespace BackupTests
 
                 var settings = await parser.GetSettingsAsync().ConfigureAwait(true);
 
-                Assert.That(settings.DecentralizedAccountCounter, Is.EqualTo(TestData.SomeSettings.DecentralizedAccountCounter));
+                Assert.That(settings.EppieAccountCounter, Is.EqualTo(TestData.SomeSettings.EppieAccountCounter));
+                Assert.That(settings.BitcoinAccountCounter, Is.EqualTo(TestData.SomeSettings.BitcoinAccountCounter));
             }
         }
     }

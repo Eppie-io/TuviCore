@@ -146,7 +146,12 @@ namespace Tuvi.Core
         /// <summary>
         /// Get next decentralized account public key and index.
         /// </summary> 
-        Task<(string, int)> GetNextDecAccountPublicKeyAsync(CancellationToken cancellationToken);
+        Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType networkType, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Get secret key WIF.
+        /// </summary> 
+        string GetSecretKeyWIF(Account account);
 
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.

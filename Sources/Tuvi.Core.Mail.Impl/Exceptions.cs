@@ -82,27 +82,4 @@ namespace Tuvi.Core.Mail.Impl
 
         public string KeyId { get; }
     }
-
-    public class NoPublicKeyException : CryptoContextException
-    {
-        public NoPublicKeyException()
-            : base()
-        {
-        }
-
-        public NoPublicKeyException(string message) : base(message)
-        {
-        }
-
-        public NoPublicKeyException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        public NoPublicKeyException(EmailAddress emailAddress, Exception innerException) : base(string.Empty, innerException)
-        {
-            EmailAddress = emailAddress;
-        }
-
-        public EmailAddress EmailAddress { get; }
-    }
 }

@@ -19,4 +19,8 @@
         <WarningLevel>9999</WarningLevel>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Tuvi.Core.Entities\Tuvi.Core.Entities.csproj" />
+    </ItemGroup>
+
 </Project>

@@ -1,12 +1,19 @@
-﻿using MimeKit.Cryptography;
+﻿using MimeKit;
+using MimeKit.Cryptography;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl;
 using Tuvi.Core.Mail.Impl.Protocols;
+using Tuvi.Core.Utils;
 using TuviPgpLib;
 using TuviPgpLib.Entities;
+using TuviPgpLibImpl;
 
 namespace Tuvi.Core.Mail.Impl
 {
@@ -55,11 +62,11 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        public Message Encrypt(Message message)
+        public async Task<Message> EncryptAsync(Message message)
         {
             try
             {
-                return TryEncryptMessage(message);
+                return await TryEncryptMessageAsync(message).ConfigureAwait(false);
             }
             catch (PublicKeyNotFoundException e)
             {
@@ -71,11 +78,11 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        public Message SignAndEncrypt(Message message)
+        public async Task<Message> SignAndEncryptAsync(Message message)
         {
             try
             {
-                return TrySignAndEncryptMessage(message);
+                return await TrySignAndEncryptMessageAsync(message).ConfigureAwait(false);
             }
             catch (PrivateKeyNotFoundException e)
             {
@@ -122,9 +129,10 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        private Message TryEncryptMessage(Message message)
+        private async Task<Message> TryEncryptMessageAsync(Message message)
         {
-            AddReceiverKeysToContext(message);
+            await AddReceiverKeysToContextAsync(message).ConfigureAwait(false);
+
             using (var mimeMessage = message.ToMimeMessage())
             {
                 mimeMessage.Encrypt(PgpContext);
@@ -137,9 +145,10 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        private Message TrySignAndEncryptMessage(Message message)
+        private async Task<Message> TrySignAndEncryptMessageAsync(Message message)
         {
-            AddReceiverKeysToContext(message);
+            await AddReceiverKeysToContextAsync(message).ConfigureAwait(false);
+
             using (var mimeMessage = message.ToMimeMessage())
             {
                 mimeMessage.SignAndEncrypt(PgpContext, DefaultDigestAlgorithm);
@@ -187,7 +196,8 @@ namespace Tuvi.Core.Mail.Impl
             var mimeBody = message.MimeBody.ToMimeEntity(cancellationToken);
             if (mimeBody is MultipartEncrypted encryptedBody)
             {
-                AddSenderKeysToContext(message);
+                await AddSenderKeysToContextAsync(message).ConfigureAwait(false);
+
                 var body = encryptedBody.Decrypt(PgpContext, out DigitalSignatureCollection signatures, cancellationToken);
                 if (body is MultipartSigned signedBody)
                 {
@@ -214,7 +224,8 @@ namespace Tuvi.Core.Mail.Impl
             var mimeBody = message.MimeBody.ToMimeEntity(cancellationToken);
             if (mimeBody is MultipartSigned signedBody)
             {
-                AddSenderKeysToContext(message);
+                await AddSenderKeysToContextAsync(message).ConfigureAwait(false);
+
                 var signatures = await TryVerifySignedBodyAsync(signedBody, cancellationToken).ConfigureAwait(false);
 
                 var body = signedBody[0];
@@ -244,19 +255,44 @@ namespace Tuvi.Core.Mail.Impl
             return null;
         }
 
-        private void AddReceiverKeysToContext(Message message)
+        private Task AddReceiverKeysToContextAsync(Message message)
         {
-            foreach (var recipient in message.AllRecipients)
-            {
-                PgpContext.TryToAddDecPublicKeys(recipient);
-            }
+            return PgpContext.TryToAddDecPublicKeysAsync(message.AllRecipients);
         }
 
-        private void AddSenderKeysToContext(Message message)
+        private Task AddSenderKeysToContextAsync(Message message)
         {
-            foreach (var sender in message.From)
+            return PgpContext.TryToAddDecPublicKeysAsync(message.From);
+        }
+    }
+
+    public static class MessageProtectorExtensions
+    {
+        public static async Task TryToAddDecPublicKeysAsync(this OpenPgpContext context, IEnumerable<EmailAddress> emails)
+        {
+            Contract.Requires(context != null);
+            Contract.Requires(emails != null);
+
+            foreach (var emailAddress in emails)
             {
-                PgpContext.TryToAddDecPublicKeys(sender);
+                Contract.Requires(emailAddress != null);
+                try
+                {
+                    var keys = context.GetPublicKeys(new List<MailboxAddress>() { emailAddress.ToMailboxAddress() }).ToList();
+                    var existingPublicKey = keys.FirstOrDefault();
+                    if (existingPublicKey != null)
+                    {
+                        continue;
+                    }
+                }
+                catch (PublicKeyNotFoundException)
+                {
+                }
+
+                ECPublicKeyParameters reconvertedPublicKey = await PublicKeyConverter.ToPublicKeyAsync(emailAddress).ConfigureAwait(false);
+                PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
+
+                context.Import(keyRing);
             }
         }
     }
