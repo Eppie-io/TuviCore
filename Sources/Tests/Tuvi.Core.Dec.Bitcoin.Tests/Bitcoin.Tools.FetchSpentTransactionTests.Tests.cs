@@ -79,7 +79,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public async Task FetchSpentTransactionAsyncThrowsJsonExceptionWhenJsonIsBroken()
         {
-            const string brokenJson = "{ invalid json }";
+            const string BrokenJson = "{ invalid json }";
 
             var handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
@@ -93,7 +93,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(brokenJson)
+                        Content = new StringContent(BrokenJson)
                     };
                 });
 
