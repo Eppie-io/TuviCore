@@ -33,8 +33,8 @@ namespace Tuvi.Core.Dec.Bitcoin
             SupportedAddressType = supportedAddressType;
         }
 
-        public static BitcoinNetworkConfig TestNet4 => new BitcoinNetworkConfig(NBitcoin.Network.TestNet4, "testnet4/", ScriptPubKeyType.Legacy);
-        public static BitcoinNetworkConfig MainNet => new BitcoinNetworkConfig(NBitcoin.Network.Main, "", ScriptPubKeyType.Legacy);
+        public static readonly BitcoinNetworkConfig TestNet4 = new BitcoinNetworkConfig(NBitcoin.Network.TestNet4, "testnet4/", ScriptPubKeyType.Legacy);
+        public static readonly BitcoinNetworkConfig MainNet = new BitcoinNetworkConfig(NBitcoin.Network.Main, "", ScriptPubKeyType.Legacy);
     }
 
     internal static class Constants
