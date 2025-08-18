@@ -12,8 +12,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
     public sealed class ToolsTest
     {
         private const string HexSeed = "14a3235efb14b096e8cc3082b89e0b629ec5c7b2c6621343b2657cb61853b0830623e97b8aeac416d3377b4da90a4838d9aea4d83e0117fd833049305af46f10";
-        private static readonly ExtKey _extKey = new ExtKey(HexSeed);
-        private static readonly MasterKey _masterKey = GetMasterKey(_extKey);
+        private static readonly ExtKey ExtKey = new ExtKey(HexSeed);
+        private static readonly MasterKey MasterKey = GetMasterKey(ExtKey);
 
         private const string ExpectedAddress = "mrKe9eFoPoWew4hrxZumYieDuoHFdavoTc";
         private const string ExpectedWif = "cUTh5cswLhjA2so2meJAHNWGUVmXsgPrT45adxr7RQm3ApVrHp7C";
@@ -39,13 +39,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinAddressFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenAccountIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(_masterKey, -1, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(MasterKey, -1, 0));
         }
 
         [Test]
         public void GetBitcoinAddressFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenIndexIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(_masterKey, 0, -1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(MasterKey, 0, -1));
         }
 
         [Test]
@@ -54,12 +54,12 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             const int Account = 0;
             const int Index = 0;
 
-            var address = Tools.DeriveBitcoinAddress(_masterKey, Account, Index);
+            var address = Tools.DeriveBitcoinAddress(MasterKey, Account, Index);
 
             Assert.That(address, Is.EqualTo(ExpectedAddress), "Address does not match expected value.");
 
             var path = new KeyPath($"m/44'/0'/{Account}'/0/{Index}");
-            var derivedKey = _extKey.Derive(path);
+            var derivedKey = ExtKey.Derive(path);
             var pubKey = derivedKey.PrivateKey.PubKey;
             var derivedAddress = pubKey.GetAddress(ScriptPubKeyType.Legacy, Network.TestNet4).ToString();
 
@@ -75,13 +75,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenAccountIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(_masterKey, -1, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, -1, 0));
         }
 
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenIndexIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(_masterKey, 0, -1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, 0, -1));
         }
 
         [Test]
@@ -90,13 +90,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             const int Account = 0;
             const int Index = 0;
 
-            var wif = Tools.DeriveBitcoinSecretKeyWif(_masterKey, Account, Index);
+            var wif = Tools.DeriveBitcoinSecretKeyWif(MasterKey, Account, Index);
 
             Assert.That(wif, Is.EqualTo(ExpectedWif),
                 $"WIF for account {Account} and index {Index} does not match expected value: {ExpectedWif}.");
 
             var path = new KeyPath($"m/44'/0'/{Account}'/0/{Index}");
-            var derivedKey = _extKey.Derive(path);
+            var derivedKey = ExtKey.Derive(path);
             var derivedWif = derivedKey.PrivateKey.GetWif(Network.TestNet4).ToString();
 
             Assert.That(wif, Is.EqualTo(derivedWif),
@@ -297,7 +297,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         public void DeriveBitcoinSecretKeyWifThrowsArgumentNullExceptionWhenConfigIsNull()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                BitcoinToolsImpl.DeriveBitcoinSecretKeyWif(null, _masterKey, 0, 0));
+                BitcoinToolsImpl.DeriveBitcoinSecretKeyWif(null, MasterKey, 0, 0));
         }
 
         [Test]
