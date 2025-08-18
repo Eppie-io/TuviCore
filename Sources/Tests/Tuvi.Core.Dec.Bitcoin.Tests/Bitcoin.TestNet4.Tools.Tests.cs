@@ -12,11 +12,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
     public sealed class ToolsTest
     {
         private const string HexSeed = "14a3235efb14b096e8cc3082b89e0b629ec5c7b2c6621343b2657cb61853b0830623e97b8aeac416d3377b4da90a4838d9aea4d83e0117fd833049305af46f10";
-        private static ExtKey _extKey = new ExtKey(HexSeed);
-        private static MasterKey _masterKey = GetMasterKey(_extKey);
+        private static readonly ExtKey _extKey = new ExtKey(HexSeed);
+        private static readonly MasterKey _masterKey = GetMasterKey(_extKey);
 
         private const string ExpectedAddress = "mrKe9eFoPoWew4hrxZumYieDuoHFdavoTc";
         private const string ExpectedWif = "cUTh5cswLhjA2so2meJAHNWGUVmXsgPrT45adxr7RQm3ApVrHp7C";
+
+        private const string Address = "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i";
 
         private static MasterKey GetMasterKey(ExtKey extKey)
         {
@@ -49,14 +51,14 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinAddressFromMasterKeyReturnsCorrectAddress()
         {
-            var account = 0;
-            var index = 0;
+            const int Account = 0;
+            const int Index = 0;
 
-            var address = Tools.DeriveBitcoinAddress(_masterKey, account, index);
+            var address = Tools.DeriveBitcoinAddress(_masterKey, Account, Index);
 
             Assert.That(address, Is.EqualTo(ExpectedAddress), "Address does not match expected value.");
 
-            var path = new KeyPath($"m/44'/0'/{account}'/0/{index}");
+            var path = new KeyPath($"m/44'/0'/{Account}'/0/{Index}");
             var derivedKey = _extKey.Derive(path);
             var pubKey = derivedKey.PrivateKey.PubKey;
             var derivedAddress = pubKey.GetAddress(ScriptPubKeyType.Legacy, Network.TestNet4).ToString();
@@ -85,20 +87,20 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyDerivesCorrectBip44Wif()
         {
-            const int account = 0;
-            const int index = 0;
+            const int Account = 0;
+            const int Index = 0;
 
-            var wif = Tools.DeriveBitcoinSecretKeyWif(_masterKey, account, index);
+            var wif = Tools.DeriveBitcoinSecretKeyWif(_masterKey, Account, Index);
 
             Assert.That(wif, Is.EqualTo(ExpectedWif),
-                $"WIF for account {account} and index {index} does not match expected value: {ExpectedWif}.");
+                $"WIF for account {Account} and index {Index} does not match expected value: {ExpectedWif}.");
 
-            var path = new KeyPath($"m/44'/0'/{account}'/0/{index}");
+            var path = new KeyPath($"m/44'/0'/{Account}'/0/{Index}");
             var derivedKey = _extKey.Derive(path);
             var derivedWif = derivedKey.PrivateKey.GetWif(Network.TestNet4).ToString();
 
             Assert.That(wif, Is.EqualTo(derivedWif),
-                $"WIF for account {account} and index {index} does not match NBitcoin-derived WIF: {derivedWif}.");
+                $"WIF for account {Account} and index {Index} does not match NBitcoin-derived WIF: {derivedWif}.");
         }
 
         [Test]
@@ -135,7 +137,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i", httpClient).ConfigureAwait(false);
+                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient).ConfigureAwait(false);
                 Assert.That(result is null);
             }
         }
@@ -143,11 +145,10 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public async Task GetPublicKeyAsyncReturnsNullWhenNoMatchingInputFound()
         {
-            const string address = "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i";
-            const string differentaddress = "differentaddress";
-            const string txId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
-            const string txsJson = "[{\"txid\": \"" + txId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + differentaddress + "\"}}]}]";
-            const string txHex = "02000000014d94a59e818782bf32a86bb227006fb786c5c71ed8871d98b4706133e1348354000000006a47304402205d18b933b3d1efcd46541522f088b66171edf86cc0522db216b36aefe2202ce30220218b4f845fc70eed74f9f6919dc9970d0d05d880c71bfdb5ba62fd9e95203c49012102b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865fdffffff011dc10000000000001976a914c6c1425cf53c51829242716c811938751f9004fa88ac67760100";
+            const string DifferentAddress = "differentaddress";
+            const string TxId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
+            const string TxsJson = "[{\"txid\": \"" + TxId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + DifferentAddress + "\"}}]}]";
+            const string TxHex = "02000000014d94a59e818782bf32a86bb227006fb786c5c71ed8871d98b4706133e1348354000000006a47304402205d18b933b3d1efcd46541522f088b66171edf86cc0522db216b36aefe2202ce30220218b4f845fc70eed74f9f6919dc9970d0d05d880c71bfdb5ba62fd9e95203c49012102b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865fdffffff011dc10000000000001976a914c6c1425cf53c51829242716c811938751f9004fa88ac67760100";
 
             var handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
@@ -161,7 +162,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txsJson)
+                        Content = new StringContent(TxsJson)
                     };
                 })
                 .ReturnsAsync(() =>
@@ -177,13 +178,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txHex)
+                        Content = new StringContent(TxHex)
                     };
                 });
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, address, httpClient).ConfigureAwait(false);
+                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient).ConfigureAwait(false);
                 Assert.That(result is null);
             }
         }
@@ -191,10 +192,9 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public async Task GetPublicKeyAsyncThrowFormatExceptionWhenTryToParseTransaction()
         {
-            const string address = "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i";
-            const string txId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
-            const string txsJson = "[{\"txid\": \"" + txId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + address + "\"}}]}]";
-            const string txHex = "wrong_transaction";
+            const string TxId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
+            const string TxsJson = "[{\"txid\": \"" + TxId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + Address + "\"}}]}]";
+            const string TxHex = "wrong_transaction";
 
             var handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
@@ -208,7 +208,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txsJson)
+                        Content = new StringContent(TxsJson)
                     };
                 })
                 .ReturnsAsync(() =>
@@ -216,13 +216,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txHex)
+                        Content = new StringContent(TxHex)
                     };
                 });
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, address, httpClient).ConfigureAwait(false);
+                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient).ConfigureAwait(false);
                 Assert.That(result, Is.Null);
             }
         }
@@ -230,10 +230,9 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public async Task GetPublicKeyAsyncReturnsPublicKeyWhenTransactionFound()
         {
-            const string address = "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i";
-            const string txId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
-            const string txsJson = "[{\"txid\": \"" + txId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + address + "\"}}]}]";
-            const string txHex = "02000000014d94a59e818782bf32a86bb227006fb786c5c71ed8871d98b4706133e1348354000000006a47304402205d18b933b3d1efcd46541522f088b66171edf86cc0522db216b36aefe2202ce30220218b4f845fc70eed74f9f6919dc9970d0d05d880c71bfdb5ba62fd9e95203c49012102b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865fdffffff011dc10000000000001976a914c6c1425cf53c51829242716c811938751f9004fa88ac67760100";
+            const string TxId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
+            const string TxsJson = "[{\"txid\": \"" + TxId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + Address + "\"}}]}]";
+            const string TxHex = "02000000014d94a59e818782bf32a86bb227006fb786c5c71ed8871d98b4706133e1348354000000006a47304402205d18b933b3d1efcd46541522f088b66171edf86cc0522db216b36aefe2202ce30220218b4f845fc70eed74f9f6919dc9970d0d05d880c71bfdb5ba62fd9e95203c49012102b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865fdffffff011dc10000000000001976a914c6c1425cf53c51829242716c811938751f9004fa88ac67760100";
 
             var pubKeyBytes = Convert.FromHexString("02b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865");
             var expectedPublicKey = Base32EConverter.ToEmailBase32(pubKeyBytes);
@@ -250,7 +249,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txsJson)
+                        Content = new StringContent(TxsJson)
                     };
                 })
                 .ReturnsAsync(() =>
@@ -258,13 +257,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     return new HttpResponseMessage
                     {
                         StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(txHex)
+                        Content = new StringContent(TxHex)
                     };
                 });
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, address, httpClient).ConfigureAwait(false);
+                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient).ConfigureAwait(false);
                 Assert.That(result, Is.EqualTo(expectedPublicKey));
             }
         }
@@ -289,7 +288,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i", httpClient).ConfigureAwait(false);
+                var result = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient).ConfigureAwait(false);
                 Assert.That(result, Is.Null);
             }
         }
@@ -305,7 +304,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         public void RetrievePublicKeyAsyncThrowsArgumentNullExceptionWhenHttpClientIsNull()
         {
             Assert.ThrowsAsync<ArgumentNullException>(() =>
-                BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i", null));
+                BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, null));
         }
 
         [Test]
@@ -340,7 +339,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                 cts.Cancel();
 
                 Assert.ThrowsAsync<OperationCanceledException>(() =>
-                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i", httpClient, cts.Token));
+                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient, cts.Token));
             }
         }
     }

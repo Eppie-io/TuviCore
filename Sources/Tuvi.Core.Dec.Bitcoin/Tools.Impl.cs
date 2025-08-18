@@ -218,15 +218,15 @@ namespace Tuvi.Core.Dec.Bitcoin
             HttpClient httpClient,
             CancellationToken cancellation)
         {
-            const int pageSize = Constants.DefaultPageSize;
-            const int maxPages = Constants.DefaultMaxPages;
+            const int PageSize = Constants.DefaultPageSize;
+            const int MaxPages = Constants.DefaultMaxPages;
             int offset = 0;
 
-            for (int page = 0; page < maxPages; page++)
+            for (int page = 0; page < MaxPages; page++)
             {
                 cancellation.ThrowIfCancellationRequested();
 
-                string url = $"https://mempool.space/{config.NetworkApiPrefix}api/address/{address}/txs?offset={offset}&limit={pageSize}";
+                string url = $"https://mempool.space/{config.NetworkApiPrefix}api/address/{address}/txs?offset={offset}&limit={PageSize}";
                 string txsResponse;
                 try
                 {
@@ -302,7 +302,7 @@ namespace Tuvi.Core.Dec.Bitcoin
             }
 
             Logger.LogWarning("Reached max pages ({MaxPages}) without finding a spent transaction for address: {Address}.",
-                maxPages, address);
+                MaxPages, address);
 
             return null;
         }
