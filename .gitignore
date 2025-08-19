@@ -47,3 +47,7 @@ Sources/Tests/Tuvi.Core.Tests/bin/
 Sources/Tests/Tuvi.Core.Tests/obj/
 Sources/Tests/Tuvi.Dec.Web.Impl.Tests/bin/
 Sources/Tests/Tuvi.Dec.Web.Impl.Tests/obj/
+Sources/Tuvi.Core.Dec.Bitcoin/obj/
+Sources/Tuvi.Core.Dec.Bitcoin/bin/
+Sources/Tests/Tuvi.Core.Dec.Bitcoin.Tests/obj/
+Sources/Tests/Tuvi.Core.Dec.Bitcoin.Tests/bin/
