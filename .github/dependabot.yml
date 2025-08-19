@@ -8,10 +8,6 @@ updates:
     directory: "/Sources/"                    # Path to '*.sln' directory
     schedule:
       interval: "daily"
-    reviewers:
-      - "al-kau"
-      - "ValeraFinebits"
-      - "anatolse"
     open-pull-requests-limit: 20
     commit-message:
       prefix: "build"
@@ -35,10 +31,6 @@ updates:
     directory: "/"                            # Path to '.gitmodules' directory
     schedule:
       interval: "daily"
-    reviewers:
-      - "al-kau"
-      - "ValeraFinebits"
-      - "anatolse"
     open-pull-requests-limit: 20
     commit-message:
       prefix: "build"
@@ -55,10 +47,6 @@ updates:
     labels:
       - "github-actions"
       - "dependencies"
-    reviewers:
-      - "al-kau"
-      - "anatolse"
-      - "ValeraFinebits"
     commit-message:
       prefix: "ci"
       include: "scope"
