@@ -211,8 +211,8 @@ namespace Tuvi.Core.Entities
             }
         }
 
-        private static string EppieNetworkPostfix = "@eppie";
-        private static string BitcoinNetworkPostfix = "@bitcoin";
+        private static readonly string EppieNetworkPostfix = "@eppie";
+        private static readonly string BitcoinNetworkPostfix = "@bitcoin";
 
         public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address, string name)
         {
