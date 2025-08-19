@@ -153,16 +153,16 @@ namespace SecurityManagementTests
         public void ToPublicKeyBase32EWithMasterKeyAndDerivationParamsGeneratesCorrectBase32E()
         {
             var masterKey = TestData.MasterKey; // Assuming TestData.MasterKey is available as in existing tests
-            int coin = 0;
-            int account = 0;
-            int channel = 0;
-            int index = 1;
+            const int Coin = 0;
+            const int Account = 0;
+            const int Channel = 0;
+            const int Index = 1;
 
             // Generate expected public key parameters using the underlying method
-            var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, coin, account, channel, index);
+            var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, Coin, Account, Channel, Index);
             var expectedBase32E = PublicKeyConverter.ToPublicKeyBase32E(expectedPublicKey);
 
-            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, coin, account, channel, index);
+            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, Coin, Account, Channel, Index);
 
             Assert.That(result, Is.EqualTo(expectedBase32E));
         }
@@ -177,13 +177,13 @@ namespace SecurityManagementTests
         public void ToPublicKeyBase32EWithMasterKeyAndKeyTagGeneratesCorrectBase32E()
         {
             var masterKey = TestData.MasterKey;
-            string keyTag = "test-tag";
+            const string KeyTag = "test-tag";
 
             // Generate expected public key parameters using the underlying method
-            var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, keyTag);
+            var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, KeyTag);
             var expectedBase32E = PublicKeyConverter.ToPublicKeyBase32E(expectedPublicKey);
 
-            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, keyTag);
+            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, KeyTag);
 
             Assert.That(result, Is.EqualTo(expectedBase32E));
         }
@@ -237,8 +237,8 @@ namespace SecurityManagementTests
         [Test]
         public async Task ToPublicKeyAsyncEppieNetworkReturnsPublicKeyParameters()
         {
-            var publicKeyBase32E = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, publicKeyBase32E, string.Empty);
+            const string PublicKeyBase32E = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, PublicKeyBase32E, string.Empty);
             
             var expectedPublicKey = PublicKeyConverter.ToPublicKey(email.DecentralizedAddress);
 
@@ -256,9 +256,9 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyInvalidCurveOidThrowsException()
         {
-            var invalidEncodedKey = "invalidbase32ethatdecodestowrongpoint"; // Craft a string that passes length but fails DecodePoint
+            const string InvalidEncodedKey = "invalidbase32ethatdecodestowrongpoint"; // Craft a string that passes length but fails DecodePoint
 
-            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKey(invalidEncodedKey)); // Adjust exception type as per actual throw
+            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKey(InvalidEncodedKey)); // Adjust exception type as per actual throw
         }
     }
 }
