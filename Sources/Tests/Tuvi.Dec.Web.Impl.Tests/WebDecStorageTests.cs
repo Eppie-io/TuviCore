@@ -5,6 +5,7 @@ using NUnit.Framework;
 
 namespace Tuvi.Core.Dec.Azure.Tests
 {
+    [Ignore("Integration tests for the WebDecStorageClient are disabled for ci.")]
     public class WebDecStorageTests
     {
         private IDecStorageClient Client;
@@ -30,15 +31,17 @@ namespace Tuvi.Core.Dec.Azure.Tests
         [Test]
         public async Task SendFunctionTest()
         {
-            var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
+            var hash = await Client.PutAsync(ByteData).ConfigureAwait(false);
             Assert.That(hash == DataHash, Is.True);
         }
 
         [Test]
         public async Task ListFunctionTest()
         {
-            var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
+            var hash = await Client.PutAsync(ByteData).ConfigureAwait(false);
             Assert.That(hash == DataHash, Is.True);
+
+            await Client.SendAsync(Address, hash).ConfigureAwait(false);
 
             var list = await Client.ListAsync(Address).ConfigureAwait(false);
             Assert.That(list.Contains(hash), Is.True);
@@ -47,10 +50,10 @@ namespace Tuvi.Core.Dec.Azure.Tests
         [Test]
         public async Task GetFunctionTest()
         {
-            var hash = await Client.SendAsync(Address, ByteData).ConfigureAwait(false);
+            var hash = await Client.PutAsync(ByteData).ConfigureAwait(false);
             Assert.That(hash == DataHash, Is.True);
 
-            var data = await Client.GetAsync(Address, hash).ConfigureAwait(false);
+            var data = await Client.GetAsync(hash).ConfigureAwait(false);
             Assert.That(data.SequenceEqual(ByteData), Is.True);
         }
     }
