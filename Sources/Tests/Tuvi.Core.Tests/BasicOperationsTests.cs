@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Moq;
+using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Impl;
@@ -444,7 +444,7 @@ namespace Tuvi.Core.Tests
 
             Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>()); });
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
-            messageProtector.Verify(x => x.SignAndEncrypt(It.IsNotNull<Message>()), Times.Once);
+            messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>()), Times.Once);
         }
 
         [Test]
@@ -507,7 +507,7 @@ namespace Tuvi.Core.Tests
 
             Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: false, default); });
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
-            messageProtector.Verify(x => x.Encrypt(It.IsNotNull<Message>()), Times.Once);
+            messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>()), Times.Once);
         }
 
         private static Mock<IMailBox> CreateMockMailbox(Account account)

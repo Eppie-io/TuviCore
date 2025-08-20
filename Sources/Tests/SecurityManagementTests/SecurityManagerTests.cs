@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
+using Tuvi.Core.Dec.Impl;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
-using TuviPgpLib;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
 namespace SecurityManagementTests
@@ -26,7 +25,7 @@ namespace SecurityManagementTests
 
         private static ISecurityManager GetSecurityManager(IDataStorage storage)
         {
-            var pgpContent = EccPgpExtension.GetTemporalContextAsync(storage).Result;
+            var pgpContent = TemporalKeyStorage.GetTemporalContextAsync(storage).Result;
             var messageProtectorMock = new Mock<IMessageProtector>();
             var backupProtectorMock = new Mock<IBackupProtector>();
 
@@ -194,7 +193,7 @@ namespace SecurityManagementTests
                 Assert.That(keyString, Is.Not.Null);
                 Assert.That(keyString, Is.Not.Empty);
                 Assert.That(keyString, Is.EqualTo("agd5r3j32csbqxy5j9tqs5xwqvh48rfht9ursj3vbamnjycbbseup"));
-                Assert.DoesNotThrow(() => PublicKeyConverter.ConvertEmailNameToPublicKey(keyString));
+                Assert.DoesNotThrow(() => PublicKeyConverter.ToPublicKey(keyString));
             }
         }
 
@@ -209,11 +208,11 @@ namespace SecurityManagementTests
                 manager.RestoreSeedPhraseAsync(testSeed).Wait();
                 manager.StartAsync(Password).Wait();
 
-                var (keyString, accountIndex) = manager.GetNextDecAccountPublicKeyAsync(default).Result;
+                var (keyString, accountIndex) = manager.GetNextDecAccountPublicKeyAsync(NetworkType.Eppie, default).Result;
 
                 Assert.That(accountIndex, Is.EqualTo(0));
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
-                Assert.DoesNotThrow(() => PublicKeyConverter.ConvertEmailNameToPublicKey(keyString));
+                Assert.DoesNotThrow(() => PublicKeyConverter.ToPublicKey(keyString));
             }
         }
 

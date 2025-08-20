@@ -55,11 +55,11 @@ namespace Tuvi.Core.Impl
             var messageCopy = message.ShallowCopy();
             if (encrypt && sign)
             {
-                MessageProtector.SignAndEncrypt(messageCopy);
+                await MessageProtector.SignAndEncryptAsync(messageCopy).ConfigureAwait(false);
             }
             else if (encrypt)
             {
-                MessageProtector.Encrypt(messageCopy);
+                await MessageProtector.EncryptAsync(messageCopy).ConfigureAwait(false);
             }
             else if (sign)
             {
