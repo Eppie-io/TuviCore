@@ -179,9 +179,16 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                var parts = new EmailStructure(Address);
+                if(IsHybrid)
+                {
+                    var parts = new EmailStructure(Address);
 
-                return parts.Name + '@' + parts.Domain;
+                    return parts.Name + '@' + parts.Domain;
+                }
+                else
+                {
+                    return Address;
+                }
             }
         }
 
