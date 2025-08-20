@@ -1,5 +1,6 @@
 ﻿using Moq;
 using NUnit.Framework;
+using System.Threading.Tasks;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
@@ -44,7 +45,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void Explicit()
+        public async Task Explicit()
         {
             using (var storage = GetStorage())
             {
@@ -52,12 +53,12 @@ namespace SecurityManagementTests
                 account.Email = TestData.GetAccount().GetEmailAddress();
 
                 ISecurityManager manager = GetSecurityManager(storage);
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
-                manager.CreateDefaultPgpKeys(account);
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
 
                 Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
@@ -67,7 +68,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void OnMasterKeyInitialization()
+        public async Task OnMasterKeyInitialization()
         {
             using (var storage = GetStorage())
             {
@@ -77,14 +78,13 @@ namespace SecurityManagementTests
                 account.Email = TestData.GetAccount().GetEmailAddress();
 
                 ISecurityManager manager = GetSecurityManager(storage);
-                manager.StartAsync(Password).Wait();
-                storage.AddAccountAsync(account).Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
+                await storage.AddAccountAsync(account).ConfigureAwait(true);
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.InitializeSeedPhraseAsync().Wait();
-
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
                 Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
                     Is.True,

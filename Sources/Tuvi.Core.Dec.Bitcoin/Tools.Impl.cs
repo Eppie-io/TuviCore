@@ -99,16 +99,16 @@ namespace Tuvi.Core.Dec.Bitcoin
 
         private static Key DerivePrivateKey(BitcoinNetworkConfig config, MasterKey masterKey, int account, int index)
         {
-            PrivateDerivationKey derivedKey = DerivationKeyFactory.CreatePrivateDerivationKeyBip44(
-                masterKey, Constants.BitcoinCoinType, account, Constants.ExternalChain, index);
-
-            if (derivedKey.Scalar.Length != 32)
+            using (var derivedKey = DerivationKeyFactory.CreatePrivateDerivationKeyBip44(masterKey, Constants.BitcoinCoinType, account, Constants.ExternalChain, index))
             {
-                Logger.LogError("Derived scalar key must be exactly 32 bytes.");
-                throw new InvalidOperationException("Derived scalar key must be exactly 32 bytes.");
-            }
+                if (derivedKey.Scalar.Length != 32)
+                {
+                    Logger.LogError("Derived scalar key must be exactly 32 bytes.");
+                    throw new InvalidOperationException("Derived scalar key must be exactly 32 bytes.");
+                }
 
-            return new Key(derivedKey.Scalar);
+                return new Key(derivedKey.Scalar.ToArray());
+            }
         }
 
         internal static async Task<string> RetrievePublicKeyAsync(BitcoinNetworkConfig config, string address, HttpClient httpClient, CancellationToken cancellationToken = default)

@@ -84,21 +84,20 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
             }
 
-            var seed = await Task.Run(() => KeyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
-            MasterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false);
-            SeedQuiz = new SeedQuiz(seed);
-            return seed;
+            var seedPhrase = await Task.Run(() => KeyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
+            SeedQuiz = new SeedQuiz(seedPhrase);
+
+            return seedPhrase;
         }
 
-        public async Task RestoreSeedPhraseAsync(string[] seedPhrase)
+        public Task RestoreSeedPhraseAsync(string[] seedPhrase)
         {
             if (KeyFactory is null)
             {
                 throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
             }
 
-            await Task.Run(() => KeyFactory.RestoreSeedPhrase(seedPhrase)).ConfigureAwait(false);
-            MasterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false);
+            return Task.Run(() => KeyFactory.RestoreSeedPhrase(seedPhrase));
         }
 
         public async Task StartAsync(string password, CancellationToken cancellationToken = default)
@@ -116,13 +115,9 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
                 await PgpContext.LoadContextAsync().ConfigureAwait(false);
 
-                if (await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
+                if (!await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    await LoadMasterKeyAsync(cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await InitializeSeedPhraseAsync(cancellationToken).ConfigureAwait(false);
+                    await InitializeMasterKeyAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (DataBasePasswordException)
@@ -131,21 +126,21 @@ namespace Tuvi.Core.Impl.SecurityManagement
             }
         }
 
-        public async Task InitializeSeedPhraseAsync(CancellationToken cancellationToken = default)
+        public async Task InitializeMasterKeyAsync(CancellationToken cancellationToken = default)
         {
-            if (MasterKey != null)
+            using (var masterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false))
             {
-                await KeyStorage.InitializeMasterKeyAsync(MasterKey, cancellationToken).ConfigureAwait(false);
+                await KeyStorage.InitializeMasterKeyAsync(masterKey, cancellationToken).ConfigureAwait(false);
                 await CreateDefaultPgpKeysForAllAccountsAsync(cancellationToken).ConfigureAwait(false);
-                CreateSpecialPgpKeys();
+                await CreateSpecialPgpKeysAsync().ConfigureAwait(false);
             }
         }
 
         public async Task ResetAsync()
         {
-            // TODO: Zero master key
-            MasterKey = null;
+            // TODO: Zeroise seed phrase.
             SeedQuiz = null;
+
             await DataStorage.ResetAsync().ConfigureAwait(false);
         }
 
@@ -169,19 +164,22 @@ namespace Tuvi.Core.Impl.SecurityManagement
             return SeedValidator;
         }
 
-        private async Task LoadMasterKeyAsync(CancellationToken cancellationToken = default)
+        private Task<MasterKey> GetMasterKeyAsync(CancellationToken cancellationToken = default)
         {
-            MasterKey = await KeyStorage.GetMasterKeyAsync(cancellationToken).ConfigureAwait(false);
+            return KeyStorage.GetMasterKeyAsync(cancellationToken);
         }
 
-        private void CreateSpecialPgpKeys()
+        private async Task CreateSpecialPgpKeysAsync()
         {
-            foreach (var specialKey in SpecialPgpKeyIdentities)
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
-                string keyIdentity = specialKey.Value;
-                var dummyBackupAddress = new EmailAddress(keyIdentity);
+                foreach (var specialKey in SpecialPgpKeyIdentities)
+                {
+                    string keyIdentity = specialKey.Value;
+                    var dummyBackupAddress = new EmailAddress(keyIdentity);
 
-                PgpContext.GeneratePgpKeysByTagOld(MasterKey, keyIdentity, keyIdentity);
+                    PgpContext.GeneratePgpKeysByTagOld(masterKey, keyIdentity, keyIdentity);
+                }
             }
         }
 
@@ -189,35 +187,41 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             var accounts = await DataStorage.GetAccountsAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var account in accounts)
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                CreateDefaultPgpKeys(account);
+                foreach (var account in accounts)
+                {
+                    CreateDefaultPgpKeys(account, masterKey);
+                }
             }
         }
 
-        public void CreateDefaultPgpKeys(Account account)
+        public async Task CreateDefaultPgpKeysAsync(Account account)
         {
-            if (MasterKey is null)
-            {
-                return;
-            }
-
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
             }
 
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            {
+                CreateDefaultPgpKeys(account, masterKey);
+            }
+        }
+
+        private void CreateDefaultPgpKeys(Account account, MasterKey masterKey)
+        {
             if (account.Email.IsHybrid)
             {
-                PgpContext.GeneratePgpKeysByTag(MasterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+                PgpContext.GeneratePgpKeysByTag(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
             }
             else if (account.Email.IsDecentralized)
             {
-                PgpContext.GeneratePgpKeysByBip44(MasterKey, account.GetPgpUserIdentity(), account.GetCoinType(), account.DecentralizedAccountIndex, account.GetChannel(), account.GetKeyIndex());
+                PgpContext.GeneratePgpKeysByBip44(masterKey, account.GetPgpUserIdentity(), account.GetCoinType(), account.DecentralizedAccountIndex, account.GetChannel(), account.GetKeyIndex());
             }
             else
             {
-                PgpContext.GeneratePgpKeysByTagOld(MasterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+                PgpContext.GeneratePgpKeysByTagOld(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
             }
         }
 
@@ -305,25 +309,27 @@ namespace Tuvi.Core.Impl.SecurityManagement
         public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)
         {
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-
-            switch (network)
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                case NetworkType.Eppie:
-                    {
-                        var account = settings.EppieAccountCounter;
-                        return (PublicKeyConverter.ToPublicKeyBase32E(MasterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
-                    }
-                case NetworkType.Bitcoin:
-                    {
-                        var account = settings.BitcoinAccountCounter;
-                        return (GetBitcoinAddressString(MasterKey, account), account);
-                    }
-                default:
-                    throw new NotSupportedException($"Network type {network} is not supported.");
+                switch (network)
+                {
+                    case NetworkType.Eppie:
+                        {
+                            var account = settings.EppieAccountCounter;
+                            return (PublicKeyConverter.ToPublicKeyBase32E(masterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
+                        }
+                    case NetworkType.Bitcoin:
+                        {
+                            var account = settings.BitcoinAccountCounter;
+                            return (GetBitcoinAddressString(masterKey, account), account);
+                        }
+                    default:
+                        throw new NotSupportedException($"Network type {network} is not supported.");
+                }
             }
         }
 
-        public string GetSecretKeyWIF(Account account)
+        public async Task<string> GetSecretKeyWIFAsync(Account account)
         {
             if (account is null)
             {
@@ -332,28 +338,33 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
             if (account.Email.Network == NetworkType.Bitcoin)
             {
-                return GetBitcoinSecretKeyWIF(MasterKey, account.DecentralizedAccountIndex);
+                using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+                {
+                    return GetBitcoinSecretKeyWIF(masterKey, account.DecentralizedAccountIndex);
+                }
             }
 
             throw new NotSupportedException($"Network type {account.Email.Network} is not supported.");
         }
 
-        private string GetBitcoinAddressString(MasterKey masterKey, int account)
+        private static string GetBitcoinAddressString(MasterKey masterKey, int account)
         {
-            return Tools.DeriveBitcoinAddress(MasterKey, account, NetworkType.Bitcoin.GetKeyIndex());
+            return Tools.DeriveBitcoinAddress(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
         }
 
-        private string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
+        private static string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
         {
-            return Tools.DeriveBitcoinSecretKeyWif(MasterKey, account, NetworkType.Bitcoin.GetKeyIndex());
+            return Tools.DeriveBitcoinSecretKeyWif(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
         }
 
-        public string GetEmailPublicKeyString(EmailAddress email)
+        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
         {
-            return PublicKeyConverter.ToPublicKeyBase32E(MasterKey, email.GetKeyTag());
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            {
+                return PublicKeyConverter.ToPublicKeyBase32E(masterKey, email.GetKeyTag());
+            }
         }
 
-        private MasterKey MasterKey;
         private SeedQuiz SeedQuiz;
         private IKeyDerivationDetailsProvider KeyDerivationDetails;
         private MasterKeyFactory KeyFactory;
