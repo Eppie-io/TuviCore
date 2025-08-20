@@ -150,7 +150,7 @@ namespace Tuvi.Core
         /// <summary>
         /// Get secret key WIF.
         /// </summary> 
-        string GetSecretKeyWIF(Account account);
+        Task<string> GetSecretKeyWIFAsync(Account account);
 
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.

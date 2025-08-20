@@ -1,4 +1,5 @@
 ﻿using Azure;
+using KeyDerivation.Keys;
 using KeyDerivationLib;
 using Moq;
 using Newtonsoft.Json;
@@ -120,7 +121,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             // decryption
             var account = new Account
-            {   
+            {
                 Email = address2
             };
             var decryptedData = await protector.DecryptAsync(account, ecnryptedData, default).ConfigureAwait(true);
@@ -614,8 +615,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var sent = folders.Where(x => x.IsSent).FirstOrDefault();
             message.Folder = sent;
 
-            Assert.ThrowsAsync<DecException>( () => mailBox.SendMessageAsync(message, default));
-            
+            Assert.ThrowsAsync<DecException>(() => mailBox.SendMessageAsync(message, default));
+
             IReadOnlyList<Message> messages = null;
             Assert.ThrowsAsync<DecException>(async () => { messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true); });
             Assert.That(messages, Is.Null);
@@ -809,7 +810,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             {
                 return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
             }
-            
+
             if (addressType == DecentralizedAddressType)
             {
                 return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
@@ -829,7 +830,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             }
 
             if (addressType == DecentralizedAddressType)
-            {   
+            {
                 var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
                 var address = new EmailAddress(pubKey + "@eppie", "1");
                 return address;
@@ -855,7 +856,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
@@ -875,7 +876,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static readonly string[] TestSeedPhrase1 = {

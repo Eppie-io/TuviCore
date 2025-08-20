@@ -171,7 +171,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         private async Task CreateSpecialPgpKeysAsync()
         {
-            using( var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
                 foreach (var specialKey in SpecialPgpKeyIdentities)
                 {
@@ -191,7 +191,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
             {
                 foreach (var account in accounts)
                 {
-                    CreateDefaultPgpKeys(account);
+                    CreateDefaultPgpKeys(account, masterKey);
                 }
             }
         }
@@ -205,6 +205,12 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
             using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
+                CreateDefaultPgpKeys(account, masterKey);
+            }
+        }
+
+        private void CreateDefaultPgpKeys(Account account, MasterKey masterKey)
+        {
             if (account.Email.IsHybrid)
             {
                 PgpContext.GeneratePgpKeysByTag(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
@@ -217,7 +223,6 @@ namespace Tuvi.Core.Impl.SecurityManagement
             {
                 PgpContext.GeneratePgpKeysByTagOld(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
             }
-}
         }
 
         public ICollection<PgpKeyInfo> GetPublicPgpKeysInfo()
@@ -304,25 +309,27 @@ namespace Tuvi.Core.Impl.SecurityManagement
         public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)
         {
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-
-            switch (network)
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                case NetworkType.Eppie:
-                    {
-                        var account = settings.EppieAccountCounter;
-                        return (PublicKeyConverter.ToPublicKeyBase32E(MasterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
-                    }
-                case NetworkType.Bitcoin:
-                    {
-                        var account = settings.BitcoinAccountCounter;
-                        return (GetBitcoinAddressString(MasterKey, account), account);
-                    }
-                default:
-                    throw new NotSupportedException($"Network type {network} is not supported.");
+                switch (network)
+                {
+                    case NetworkType.Eppie:
+                        {
+                            var account = settings.EppieAccountCounter;
+                            return (PublicKeyConverter.ToPublicKeyBase32E(masterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
+                        }
+                    case NetworkType.Bitcoin:
+                        {
+                            var account = settings.BitcoinAccountCounter;
+                            return (GetBitcoinAddressString(masterKey, account), account);
+                        }
+                    default:
+                        throw new NotSupportedException($"Network type {network} is not supported.");
+                }
             }
         }
 
-        public string GetSecretKeyWIF(Account account)
+        public async Task<string> GetSecretKeyWIFAsync(Account account)
         {
             if (account is null)
             {
@@ -331,35 +338,32 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
             if (account.Email.Network == NetworkType.Bitcoin)
             {
-            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
-            {
-                return GetBitcoinSecretKeyWIF(masterKey, account.DecentralizedAccountIndex);
+                using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+                {
+                    return GetBitcoinSecretKeyWIF(masterKey, account.DecentralizedAccountIndex);
+                }
             }
-}
 
             throw new NotSupportedException($"Network type {account.Email.Network} is not supported.");
         }
 
-        private string GetBitcoinAddressString(MasterKey masterKey, int account)
+        private static string GetBitcoinAddressString(MasterKey masterKey, int account)
         {
-            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
-            {
             return Tools.DeriveBitcoinAddress(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
-}
         }
 
-        private string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
+        private static string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
         {
-            return Tools.DeriveBitcoinSecretKeyWif(MasterKey, account, NetworkType.Bitcoin.GetKeyIndex());
+            return Tools.DeriveBitcoinSecretKeyWif(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
         }
 
-        public string GetEmailPublicKeyString(EmailAddress email)
+        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
         {
             using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
-            return PublicKeyConverter.ToPublicKeyBase32E(masterKey, email.GetKeyTag());
+                return PublicKeyConverter.ToPublicKeyBase32E(masterKey, email.GetKeyTag());
+            }
         }
-}
 
         private SeedQuiz SeedQuiz;
         private IKeyDerivationDetailsProvider KeyDerivationDetails;
