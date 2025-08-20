@@ -1,10 +1,10 @@
-﻿using Tuvi.Core.Entities;
-using KeyDerivation;
+﻿using KeyDerivation;
 using KeyDerivation.Keys;
 using KeyDerivationLib;
+using MimeKit;
 using System;
 using System.Collections.Generic;
-using MimeKit;
+using Tuvi.Core.Entities;
 using TuviPgpLib.Entities;
 
 namespace BackupTests
@@ -145,7 +145,8 @@ namespace BackupTests
 
         public static readonly Settings SomeSettings = new Settings
         {
-            DecentralizedAccountCounter = 123,
+            EppieAccountCounter = 123,
+            BitcoinAccountCounter = 321,
         };
     }
 }

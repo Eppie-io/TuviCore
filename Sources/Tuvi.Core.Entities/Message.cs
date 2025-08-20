@@ -34,6 +34,13 @@ namespace Tuvi.Core.Entities
         }
     }
 
+    public enum NetworkType
+    {        
+        Eppie,
+        Bitcoin,
+        Unsupported,
+    }
+
     public class EmailAddress : IEquatable<EmailAddress>, IComparable<EmailAddress>
     {
         public EmailAddress(string address)
@@ -163,7 +170,7 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                return IsDecentralizedEmail(this) || IsHybrid;
+                return Network == NetworkType.Eppie || Network == NetworkType.Bitcoin || IsHybrid;
             }
         }
 
@@ -172,9 +179,16 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                var parts = new EmailStructure(Address);
+                if(IsHybrid)
+                {
+                    var parts = new EmailStructure(Address);
 
-                return parts.Name + '@' + parts.Domain;
+                    return parts.Name + '@' + parts.Domain;
+                }
+                else
+                {
+                    return Address;
+                }
             }
         }
 
@@ -195,26 +209,66 @@ namespace Tuvi.Core.Entities
             }
         }
 
-        private static string DecEppiePostfix = "@eppie";
-
-        private static bool IsDecentralizedEmail(EmailAddress email)
+        [JsonIgnore]
+        public NetworkType Network
         {
-            return email.Address.IndexOf(DecEppiePostfix, StringComparison.CurrentCultureIgnoreCase) == email.Address.Length - DecEppiePostfix.Length;
+            get
+            {
+                return GetNetworkType(this);
+            }
         }
 
-        public static EmailAddress CreateDecentralizedAddress(string address, string name)
+        private static readonly string EppieNetworkPostfix = "@eppie";
+        private static readonly string BitcoinNetworkPostfix = "@bitcoin";
+
+        public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address, string name)
         {
-            return new EmailAddress(address + DecEppiePostfix, name);
+            switch (networkType)
+            {
+                case NetworkType.Bitcoin:
+                    return new EmailAddress(address + BitcoinNetworkPostfix, name);
+                case NetworkType.Eppie:
+                    return new EmailAddress(address + EppieNetworkPostfix, name);
+                default:
+                    throw new ArgumentException("Unsupported network type", nameof(networkType));
+            }
         }
 
         private static string GetDecentralizedAddress(EmailAddress email)
         {
-            int pos = email.Address.IndexOf(DecEppiePostfix, StringComparison.OrdinalIgnoreCase);
+            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
             if (pos == -1)
             {
-                return string.Empty;
+                pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
+                if (pos == -1)
+                {
+                    return string.Empty;
+                }
             }
+
             return email.Address.Substring(0, pos);
+        }
+
+        private static NetworkType GetNetworkType(EmailAddress email)
+        {
+            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
+            if (pos != -1)
+            {
+                return NetworkType.Eppie;
+            }
+            
+            pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
+            if (pos != -1)
+            {
+                return NetworkType.Bitcoin;
+            }
+            
+            if (email.IsHybrid)
+            {
+                return NetworkType.Eppie;
+            }
+                
+            return NetworkType.Unsupported;
         }
     }
 

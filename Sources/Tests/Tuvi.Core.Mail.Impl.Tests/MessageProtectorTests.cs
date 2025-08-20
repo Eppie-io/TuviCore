@@ -6,8 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail.Impl.Protocols;
 using TuviPgpLib.Entities;
 using TuviPgpLibImpl;
@@ -103,7 +103,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public void TwoPartiesInteroperation()
+        public async Task TwoPartiesInteroperation()
         {
             Stream receiverPubKey = new MemoryStream();
             Stream senderPubKey = new MemoryStream();
@@ -142,7 +142,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 message.Folder = new Folder();
 
                 var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
-                message = messageProtector.SignAndEncrypt(message);
+                message = await messageProtector.SignAndEncryptAsync(message).ConfigureAwait(true);
 
                 Assert.That(
                     MessageProtectionType.SignatureAndEncryption,

@@ -1,8 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using MimeKit;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Crypto.Parameters;
-using System;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Backup.Impl;
@@ -15,10 +11,7 @@ using Tuvi.Core.Impl.CredentialsManagement;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Mail.Impl;
-using Tuvi.Core.Mail.Impl.Protocols;
-using Tuvi.Core.Utils;
 using TuviPgpLib;
-using TuviPgpLibImpl;
 
 namespace ComponentBuilder
 {
