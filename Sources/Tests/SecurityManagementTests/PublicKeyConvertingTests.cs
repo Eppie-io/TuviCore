@@ -56,10 +56,10 @@ namespace SecurityManagementTests
         [Test]
         public void PublicKeyImportTest()
         {
-            string emailName = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
-            var reconvertedPublicKey = PublicKeyConverter.ToPublicKey(emailName);
+            const string EmailName = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
+            var reconvertedPublicKey = PublicKeyConverter.ToPublicKey(EmailName);
 
-            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailName);
+            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, EmailName);
 
             using TuviPgpContext ctx = InitializeTuviPgpContext();
             ctx.Import(publicKeyRing);
@@ -76,11 +76,11 @@ namespace SecurityManagementTests
             messageBody.WriteTo(inputData);
             inputData.Position = 0;
 
-            string emailName = "ae5ky7ah5gepibreyyts88vcdenmhk786cmec8xyjburepk5bxufc";
+            const string EmailName = "ae5ky7ah5gepibreyyts88vcdenmhk786cmec8xyjburepk5bxufc";
 
-            ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ToPublicKey(emailName);
+            ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ToPublicKey(EmailName);
 
-            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailName);
+            PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, EmailName);
             PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey );
 
             using EccPgpContext ctx = InitializeTuviPgpContext();

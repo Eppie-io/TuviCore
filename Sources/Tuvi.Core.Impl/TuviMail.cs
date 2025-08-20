@@ -495,11 +495,11 @@ namespace Tuvi.Core.Impl
             {
                 if (account.Email.Network == NetworkType.Eppie)
                 {
-                    await IncreaseEppieAccountIndex(account, cancellationToken).ConfigureAwait(false);
+                    await IncreaseEppieAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
                 }
                 else if (account.Email.Network == NetworkType.Bitcoin)
                 {
-                    await IncreaseBitcoinAccountIndex(account, cancellationToken).ConfigureAwait(false);
+                    await IncreaseBitcoinAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -508,7 +508,7 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        private async Task IncreaseEppieAccountIndex(Account account, CancellationToken cancellationToken)
+        private async Task IncreaseEppieAccountIndexAsync(Account account, CancellationToken cancellationToken)
         {
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
             var index = settings.EppieAccountCounter;
@@ -523,7 +523,7 @@ namespace Tuvi.Core.Impl
             await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task IncreaseBitcoinAccountIndex(Account account, CancellationToken cancellationToken)
+        private async Task IncreaseBitcoinAccountIndexAsync(Account account, CancellationToken cancellationToken)
         {
             var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
             var index = settings.BitcoinAccountCounter;

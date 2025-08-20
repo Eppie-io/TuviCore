@@ -29,7 +29,7 @@ namespace Tuvi.Core.Utils
         /// <returns>Public key encoded in Base32E format.</returns>
         public static string ToPublicKeyBase32E(ECPublicKeyParameters publicKey)
         {
-            if (publicKey == null)
+            if (publicKey is null)
             {
                 throw new ArgumentNullException(nameof(publicKey));
             }
@@ -61,7 +61,7 @@ namespace Tuvi.Core.Utils
         /// </summary>
         public static Task<string> ToPublicKeyBase32EAsync(EmailAddress email)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }
@@ -74,7 +74,7 @@ namespace Tuvi.Core.Utils
         /// </summary>
         public static async Task<ECPublicKeyParameters> ToPublicKeyAsync(EmailAddress email)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }
@@ -91,7 +91,7 @@ namespace Tuvi.Core.Utils
         /// <returns>EC public key parameters.</returns>
         public static ECPublicKeyParameters ToPublicKey(string publicKey)
         {
-            if (publicKey == null)
+            if (publicKey is null)
             {
                 throw new ArgumentNullException(nameof(publicKey));
             }

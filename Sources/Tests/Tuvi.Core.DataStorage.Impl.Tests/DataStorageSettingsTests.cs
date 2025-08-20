@@ -5,6 +5,9 @@ namespace Tuvi.Core.DataStorage.Tests
 {
     public class SettingsTests : TestWithStorageBase
     {
+        private const int Const123 = 123;
+        private const int Const321 = 321;
+
         [SetUp]
         public async Task SetupAsync()
         {
@@ -29,16 +32,16 @@ namespace Tuvi.Core.DataStorage.Tests
 
                 var settings = await db.GetSettingsAsync().ConfigureAwait(true);
 
-                Assert.That(settings.EppieAccountCounter == 0, Is.True);
-                Assert.That(settings.BitcoinAccountCounter == 0, Is.True);
+                Assert.That(settings.EppieAccountCounter, Is.Zero);
+                Assert.That(settings.BitcoinAccountCounter, Is.Zero);
 
-                settings.EppieAccountCounter = 123;
-                settings.BitcoinAccountCounter = 321;
+                settings.EppieAccountCounter = Const123;
+                settings.BitcoinAccountCounter = Const321;
                 await db.SetSettingsAsync(settings).ConfigureAwait(true);
 
                 var settings2 = await db.GetSettingsAsync().ConfigureAwait(true);
-                Assert.That(settings2.EppieAccountCounter == 123, Is.True);
-                Assert.That(settings2.BitcoinAccountCounter == 321, Is.True);
+                Assert.That(settings2.EppieAccountCounter, Is.EqualTo(Const123));
+                Assert.That(settings2.BitcoinAccountCounter, Is.EqualTo(Const321));
             }
         }
     }
