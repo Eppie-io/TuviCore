@@ -1,4 +1,6 @@
-﻿using KeyDerivationLib;
+﻿using Azure;
+using KeyDerivation.Keys;
+using KeyDerivationLib;
 using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
@@ -119,7 +121,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             // decryption
             var account = new Account
-            {   
+            {
                 Email = address2
             };
             var decryptedData = await protector.DecryptAsync(account, ecnryptedData, default).ConfigureAwait(true);
@@ -613,8 +615,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var sent = folders.Where(x => x.IsSent).FirstOrDefault();
             message.Folder = sent;
 
-            Assert.ThrowsAsync<DecException>( () => mailBox.SendMessageAsync(message, default));
-            
+            Assert.ThrowsAsync<DecException>(() => mailBox.SendMessageAsync(message, default));
+
             IReadOnlyList<Message> messages = null;
             Assert.ThrowsAsync<DecException>(async () => { messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true); });
             Assert.That(messages, Is.Null);
@@ -698,9 +700,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return client;
         }
 
+        static MasterKey _masterKey;
         private static Mock<IDecStorage> CreateKeyStorageMock1()
         {
-            return CreateKeyStorageMock(TestSeedPhrase1);
+            _masterKey = EncryptionTestsData.CreateTestMasterKeyForSeed(TestSeedPhrase1);
+            return CreateKeyStorageMock(_masterKey);
         }
 
         private Task<IDataStorage> CreateKeyStorage1Async()
@@ -712,10 +716,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         private async Task<IDataStorage> CreateKeyStorageAsync(string[] seedPhrase)
         {
-            EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase);
             var keyFactory = new MasterKeyFactory(new ImplementationDetailsProvider("Tuvi seed", "Tuvi.Package", "backup@test"));
             keyFactory.RestoreSeedPhrase(seedPhrase);
-            var masterKey = keyFactory.GetMasterKey();
+            using var masterKey = keyFactory.GetMasterKey();
             string path = $"test{_storageId++}.db";
             File.Delete(path);
             var storage = DataStorageProvider.GetDataStorage(path);
@@ -724,11 +727,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return storage;
         }
 
-        private static Mock<IDecStorage> CreateKeyStorageMock(string[] seedPhrase)
+        private static Mock<IDecStorage> CreateKeyStorageMock(MasterKey masterKey)
         {
             var messages = new Dictionary<EmailAddress, List<DecMessage>>();
             var storage = new Mock<IDecStorage>();
-            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase));
+            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
             storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
                                          It.IsAny<Folder>(),
                                          It.IsAny<int>(),
@@ -820,7 +823,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             {
                 return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
             }
-            
+
             if (addressType == DecentralizedAddressType)
             {
                 return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
@@ -840,7 +843,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             }
 
             if (addressType == DecentralizedAddressType)
-            {   
+            {
                 var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
                 var address = new EmailAddress(pubKey + "@eppie", "1");
                 return address;
@@ -866,7 +869,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
@@ -886,7 +889,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static readonly string[] TestSeedPhrase1 = {
