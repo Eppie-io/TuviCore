@@ -144,8 +144,8 @@ namespace SecurityManagementTests
             {
                 await storage.CreateAsync(Password).ConfigureAwait(true);
                 ISecurityManager manager = GetSecurityManager(storage);
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.InitializeMasterKeyAsync().Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.InitializeMasterKeyAsync().ConfigureAwait(true);
                 await manager.ChangePasswordAsync(Password, NewPassword, default).ConfigureAwait(true);
             }
 
@@ -165,8 +165,8 @@ namespace SecurityManagementTests
                 ISecurityManager manager = GetSecurityManager(storage);
 
                 var testSeed = TestData.GetTestSeed();
-                manager.RestoreSeedPhraseAsync(testSeed).Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.RestoreSeedPhraseAsync(testSeed).ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
                 var email = new EmailAddress("user@example.com");
                 var keyString = await manager.GetEmailPublicKeyStringAsync(email).ConfigureAwait(true);
@@ -179,15 +179,15 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void NextDecentralizedAccountPublicKeyGenerated()
+        public async Task NextDecentralizedAccountPublicKeyGenerated()
         {
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
                 var testSeed = TestData.GetTestSeed();
-                manager.RestoreSeedPhraseAsync(testSeed).Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.RestoreSeedPhraseAsync(testSeed).ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
                 var (keyString, accountIndex) = manager.GetNextDecAccountPublicKeyAsync(default).Result;
 
@@ -198,19 +198,19 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void RemovePgpKeysForAccountRemovesExpectedIdentity()
+        public async Task RemovePgpKeysForAccountRemovesExpectedIdentity()
         {
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
                 Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
 
                 var account = new Account { Email = new EmailAddress("remove@example.com") };
 
-                manager.CreateDefaultPgpKeysAsync(account).Wait();
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
 
                 var pgpKeys = manager.GetPublicPgpKeysInfo();
                 Assert.That(

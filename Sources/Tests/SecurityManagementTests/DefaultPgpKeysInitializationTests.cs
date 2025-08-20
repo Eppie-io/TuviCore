@@ -53,8 +53,8 @@ namespace SecurityManagementTests
                 account.Email = TestData.GetAccount().GetEmailAddress();
 
                 ISecurityManager manager = GetSecurityManager(storage);
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
@@ -68,7 +68,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void OnMasterKeyInitialization()
+        public async Task OnMasterKeyInitialization()
         {
             using (var storage = GetStorage())
             {
@@ -78,13 +78,13 @@ namespace SecurityManagementTests
                 account.Email = TestData.GetAccount().GetEmailAddress();
 
                 ISecurityManager manager = GetSecurityManager(storage);
-                manager.CreateSeedPhraseAsync().Wait();
-                manager.StartAsync(Password).Wait();
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
 
-                storage.AddAccountAsync(account).Wait();
+                await storage.AddAccountAsync(account).ConfigureAwait(true);
                 Assert.That(PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()), Is.False);
 
-                manager.CreateDefaultPgpKeysAsync(account).Wait();
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
                 Assert.That(
                     PgpContext.IsSecretKeyExist(account.Email.ToUserIdentity()),
                     Is.True,
