@@ -620,43 +620,50 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(messages, Is.Null);
 
             // Both clients should be called
-            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
+            client1.Verify(x => x.PutAsync(It.IsAny<byte[]>()), Times.AtLeastOnce);
+            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
             client1.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
             client1.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
 
-            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
+            client2.Verify(x => x.PutAsync(It.IsAny<byte[]>()), Times.AtLeastOnce);
+            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
             client2.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
             client2.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
         }
 
         private static Mock<IDecStorageClient> CreateDecClient()
         {
-            var decMessages = new Dictionary<string, Dictionary<string, byte[]>>();
+            var decMessages = new Dictionary<string, string>();
+            var decData = new Dictionary<string, byte[]>();
             var client = new Mock<IDecStorageClient>();
             client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, byte[] data) =>
+                  .ReturnsAsync((string address, string hash) =>
                   {
-                      var hash = GetSHA256(data);
-                      Dictionary<string, byte[]> messages;
-                      if (decMessages.TryGetValue(address, out messages) == false)
-                      {
-                          messages = new Dictionary<string, byte[]>(); ;
-                          decMessages.Add(address, messages);
-                      }
-                      messages[hash] = data;
+                      decMessages[hash] = address;
                       return hash;
                   });
             client.Setup(x => x.ListAsync(It.IsAny<string>()))
                   .ReturnsAsync(
                 (string address) =>
                 {
-                    return decMessages[address].Keys.ToList();
+                    return decMessages
+                            .Where(x => x.Value == address)
+                            .Select(x => x.Key)
+                            .ToList();
                 });
             client.Setup(x => x.GetAsync(It.IsAny<string>()))
                   .ReturnsAsync(
-                (string address, string hash) =>
+                (string hash) =>
                 {
-                    return decMessages[address][hash];
+                    return decData[hash];
+                });
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+                  .ReturnsAsync(
+                (byte[] data) =>
+                {
+                    var hash = GetSHA256(data);
+                    decData[hash] = data;
+                    return hash;
                 });
             return client;
         }
@@ -666,7 +673,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var decMessages = new Dictionary<string, Dictionary<string, byte[]>>();
             var client = new Mock<IDecStorageClient>();
             client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, byte[] data) =>
+                  .ReturnsAsync((string address, string hash) =>
                   {
                       throw new DecException();
                   });
@@ -678,7 +685,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 });
             client.Setup(x => x.GetAsync(It.IsAny<string>()))
                   .ReturnsAsync(
-                (string address, string hash) =>
+                (string hash) =>
+                {
+                    throw new DecException();
+                });
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+                  .ReturnsAsync(
+                (byte[] data) =>
                 {
                     throw new DecException();
                 });
