@@ -14,7 +14,6 @@ using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
 using Tuvi.Core.Web.BackupService;
-using TuviPgpLib;
 
 namespace Tuvi.Core.Impl
 {
@@ -494,24 +493,56 @@ namespace Tuvi.Core.Impl
         {
             if (account.Type == MailBoxType.Dec)
             {
-                var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-                var index = settings.DecentralizedAccountCounter;
-
-                if (index != account.DecentralizedAccountIndex)
+                if (account.Email.Network == NetworkType.Eppie)
                 {
-                    throw new InvalidOperationException($"Decentralized account index mismatch. Expected: {account.DecentralizedAccountIndex}, Actual: {index}");
+                    await IncreaseEppieAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
                 }
-
-                index++;
-                settings.DecentralizedAccountCounter = index;
-                await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
+                else if (account.Email.Network == NetworkType.Bitcoin)
+                {
+                    await IncreaseBitcoinAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    throw new NotSupportedException($"Unsupported network type: {account.Email.Network}");
+                }
             }
+        }
+
+        private async Task IncreaseEppieAccountIndexAsync(Account account, CancellationToken cancellationToken)
+        {
+            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            var index = settings.EppieAccountCounter;
+
+            if (index != account.DecentralizedAccountIndex)
+            {
+                throw new InvalidOperationException($"Decentralized account index mismatch. Expected: {account.DecentralizedAccountIndex}, Actual: {index}");
+            }
+
+            index++;
+            settings.EppieAccountCounter = index;
+            await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task IncreaseBitcoinAccountIndexAsync(Account account, CancellationToken cancellationToken)
+        {
+            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            var index = settings.BitcoinAccountCounter;
+
+            if (index != account.DecentralizedAccountIndex)
+            {
+                throw new InvalidOperationException($"Decentralized account index mismatch. Expected: {account.DecentralizedAccountIndex}, Actual: {index}");
+            }
+
+            index++;
+            settings.BitcoinAccountCounter = index;
+            await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
+
         }
 
         private async Task AddAccountToStorageAsync(Account account, CancellationToken cancellationToken = default)
         {
             await DataStorage.AddAccountAsync(account, cancellationToken).ConfigureAwait(false);
-            SecurityManager.CreateDefaultPgpKeys(account);
+            await SecurityManager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(false);
 
             AddAndStartAccountScheduler(account);
             AccountCache.AddOrReplace(account.Id, account);
@@ -664,7 +695,7 @@ namespace Tuvi.Core.Impl
 
             var email = account.Email;
 
-            var deckey = SecurityManager.GetEmailPublicKeyString(email);
+            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email).ConfigureAwait(false);
             var hybridAddress = email.MakeHybrid(deckey);
 
             var decAccountService = GetAccountService(hybridAddress);

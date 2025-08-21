@@ -50,4 +50,31 @@ namespace Tuvi.Core.Entities
             }
         }
     }
+
+    public class NoPublicKeyException : CoreException
+    {
+        public EmailAddress Email { get; }
+
+        public NoPublicKeyException(EmailAddress email, string message) : base(message)
+        {
+            Email = email;
+        }
+
+        public NoPublicKeyException(EmailAddress email, Exception innerException) : base(string.Empty, innerException)
+        {
+            Email = email;
+        }
+
+        private NoPublicKeyException()
+        {
+        }
+
+        private NoPublicKeyException(string message) : base(message)
+        {
+        }
+
+        private NoPublicKeyException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
 }

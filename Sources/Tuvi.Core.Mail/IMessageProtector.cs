@@ -25,7 +25,7 @@ namespace Tuvi.Core.Mail
         /// <returns>Modified message</returns>
         /// <exception cref="NoPublicKeyException"/>
         /// <exception cref="MessageEncryptionException"/>
-        Message Encrypt(Message message);
+        Task<Message> EncryptAsync(Message message);
 
         /// <summary>
         /// Sign and encrypt <paramref name="message"/> using PGP.
@@ -35,7 +35,7 @@ namespace Tuvi.Core.Mail
         /// <exception cref="NoSecretKeyException"/>
         /// <exception cref="NoPublicKeyException"/>
         /// <exception cref="MessageEncryptionException"/>
-        Message SignAndEncrypt(Message message);
+        Task<Message> SignAndEncryptAsync(Message message);
 
         /// <summary>
         /// Tries to decrypt and verify message signatures if needed.

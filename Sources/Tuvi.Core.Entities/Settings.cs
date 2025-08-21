@@ -2,6 +2,7 @@
 {
     public class Settings
     {
-        public int DecentralizedAccountCounter { get; set; }
+        public int EppieAccountCounter { get; set; }
+        public int BitcoinAccountCounter { get; set; }
     }
 }

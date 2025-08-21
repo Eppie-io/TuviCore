@@ -34,13 +34,12 @@ namespace Tuvi.Core
         Task<bool> IsSeedPhraseInitializedAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Initialize application seed phrase.
+        /// Initialize master key.
         /// Seed has to be restored <see cref="RestoreSeedPhraseAsync(string[])"/>
         /// or created <see cref="CreateSeedPhraseAsync()"/> previously to call this method.
         /// </summary>
         /// <exception cref="DataBaseException" />
-        /// <exception cref="PgpArgumentNullException" />
-        Task InitializeSeedPhraseAsync(CancellationToken cancellationToken = default);
+        Task InitializeMasterKeyAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Generates new random seed phrase.
@@ -83,7 +82,7 @@ namespace Tuvi.Core
         /// </summary>
         /// <param name="account">Account which PGP keys need to be initialized</param>
         /// <exception cref="PgpArgumentNullException"/>
-        void CreateDefaultPgpKeys(Account account);
+        Task CreateDefaultPgpKeysAsync(Account account);
 
         /// <summary>
         /// Get all public PGP keys information.
@@ -146,11 +145,16 @@ namespace Tuvi.Core
         /// <summary>
         /// Get next decentralized account public key and index.
         /// </summary> 
-        Task<(string, int)> GetNextDecAccountPublicKeyAsync(CancellationToken cancellationToken);
+        Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType networkType, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Get secret key WIF.
+        /// </summary> 
+        Task<string> GetSecretKeyWIFAsync(Account account);
 
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.
         /// </summary>
-        string GetEmailPublicKeyString(EmailAddress email);
+        Task<string> GetEmailPublicKeyStringAsync(EmailAddress email);
     }
 }

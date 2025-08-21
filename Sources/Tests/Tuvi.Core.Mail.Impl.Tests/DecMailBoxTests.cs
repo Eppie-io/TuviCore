@@ -1,17 +1,15 @@
 ﻿using Azure;
+using KeyDerivation.Keys;
 using KeyDerivationLib;
-using MimeKit;
 using Moq;
-using NBitcoin;
-using NBitcoin.RPC;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Org.BouncyCastle.Bcpg.OpenPgp;
 using Org.BouncyCastle.Crypto.Parameters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -21,7 +19,6 @@ using Tuvi.Core.DataStorage.Impl;
 using Tuvi.Core.Dec;
 using Tuvi.Core.Dec.Impl;
 using Tuvi.Core.Entities;
-using Tuvi.Core.Impl;
 using Tuvi.Core.Mail.Impl.Protocols;
 using Tuvi.Core.Utils;
 using TuviPgpLib;
@@ -83,7 +80,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(false);
 
             var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, keyTag);
-            var pubKey = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+            var pubKey = PublicKeyConverter.ToPublicKeyBase32E(publicKeyPar);
 
             return pubKey;
         }
@@ -97,31 +94,37 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(false);
 
             var publicKeyPar = EccPgpContext.GenerateEccPublicKey(masterKey, CoinType, accountIndex, Channel, KeyIndex);
-            var pubKey = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKeyPar);
+            var pubKey = PublicKeyConverter.ToPublicKeyBase32E(publicKeyPar);
 
             return pubKey;
         }
 
         [Test]
         [Category("Dec")]
-        [TestCase("agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier", "test@test.com")]
-        [TestCase("ahucekc2b364jcjnxigfnk3sqjixnahmrizhjcewmvn4munk7wm5d", "test1@test.com")]
-        [TestCase("agz5qyvbusf5tgwaawnn5zcntegpywzhuq2fzdc53it5mduxk9e77", "test2@test.com")]
-        public async Task DecTransportEncryptionDecryptionTest(string address, string keyTag)
+        [TestCase("agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier", "test{0}@test.com")]
+        [TestCase("ahucekc2b364jcjnxigfnk3sqjixnahmrizhjcewmvn4munk7wm5d", "test1{0}@test.com")]
+        [TestCase("agz5qyvbusf5tgwaawnn5zcntegpywzhuq2fzdc53it5mduxk9e77", "test2{0}@test.com")]
+        public async Task DecTransportEncryptionDecryptionTest(string address, string keyTagTemplate)
         {
             var storage = CreateKeyStorageMock1();
             var protector = new PgpDecProtector(storage.Object);
             var data = "data to encrypt";
-            // encryption            
+            // encryption
+            var keyTag = string.Format(CultureInfo.InvariantCulture, keyTagTemplate, "");
             var pubKey = await GetDecAddressAsync(storage.Object, keyTag).ConfigureAwait(true);
-            var address2 = new EmailAddress("abc+" + pubKey + "@abc.com", keyTag);
+            var emailAddress = string.Format(CultureInfo.InvariantCulture, keyTagTemplate, $"+{pubKey}");
+            var address2 = new EmailAddress(emailAddress, keyTag);
             var ecnryptedData = await protector.EncryptAsync(address, data, default).ConfigureAwait(true);
 
             var parts = address2.Address.Split('+')[1].Split('@');
             Assert.That(address, Is.EqualTo(parts[0]));
 
             // decryption
-            var decryptedData = await protector.DecryptAsync(address2.Address, keyTag, ecnryptedData, default).ConfigureAwait(true);
+            var account = new Account
+            {
+                Email = address2
+            };
+            var decryptedData = await protector.DecryptAsync(account, ecnryptedData, default).ConfigureAwait(true);
             Assert.That(decryptedData, Is.EqualTo(data));
         }
 
@@ -145,7 +148,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var ecnryptedData = await protector.EncryptAsync(address2.DecentralizedAddress, data, default).ConfigureAwait(true);
 
             // decryption
-            var decryptedData = await protector.DecryptAsync(address2.Address, accountIndex, ecnryptedData, default).ConfigureAwait(true);
+            var account = new Account
+            {
+                DecentralizedAccountIndex = accountIndex,
+                Email = address2
+            };
+            var decryptedData = await protector.DecryptAsync(account, ecnryptedData, default).ConfigureAwait(true);
             Assert.That(decryptedData, Is.EqualTo(data));
         }
 
@@ -168,7 +176,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Message message = CreateMessage(senderAddress, receiverAddress);
             var senderMessageProtector = MessageProtectorCreator.GetMessageProtector(senderContext);
-            var encryptedMessage = senderMessageProtector.Encrypt(message);
+            var encryptedMessage = await senderMessageProtector.EncryptAsync(message).ConfigureAwait(true);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage.Object, receiverAddress).ConfigureAwait(true);
 
@@ -197,7 +205,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var encryptedMessage = senderMessageProtector.Sign(message);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage.Object, receiverAddress).ConfigureAwait(true);
-            receiverContext.TryToAddDecPublicKeys(senderAddress);
+            await receiverContext.TryToAddDecPublicKeysAsync(new[] { senderAddress }).ConfigureAwait(true);
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(encryptedMessage).ConfigureAwait(true);
             Assert.That(decryptedMessage, Is.EqualTo(message));
@@ -221,7 +229,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Message message = CreateMessage(senderAddress, receiverAddress);
             var senderMessageProtector = MessageProtectorCreator.GetMessageProtector(senderContext);
-            var encryptedMessage = senderMessageProtector.SignAndEncrypt(message);
+            var encryptedMessage = await senderMessageProtector.SignAndEncryptAsync(message).ConfigureAwait(true);
             Assert.That(message.TextBody, Is.Null);
             Assert.That(message.HtmlBody, Is.Null);
 
@@ -231,7 +239,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(AreEqualMessages(encryptedMessage, receiverEncryptedMessage), Is.True);
 
             using var receiverContext = await CreateDecPgpContextAsync(receiverStorage, receiverAddress).ConfigureAwait(true);
-            receiverContext.TryToAddDecPublicKeys(senderAddress);
+            await receiverContext.TryToAddDecPublicKeysAsync(new[] { senderAddress }).ConfigureAwait(true);
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(receiverEncryptedMessage).ConfigureAwait(true);
             Assert.That(AreEqualMessages(decryptedMessage, message), Is.False);
@@ -260,7 +268,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var address = await GetAddress1Async(storage.Object, addressType).ConfigureAwait(true);
             using var context = await CreateDecPgpContextAsync(storage.Object, address).ConfigureAwait(true);
             var publicKey = context.EnumeratePublicKeys().Where(x => !x.IsMasterKey && x.IsEncryptionKey).First();
-            var s1 = PublicKeyConverter.ConvertPublicKeyToEmailName(publicKey.GetKey() as ECPublicKeyParameters);
+            var s1 = PublicKeyConverter.ToPublicKeyBase32E(publicKey.GetKey() as ECPublicKeyParameters);
             Assert.That(s1, Is.EqualTo(address.DecentralizedAddress));
         }
 
@@ -476,7 +484,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var message = CreateMessage(from, from);
             var storageMock = CreateKeyStorageMock1();
             var storage = storageMock.Object;
-            using var pgpContext = await EccPgpExtension.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
             var masterKey = await storage.GetMasterKeyAsync().ConfigureAwait(true);
             pgpContext.GeneratePgpKeysByTag(masterKey, from.Address, from.StandardAddress);
             var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
@@ -485,12 +493,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.DoesNotThrow(() => messageToSign = messageProtector.Sign(messageToSign));
 
             var messageToSignAndEncrypt = message.ShallowCopy();
-            Assert.DoesNotThrow(() => messageToSignAndEncrypt = messageProtector.SignAndEncrypt(messageToSignAndEncrypt));
+            Assert.DoesNotThrowAsync(async () => messageToSignAndEncrypt = await messageProtector.SignAndEncryptAsync(messageToSignAndEncrypt).ConfigureAwait(true));
 
             var messageToEncrypt = message.ShallowCopy();
-            Assert.DoesNotThrow(() => messageToEncrypt = messageProtector.Encrypt(messageToEncrypt));
+            Assert.DoesNotThrowAsync(async () => messageToEncrypt = await messageProtector.EncryptAsync(messageToEncrypt).ConfigureAwait(true));
 
-            using var pgpContext2 = await EccPgpExtension.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            using var pgpContext2 = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
             var messageProtector2 = MessageProtectorCreator.GetMessageProtector(pgpContext2);
 
             Assert.DoesNotThrowAsync(() => messageProtector2.TryVerifyAndDecryptAsync(messageToSign));
@@ -607,8 +615,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var sent = folders.Where(x => x.IsSent).FirstOrDefault();
             message.Folder = sent;
 
-            Assert.ThrowsAsync<DecException>( () => mailBox.SendMessageAsync(message, default));
-            
+            Assert.ThrowsAsync<DecException>(() => mailBox.SendMessageAsync(message, default));
+
             IReadOnlyList<Message> messages = null;
             Assert.ThrowsAsync<DecException>(async () => { messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true); });
             Assert.That(messages, Is.Null);
@@ -679,9 +687,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return client;
         }
 
+        static MasterKey _masterKey;
         private static Mock<IDecStorage> CreateKeyStorageMock1()
         {
-            return CreateKeyStorageMock(TestSeedPhrase1);
+            _masterKey = EncryptionTestsData.CreateTestMasterKeyForSeed(TestSeedPhrase1);
+            return CreateKeyStorageMock(_masterKey);
         }
 
         private Task<IDataStorage> CreateKeyStorage1Async()
@@ -693,10 +703,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         private async Task<IDataStorage> CreateKeyStorageAsync(string[] seedPhrase)
         {
-            EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase);
             var keyFactory = new MasterKeyFactory(new ImplementationDetailsProvider("Tuvi seed", "Tuvi.Package", "backup@test"));
             keyFactory.RestoreSeedPhrase(seedPhrase);
-            var masterKey = keyFactory.GetMasterKey();
+            using var masterKey = keyFactory.GetMasterKey();
             string path = $"test{_storageId++}.db";
             File.Delete(path);
             var storage = DataStorageProvider.GetDataStorage(path);
@@ -705,11 +714,11 @@ namespace Tuvi.Core.Mail.Impl.Tests
             return storage;
         }
 
-        private static Mock<IDecStorage> CreateKeyStorageMock(string[] seedPhrase)
+        private static Mock<IDecStorage> CreateKeyStorageMock(MasterKey masterKey)
         {
             var messages = new Dictionary<EmailAddress, List<DecMessage>>();
             var storage = new Mock<IDecStorage>();
-            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(EncryptionTestsData.CreateTestMasterKeyForSeed(seedPhrase));
+            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
             storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
                                          It.IsAny<Folder>(),
                                          It.IsAny<int>(),
@@ -801,7 +810,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             {
                 return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
             }
-            
+
             if (addressType == DecentralizedAddressType)
             {
                 return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
@@ -821,7 +830,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             }
 
             if (addressType == DecentralizedAddressType)
-            {   
+            {
                 var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
                 var address = new EmailAddress(pubKey + "@eppie", "1");
                 return address;
@@ -847,7 +856,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
@@ -867,7 +876,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 return address;
             }
 
-            throw new ArgumentException($"Unknown address type: {addressType}");            
+            throw new ArgumentException($"Unknown address type: {addressType}");
         }
 
         private static readonly string[] TestSeedPhrase1 = {
