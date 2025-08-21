@@ -1,4 +1,22 @@
-﻿using Newtonsoft.Json;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -86,9 +104,9 @@ namespace Tuvi.Core.Dec.Impl
             return Task.FromResult<IList<Folder>>(new List<Folder>
             {
                 GetInboxFolder(),
-                new Folder("SENT", FolderAttributes.Sent),
-                new Folder("DRAFT", FolderAttributes.Draft),
-                new Folder("TRASH", FolderAttributes.Trash),
+                new Folder("Sent", FolderAttributes.Sent),
+                new Folder("Drafts", FolderAttributes.Draft),
+                new Folder("Trash", FolderAttributes.Trash),
             });
         }
         public Task<Folder> GetDefaultInboxFolderAsync(CancellationToken cancellationToken)
@@ -98,7 +116,7 @@ namespace Tuvi.Core.Dec.Impl
 
         private static Folder GetInboxFolder()
         {
-            return new Folder("INBOX", FolderAttributes.Inbox);
+            return new Folder("Inbox", FolderAttributes.Inbox);
         }
 
         private async Task<List<Message>> GetMessageListAsync(Folder folder, int count, CancellationToken cancellationToken)

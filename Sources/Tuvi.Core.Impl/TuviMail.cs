@@ -1,4 +1,22 @@
-﻿using BackupServiceClientLibrary;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using BackupServiceClientLibrary;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -340,7 +358,7 @@ namespace Tuvi.Core.Impl
                     {
                         if (!AccountGroupCache.TryGetValue(accountGroup.Key, out group))
                         {
-                            // TODO: Need to create grours after backup restoring
+                            // TODO: Need to create groups after backup restoring
                             account.GroupId = 0; // HACK: Unknown group, reset group id to default.
                             //continue; // skip, unknown group
                         }
@@ -926,12 +944,7 @@ namespace Tuvi.Core.Impl
             var accounts = await GetCompositeAccountsAsync(cancellationToken).ConfigureAwait(false);
             foreach (var account in accounts)
             {
-                var accountService = await GetAccountServiceAsync(account.Email, cancellationToken).ConfigureAwait(false);
-
-                foreach (var inbox in account.DefaultInboxFolder.Folders)
-                {
-                    unreadCount += await accountService.GetUnreadMessagesCountInFolderAsync(inbox, cancellationToken).ConfigureAwait(false);
-                }
+                unreadCount += await account.DefaultInboxFolder.GetUnreadMessagesCountAsync(cancellationToken).ConfigureAwait(false);
             }
 
             Debug.Assert(unreadCount >= 0);
