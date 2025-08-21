@@ -107,12 +107,12 @@ namespace Tuvi.Core.Impl
             {
                 Task remoteTask = isRead ? MailBox.MarkMessagesAsReadAsync(messageGroup, cancellationToken)
                                          : MailBox.MarkMessagesAsUnReadAsync(messageGroup, cancellationToken);
-                Task localTask = UpdateLocalMessagesReadFlagAsync(messageGroup, messageGroup.Key, cancellationToken);
+                Task localTask = UpdateLocalMessagesReadFlagAsync(messageGroup, cancellationToken);
                 await Task.WhenAll(remoteTask, localTask).ConfigureAwait(false);
             }
         }
 
-        private async Task UpdateLocalMessagesReadFlagAsync(IEnumerable<Message> messages, Folder folder, CancellationToken cancellationToken)
+        private async Task UpdateLocalMessagesReadFlagAsync(IEnumerable<Message> messages, CancellationToken cancellationToken)
         {
             await DataStorage.UpdateMessagesFlagsAsync(Account.Email, messages, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
             RaiseMessagesIsReadChanged(messages);
@@ -164,11 +164,11 @@ namespace Tuvi.Core.Impl
             }
             Task remoteTask = isFlagged ? MailBox.FlagMessagesAsync(messages, cancellationToken)
                                         : MailBox.UnflagMessagesAsync(messages, cancellationToken);
-            Task localTask = UpdateMessagesFlagAsync(messages, isFlagged: true, cancellationToken);
+            Task localTask = UpdateMessagesFlagAsync(messages, cancellationToken);
             await Task.WhenAll(remoteTask, localTask).ConfigureAwait(false);
         }
 
-        private async Task UpdateMessagesFlagAsync(IEnumerable<Message> messages, bool isFlagged, CancellationToken cancellationToken)
+        private async Task UpdateMessagesFlagAsync(IEnumerable<Message> messages, CancellationToken cancellationToken)
         {
             await DataStorage.UpdateMessagesFlagsAsync(Account.Email, messages, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
             RaiseMessagesIsFlaggedChanged(messages);
@@ -477,18 +477,6 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        public async Task<int> GetUnreadMessagesCountAsync(CancellationToken cancellationToken)
-        {
-            int unreadCount = 0;
-
-            foreach (var folder in Account.FoldersStructure)
-            {
-                unreadCount += await GetUnreadMessagesCountInFolderAsync(folder, cancellationToken).ConfigureAwait(false);
-            }
-
-            return unreadCount;
-        }
-
         public Task<int> GetUnreadMessagesCountInFolderAsync(Folder folder, CancellationToken cancellationToken)
         {
             if (folder is null)
@@ -542,8 +530,8 @@ namespace Tuvi.Core.Impl
 
         class MyFolderSynchronizer : FolderSynchronizer
         {
-            private Folder _folder;
-            AccountService _accountService;
+            private readonly Folder _folder;
+            readonly AccountService _accountService;
             IDataStorage DataStorage => _accountService.DataStorage;
             IMailBox MailBox => _accountService.MailBox;
             Account Account => _accountService.Account;
@@ -742,7 +730,7 @@ namespace Tuvi.Core.Impl
             Message latestRemoteMessage = new Message() { Id = latestMessage.Id < uint.MaxValue ? latestMessage.Id + 1 : latestMessage.Id };
             while (!cancellationToken.IsCancellationRequested)
             {
-                IReadOnlyList<Message> remoteMessages = null;
+                IReadOnlyList<Message> remoteMessages;
                 if (latestRemoteMessage.Id > earliestMessage.Id)
                 {
                     uint approxCount = latestRemoteMessage.Id - earliestMessage.Id;

@@ -341,7 +341,7 @@ namespace Tuvi.Core.Impl
                     {
                         if (!AccountGroupCache.TryGetValue(accountGroup.Key, out group))
                         {
-                            // TODO: Need to create grours after backup restoring
+                            // TODO: Need to create groups after backup restoring
                             account.GroupId = 0; // HACK: Unknown group, reset group id to default.
                             //continue; // skip, unknown group
                         }
@@ -895,12 +895,7 @@ namespace Tuvi.Core.Impl
             var accounts = await GetCompositeAccountsAsync(cancellationToken).ConfigureAwait(false);
             foreach (var account in accounts)
             {
-                var accountService = await GetAccountServiceAsync(account.Email, cancellationToken).ConfigureAwait(false);
-
-                foreach (var inbox in account.DefaultInboxFolder.Folders)
-                {
-                    unreadCount += await accountService.GetUnreadMessagesCountInFolderAsync(inbox, cancellationToken).ConfigureAwait(false);
-                }
+                unreadCount += await account.DefaultInboxFolder.GetUnreadMessagesCountAsync(cancellationToken).ConfigureAwait(false);
             }
 
             Debug.Assert(unreadCount >= 0);

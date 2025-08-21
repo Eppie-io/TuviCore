@@ -88,9 +88,9 @@ namespace Tuvi.Core.Dec.Impl
             return Task.FromResult<IList<Folder>>(new List<Folder>
             {
                 GetInboxFolder(),
-                new Folder("SENT", FolderAttributes.Sent),
-                new Folder("DRAFT", FolderAttributes.Draft),
-                new Folder("TRASH", FolderAttributes.Trash),
+                new Folder("Sent", FolderAttributes.Sent),
+                new Folder("Drafts", FolderAttributes.Draft),
+                new Folder("Trash", FolderAttributes.Trash),
             });
         }
         public Task<Folder> GetDefaultInboxFolderAsync(CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ namespace Tuvi.Core.Dec.Impl
 
         private static Folder GetInboxFolder()
         {
-            return new Folder("INBOX", FolderAttributes.Inbox);
+            return new Folder("Inbox", FolderAttributes.Inbox);
         }
 
         private async Task<List<Message>> GetMessageListAsync(Folder folder, int count, CancellationToken cancellationToken)

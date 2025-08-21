@@ -32,6 +32,7 @@ namespace Tuvi.Core
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task MarkMessageAsReadAsync(Message message, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Mark <paramref name="messages"/> as read
         /// </summary>
@@ -46,6 +47,7 @@ namespace Tuvi.Core
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task MarkMessageAsUnReadAsync(Message message, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Mark <paramref name="messages"/> as unread
         /// </summary>
@@ -61,6 +63,7 @@ namespace Tuvi.Core
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task FlagMessageAsync(Message message, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Mark <paramref name="messages"/> as flagged
         /// </summary>
@@ -75,6 +78,7 @@ namespace Tuvi.Core
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task UnflagMessageAsync(Message message, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Mark <paramref name="messages"/> as unflagged
         /// </summary>
@@ -116,7 +120,6 @@ namespace Tuvi.Core
 
         Task AddMessagesToDataStorageAsync(Folder folder, IReadOnlyList<Message> messageList, CancellationToken cancellationToken);
 
-        Task<int> GetUnreadMessagesCountAsync(CancellationToken cancellationToken = default);
         Task<int> GetUnreadMessagesCountInFolderAsync(Folder folder, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<Message>> ReceiveEarlierMessagesAsync(Folder folder, int count, CancellationToken cancellationToken);
