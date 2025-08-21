@@ -69,6 +69,8 @@ namespace Tuvi.Core
 
         Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken = default);
 
+        Task SetContactNameAsync(EmailAddress contactEmail, string newName, CancellationToken cancellationToken = default);
+
         Task SetContactAvatarAsync(EmailAddress contactEmail, byte[] avatarBytes, int avatarWidth, int avatarHeight, CancellationToken cancellationToken = default);
 
         Task RemoveContactAsync(EmailAddress contactEmail, CancellationToken cancellationToken = default);

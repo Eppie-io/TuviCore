@@ -787,6 +787,28 @@ namespace Tuvi.Core.Impl
             return DataStorage.GetContactsAsync(cancellationToken);
         }
 
+        public async Task SetContactNameAsync(EmailAddress contactEmail, string newName, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+
+            if (contactEmail is null)
+            {
+                throw new ArgumentNullException(nameof(contactEmail));
+            }
+
+            if (await DataStorage.ExistsContactWithEmailAddressAsync(contactEmail, cancellationToken).ConfigureAwait(false))
+            {
+                var contact = await DataStorage.GetContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
+                
+                contact.FullName = newName;
+                contact.Email = new EmailAddress(contact.Email.Address, newName);
+                await DataStorage.UpdateContactAsync(contact, cancellationToken).ConfigureAwait(false);
+
+                var updatedContact = await DataStorage.GetContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
+                ContactChanged?.Invoke(this, new ContactChangedEventArgs(updatedContact));
+            }
+        }
+
         public async Task SetContactAvatarAsync(EmailAddress contactEmail, byte[] avatarBytes, int avatarWidth, int avatarHeight, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
