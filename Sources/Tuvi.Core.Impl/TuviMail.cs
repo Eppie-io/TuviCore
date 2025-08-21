@@ -803,9 +803,6 @@ namespace Tuvi.Core.Impl
                 contact.FullName = newName;
                 contact.Email = new EmailAddress(contact.Email.Address, newName);
                 await DataStorage.UpdateContactAsync(contact, cancellationToken).ConfigureAwait(false);
-
-                var updatedContact = await DataStorage.GetContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
-                ContactChanged?.Invoke(this, new ContactChangedEventArgs(updatedContact));
             }
         }
 
