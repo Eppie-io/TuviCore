@@ -139,7 +139,7 @@ namespace Tuvi.Core.Dec.Impl
             {
                 return;
             }
-            var data = await GetDecClientsMessageAsync(address, hash).ConfigureAwait(false);
+            var data = await GetDecClientsMessageAsync(hash).ConfigureAwait(false);
 
             var json = string.Empty;
             json = await Protector.DecryptAsync(AccountSettings, data, cancellationToken).ConfigureAwait(false);
@@ -150,7 +150,12 @@ namespace Tuvi.Core.Dec.Impl
 
         private async Task<string> SendToDecClientsAsync(string address, byte[] data, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(() => x.SendAsync(address, data))).ToList();
+            var tasks = DecClients.Select(x => Task.Run(async () => 
+            { 
+                var hash = await x.PutAsync(data).ConfigureAwait(false);
+                await x.SendAsync(address, hash).ConfigureAwait(false);
+                return hash;
+            })).ToList();
             await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
             return string.Concat(tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result));
         }
@@ -173,9 +178,9 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
-        private async Task<byte[]> GetDecClientsMessageAsync(string address, string hash)
+        private async Task<byte[]> GetDecClientsMessageAsync(string hash)
         {
-            var tasks = DecClients.Select(x => Task.Run(() => x.GetAsync(address, hash))).ToList();
+            var tasks = DecClients.Select(x => Task.Run(() => x.GetAsync(hash))).ToList();
             await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
             // TODO: probably we should throw an exception here
             ConvertExceptions(tasks);
