@@ -549,10 +549,10 @@ namespace Tuvi.Core.Impl
         class MyFolderSynchronizer : FolderSynchronizer
         {
             private readonly Folder _folder;
-            readonly AccountService _accountService;
-            IDataStorage DataStorage => _accountService.DataStorage;
-            IMailBox MailBox => _accountService.MailBox;
-            Account Account => _accountService.Account;
+            private readonly AccountService _accountService;
+            private IDataStorage DataStorage => _accountService.DataStorage;
+            private IMailBox MailBox => _accountService.MailBox;
+            private Account Account => _accountService.Account;
 
             public MyFolderSynchronizer(AccountService accountService,
                                         Folder folder)
