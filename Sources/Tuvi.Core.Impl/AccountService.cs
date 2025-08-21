@@ -546,7 +546,7 @@ namespace Tuvi.Core.Impl
             }
         }
 
-        class MyFolderSynchronizer : FolderSynchronizer
+        private class MyFolderSynchronizer : FolderSynchronizer
         {
             private readonly Folder _folder;
             private readonly AccountService _accountService;
