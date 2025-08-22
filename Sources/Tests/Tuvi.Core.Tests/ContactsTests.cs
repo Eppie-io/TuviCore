@@ -493,19 +493,21 @@ namespace Tuvi.Core.Tests
         [Test]
         public async Task SetContactNameAsyncShouldUpdateContactNameAndEmitChangedEvent()
         {
-            var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
-            using var core = CreateCore(dataStorage);
-            var account = GetTestEmailAccount();
-            await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var contactEmail = new EmailAddress("contact1@mail.box", "Old Name");
             var contact = new Contact("Old Name", contactEmail);
-            await dataStorage.TryAddContactAsync(contact, default).ConfigureAwait(true);
+            var account = GetTestEmailAccount();
+            const string newName = "New Name";
+
+            var dataStorage = await OpenDataStorageAsync().ConfigureAwait(true);
+            using var core = CreateCore(dataStorage);
             var contactEventsCounter = new ContactEventsCounter(core);
 
-            string newName = "New Name";
+            await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
+            await dataStorage.TryAddContactAsync(contact, default).ConfigureAwait(true);
             await core.SetContactNameAsync(contactEmail, newName).ConfigureAwait(true);
 
             var updatedContact = await dataStorage.GetContactAsync(contactEmail, default).ConfigureAwait(true);
+
             Assert.That(updatedContact.FullName, Is.EqualTo(newName));
             Assert.That(updatedContact.Email.Name, Is.EqualTo(newName));
             Assert.That(contactEventsCounter.ChangedContacts.Count, Is.EqualTo(1));
