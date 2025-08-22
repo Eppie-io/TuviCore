@@ -354,6 +354,7 @@ namespace Tuvi.Core.DataStorage.Impl
             {
                 emailData.UpdateValue(email);
                 connection.Update(emailData);
+                InvalidateEmailAddressCache(emailData.Id);
                 return emailData.Id;
             }
             connection.Insert(new EmailAddressData(email));
@@ -1020,6 +1021,14 @@ namespace Tuvi.Core.DataStorage.Impl
                     }
                 }
                 return emailData;
+            }
+        }
+
+        private void InvalidateEmailAddressCache(int emailId)
+        {
+            lock (_emailAddressDataCache)
+            {
+                _emailAddressDataCache.Remove(emailId);
             }
         }
 
