@@ -35,7 +35,7 @@ namespace Tuvi.Core.Entities
     }
 
     public enum NetworkType
-    {        
+    {
         Eppie,
         Bitcoin,
         Unsupported,
@@ -179,7 +179,7 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                if(IsHybrid)
+                if (IsHybrid)
                 {
                     var parts = new EmailStructure(Address);
 
@@ -223,6 +223,11 @@ namespace Tuvi.Core.Entities
 
         public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address, string name)
         {
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                throw new ArgumentException("Address is required.", nameof(address));
+            }
+
             switch (networkType)
             {
                 case NetworkType.Bitcoin:
@@ -237,37 +242,39 @@ namespace Tuvi.Core.Entities
         private static string GetDecentralizedAddress(EmailAddress email)
         {
             int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos == -1)
+            if (pos != -1 && pos + EppieNetworkPostfix.Length == email.Address.Length)
             {
-                pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-                if (pos == -1)
-                {
-                    return string.Empty;
-                }
+                return email.Address.Substring(0, pos);
             }
 
-            return email.Address.Substring(0, pos);
+            pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
+            if (pos != -1 && pos + BitcoinNetworkPostfix.Length == email.Address.Length)
+            {
+                return email.Address.Substring(0, pos);
+            }
+
+            return string.Empty;
         }
 
         private static NetworkType GetNetworkType(EmailAddress email)
         {
             int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1)
+            if (pos != -1 && pos + EppieNetworkPostfix.Length == email.Address.Length)
             {
                 return NetworkType.Eppie;
             }
-            
+
             pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1)
+            if (pos != -1 && pos + BitcoinNetworkPostfix.Length == email.Address.Length)
             {
                 return NetworkType.Bitcoin;
             }
-            
+
             if (email.IsHybrid)
             {
                 return NetworkType.Eppie;
             }
-                
+
             return NetworkType.Unsupported;
         }
     }

@@ -340,5 +340,170 @@ namespace Tuvi.Core.Entities.Test
         {
             Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address", "Name"));
         }
+
+        [Test]
+        public void HasSameAddressWithDifferentCaseReturnsTrue()
+        {
+            var email1 = new EmailAddress("User.Name@Example.COM");
+            var email2 = new EmailAddress("user.name@example.com");
+            Assert.That(email1.HasSameAddress(email2), Is.True);
+        }
+
+        [Test]
+        public void HasSameAddressWithDifferentLocalPartReturnsFalse()
+        {
+            var email1 = new EmailAddress("user1@example.com");
+            var email2 = new EmailAddress("user2@example.com");
+            Assert.That(email1.HasSameAddress(email2), Is.False);
+        }
+
+        [Test]
+        public void NetworkWithMixedCaseHybridAddressReturnsEppie()
+        {
+            var email = new EmailAddress("User+PubKey@Domain.Com");
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Eppie));
+        }
+
+        [Test]
+        public void CreateDecentralizedAddressWithEmptyAddressThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "", "Name"));
+        }
+
+        [Test]
+        public void CreateDecentralizedAddressWithWhitespaceAddressThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   ", "Name"));
+        }
+
+        [Test]
+        public void DecentralizedAddressWithComplexHybridAddressExtractsCorrectPubKey()
+        {
+            var email = new EmailAddress("user.name+complex-pubkey123@sub.domain.com");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo("complex-pubkey123"));
+        }
+
+        [Test]
+        [TestCase("address@sub.bitcoin.domain")]
+        [TestCase("address@sub.eppie.domain")]
+        [TestCase("address@bitcoin-domain.com")]
+        [TestCase("address@eppie-domain.com")]
+        [TestCase("address@domain.bitcoin.com")]
+        [TestCase("address@domain.eppie.com")]
+        [TestCase("address@bitcoin.eppie.com")]
+        [TestCase("address@eppie.bitcoin.com")]
+        [TestCase("address@bitcoin.eppie.domain.com")]
+        [TestCase("address@eppie.bitcoin.domain.com")]
+        public void NetworkWithComplexDomainBitcoinReturnsUnsupported(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Unsupported));
+        }
+
+        [Test]
+        [TestCase("@eppie")]
+        [TestCase("address@eppie")]
+        [TestCase("address.sub@eppie")]
+        [TestCase("user@eppie")]
+        [TestCase("user.name@eppie")]
+        [TestCase("user+tag@eppie")]
+        [TestCase("user-name@eppie")]
+        [TestCase("user123@eppie")]
+        [TestCase("user@Eppie")]
+        [TestCase("user@ePpIe")]
+        [TestCase("user@EPPie")]
+        [TestCase("user@eppie")]
+        [TestCase("user!#$%&'*+-/=?^_`{|}~@eppie")]
+        public void NetworkWithComplexDomainBitcoinReturnsEppie(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Eppie));
+        }
+
+        [Test]
+        [TestCase("@bitcoin")]
+        [TestCase("address@bitcoin")]
+        [TestCase("address.sub@bitcoin")]
+        [TestCase("user@bitcoin")]
+        [TestCase("user.name@bitcoin")]
+        [TestCase("user+tag@bitcoin")]
+        [TestCase("user-name@bitcoin")]
+        [TestCase("user123@bitcoin")]
+        [TestCase("user@BitCoin")]
+        [TestCase("user@BITcoin")]
+        [TestCase("user@BITCOIN")]
+        [TestCase("user@bitcoin")]
+        [TestCase("user!#$%&'*+-/=?^_`{|}~@bitcoin")]
+        public void NetworkWithComplexDomainBitcoinReturnsBitcoin(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Bitcoin));
+        }
+
+        [Test]
+        [TestCase("user@subdomain.eppie.com")]
+        [TestCase("user@subdomain.bitcoin.com")]
+        [TestCase("user@eppie.domain.com")]
+        [TestCase("user@bitcoin.domain.com")]
+        [TestCase("user@domain.eppie.com")]
+        [TestCase("user@domain.bitcoin.com")]
+        [TestCase("user@eppie-domain.com")]
+        [TestCase("user@bitcoin-domain.com")]
+        [TestCase("user@eppie.bitcoin.com")]
+        [TestCase("user@bitcoin.eppie.com")]
+        public void IsDecentralizedWithValidNetworkButSubdomainReturnsFalse(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.IsDecentralized, Is.False);
+        }
+
+        [Test]
+        public void HasSameAddressWithEmptyEmailsReturnsFalse()
+        {
+            var email = new EmailAddress("user@domain.com");
+            Assert.That(email.HasSameAddress(string.Empty), Is.False);
+        }
+
+        [Test]
+        public void MakeHybridWithExistingPlusInAddressHandlesCorrectly()
+        {
+            var email = new EmailAddress("user+existing@domain.com", "User");
+            var hybrid = email.MakeHybrid("newpubkey");
+            Assert.That(hybrid.Address, Is.EqualTo("user+newpubkey@domain.com"));
+            Assert.That(hybrid.Name, Is.EqualTo("User (Hybrid)"));
+        }
+
+        [Test]
+        public void DisplayNameWithSpecialCharactersInNameFormatsCorrectly()
+        {
+            var email = new EmailAddress("test@example.com", "Test < User >");
+            Assert.That(email.DisplayName, Is.EqualTo("Test < User ><test@example.com>"));
+        }
+
+        [Test]
+        public void ParseWithSpecialCharactersInDisplayNameParsesCorrectly()
+        {
+            var result = EmailAddress.Parse("Test (User) <test@example.com>");
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Address, Is.EqualTo("test@example.com"));
+            Assert.That(result.Name, Is.EqualTo("Test (User)"));
+        }
+
+        [Test]
+        public void DecentralizedAddressWithMixedCasePostfixExtractsCorrectly()
+        {
+            var email = new EmailAddress("address@EPPie");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo("address"));
+        }
+
+        [Test]
+        public void GetHashCodeWithSameAddressDifferentNameReturnsSameHash()
+        {
+            var email1 = new EmailAddress("test@example.com", "Name1");
+            var email2 = new EmailAddress("test@example.com", "Name2");
+            Assert.That(email1.GetHashCode(), Is.EqualTo(email2.GetHashCode()));
+        }
     }
 }
