@@ -66,6 +66,270 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
     public class DecMailBoxTests
     {
+        private static Mock<IDecStorageClient> CreateDecClient()
+        {
+            var decMessages = new Dictionary<string, string>();
+            var decData = new Dictionary<string, byte[]>();
+            var client = new Mock<IDecStorageClient>();
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
+                  .ReturnsAsync((string address, string hash) =>
+                  {
+                      decMessages[hash] = address;
+                      return hash;
+                  });
+            client.Setup(x => x.ListAsync(It.IsAny<string>()))
+                  .ReturnsAsync(
+                (string address) =>
+                {
+                    return decMessages
+                            .Where(x => x.Value == address)
+                            .Select(x => x.Key)
+                            .ToList();
+                });
+            client.Setup(x => x.GetAsync(It.IsAny<string>()))
+                  .ReturnsAsync(
+                (string hash) =>
+                {
+                    return decData[hash];
+                });
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+                  .ReturnsAsync(
+                (byte[] data) =>
+                {
+                    var hash = GetSHA256(data);
+                    decData[hash] = data;
+                    return hash;
+                });
+            return client;
+        }
+
+        private static Mock<IDecStorageClient> CreateFaultyDecClient()
+        {
+            var decMessages = new Dictionary<string, Dictionary<string, byte[]>>();
+            var client = new Mock<IDecStorageClient>();
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
+                  .ReturnsAsync((string address, string hash) =>
+                  {
+                      throw new DecException();
+                  });
+            client.Setup(x => x.ListAsync(It.IsAny<string>()))
+                  .ReturnsAsync(
+                (string address) =>
+                {
+                    throw new DecException();
+                });
+            client.Setup(x => x.GetAsync(It.IsAny<string>()))
+                  .ReturnsAsync(
+                (string hash) =>
+                {
+                    throw new DecException();
+                });
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+                  .ReturnsAsync(
+                (byte[] data) =>
+                {
+                    throw new DecException();
+                });
+            return client;
+        }
+
+        static MasterKey _masterKey;
+        private static Mock<IDecStorage> CreateKeyStorageMock1()
+        {
+            _masterKey = EncryptionTestsData.CreateTestMasterKeyForSeed(TestSeedPhrase1);
+            return CreateKeyStorageMock(_masterKey);
+        }
+
+        private Task<IDataStorage> CreateKeyStorage1Async()
+        {
+            return CreateKeyStorageAsync(TestSeedPhrase1);
+        }
+
+        private int _storageId;
+
+        private async Task<IDataStorage> CreateKeyStorageAsync(string[] seedPhrase)
+        {
+            var keyFactory = new MasterKeyFactory(new ImplementationDetailsProvider("Tuvi seed", "Tuvi.Package", "backup@test"));
+            keyFactory.RestoreSeedPhrase(seedPhrase);
+            using var masterKey = keyFactory.GetMasterKey();
+            string path = $"test{_storageId++}.db";
+            File.Delete(path);
+            var storage = DataStorageProvider.GetDataStorage(path);
+            await storage.CreateAsync("123").ConfigureAwait(false);
+            await storage.InitializeMasterKeyAsync(masterKey, default).ConfigureAwait(false);
+            return storage;
+        }
+
+        private static Mock<IDecStorage> CreateKeyStorageMock(MasterKey masterKey)
+        {
+            var messages = new Dictionary<EmailAddress, List<DecMessage>>();
+            var storage = new Mock<IDecStorage>();
+            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
+            storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
+                                         It.IsAny<Folder>(),
+                                         It.IsAny<int>(),
+                                         It.IsAny<CancellationToken>()))
+                .ReturnsAsync((EmailAddress email, Folder folder, int c, CancellationToken ct) =>
+                {
+                    return messages[email].Where(x => x.FolderAttributes == FolderAttributes.Inbox).ToList();
+                });
+            storage.Setup(x => x.AddDecMessageAsync(It.IsAny<EmailAddress>(),
+                                        It.IsAny<DecMessage>(),
+                                        It.IsAny<CancellationToken>())).Callback((EmailAddress email, DecMessage message, CancellationToken ct) =>
+                                        {
+                                            if (!messages.ContainsKey(email))
+                                            {
+                                                messages[email] = new List<DecMessage>();
+                                            }
+                                            var emailMessages = messages[email];
+                                            if (!emailMessages.Contains(message))
+                                            {
+                                                emailMessages.Add(message);
+                                            }
+                                        });
+            return storage;
+        }
+
+        private static Message CreateMessage(EmailAddress from, EmailAddress to)
+        {
+            return CreateMessage(from, to, 890354, TimeSpan.Zero);
+        }
+
+        private static Message CreateMessage(EmailAddress from, EmailAddress to, uint id, TimeSpan timeSpan)
+        {
+            Message message = new Message();
+            message.From.Add(from);
+            message.To.Add(to);
+            message.Subject = $"This is test TuviMail send message {id}";
+            message.TextBody = $"Text of the test message {id}";
+            message.Id = id;
+            message.Date = DateTime.Now.Add(timeSpan);
+            message.Folder = new Folder("Inbox", FolderAttributes.Inbox);
+            return message;
+        }
+
+        public static int CompareMessages(Message a, Message b)
+        {
+            Contract.Assert(a != null && b != null);
+            if (AreEqualMessages(a, b))
+            {
+                return 0;
+            }
+            return a.Date.CompareTo(b.Date);
+        }
+
+        private static bool AreEqualMessages(Message a, Message b)
+        {
+            return //a.Id == b.Id &&
+                   a.Date == b.Date &&
+                   a.Subject == b.Subject &&
+                   a.Folder.Equals(b.Folder) &&
+                   a.PreviewText == b.PreviewText &&
+                   a.HtmlBody == b.HtmlBody &&
+                   a.TextBody == b.TextBody &&
+                   a.IsFlagged == b.IsFlagged &&
+                   a.IsMarkedAsRead == b.IsMarkedAsRead &&
+                   a.Protection.Type == b.Protection.Type &&
+                   AreAddressesEqual(a.From, b.From) &&
+                   AreAddressesEqual(a.To, b.To) &&
+                   AreAddressesEqual(a.ReplyTo, b.ReplyTo) &&
+                   AreAddressesEqual(a.Cc, b.Cc) &&
+                   AreAddressesEqual(a.Bcc, b.Bcc);
+        }
+
+        private static bool AreAddressesEqual(IEnumerable<EmailAddress> left, IEnumerable<EmailAddress> right)
+        {
+            if (left == right)
+            {
+                return true;
+            }
+            if (left is null || right is null)
+            {
+                return false;
+            }
+            return Enumerable.SequenceEqual(left, right);
+        }
+
+        private static EmailAddress GetAddress1(string addressType)
+        {
+            if (addressType == HybridAddressType)
+            {
+                return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
+        }
+
+        private static async Task<EmailAddress> GetAddress1Async(IKeyStorage keyStorage, string addressType)
+        {
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test1@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test1+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "1");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
+        }
+
+        private static async Task<EmailAddress> GetAddress2Async(IKeyStorage keyStorage, string addressType)
+        {
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test2@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test2+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                var pubKey = await GetDecAddressAsync(keyStorage, 2).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "2");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
+        }
+
+        private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
+        {
+            if (addressType == HybridAddressType)
+            {
+                var keyTag = "test3@test.com";
+                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
+                var address = new EmailAddress("test3+" + pubKey + "@test.com", keyTag);
+                return address;
+            }
+
+            if (addressType == DecentralizedAddressType)
+            {
+                var pubKey = await GetDecAddressAsync(keyStorage, 3).ConfigureAwait(true);
+                var address = new EmailAddress(pubKey + "@eppie", "3");
+                return address;
+            }
+
+            throw new ArgumentException($"Unknown address type: {addressType}");
+        }
+
+        private static readonly string[] TestSeedPhrase1 = {
+            "apple", "apple", "apple", "apple", "apple", "apple",
+            "apple", "apple", "apple", "apple", "apple", "apple"
+        };
+
         private static string GetSHA256(byte[] data)
         {
             using var stream = new MemoryStream(data);
@@ -633,268 +897,181 @@ namespace Tuvi.Core.Mail.Impl.Tests
             client2.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
         }
 
-        private static Mock<IDecStorageClient> CreateDecClient()
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task PgpMessageProtectorSignMessageSetsSignatureProtectionType()
         {
-            var decMessages = new Dictionary<string, string>();
-            var decData = new Dictionary<string, byte[]>();
-            var client = new Mock<IDecStorageClient>();
-            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, string hash) =>
-                  {
-                      decMessages[hash] = address;
-                      return hash;
-                  });
-            client.Setup(x => x.ListAsync(It.IsAny<string>()))
-                  .ReturnsAsync(
-                (string address) =>
-                {
-                    return decMessages
-                            .Where(x => x.Value == address)
-                            .Select(x => x.Key)
-                            .ToList();
-                });
-            client.Setup(x => x.GetAsync(It.IsAny<string>()))
-                  .ReturnsAsync(
-                (string hash) =>
-                {
-                    return decData[hash];
-                });
-            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
-                  .ReturnsAsync(
-                (byte[] data) =>
-                {
-                    var hash = GetSHA256(data);
-                    decData[hash] = data;
-                    return hash;
-                });
-            return client;
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+            var message = CreateMessage(address, address);
+
+            // Act
+            var signedMessage = protector.Sign(message);
+
+            // Assert
+            Assert.That(signedMessage.Protection.Type, Is.EqualTo(MessageProtectionType.Signature));
+            Assert.That(signedMessage.MimeBody, Is.Not.Null);
         }
 
-        private static Mock<IDecStorageClient> CreateFaultyDecClient()
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task PgpMessageProtectorEncryptAsyncMessageSetsEncryptionProtectionType()
         {
-            var decMessages = new Dictionary<string, Dictionary<string, byte[]>>();
-            var client = new Mock<IDecStorageClient>();
-            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, string hash) =>
-                  {
-                      throw new DecException();
-                  });
-            client.Setup(x => x.ListAsync(It.IsAny<string>()))
-                  .ReturnsAsync(
-                (string address) =>
-                {
-                    throw new DecException();
-                });
-            client.Setup(x => x.GetAsync(It.IsAny<string>()))
-                  .ReturnsAsync(
-                (string hash) =>
-                {
-                    throw new DecException();
-                });
-            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
-                  .ReturnsAsync(
-                (byte[] data) =>
-                {
-                    throw new DecException();
-                });
-            return client;
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+            var message = CreateMessage(address, address);
+
+            // Act
+            var encryptedMessage = await protector.EncryptAsync(message).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(encryptedMessage.Protection.Type, Is.EqualTo(MessageProtectionType.Encryption));
+            Assert.That(encryptedMessage.MimeBody, Is.Not.Null);
         }
 
-        static MasterKey _masterKey;
-        private static Mock<IDecStorage> CreateKeyStorageMock1()
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task PgpMessageProtectorSignAndEncryptAsyncMessageSetsSignatureAndEncryptionProtectionType()
         {
-            _masterKey = EncryptionTestsData.CreateTestMasterKeyForSeed(TestSeedPhrase1);
-            return CreateKeyStorageMock(_masterKey);
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+            var message = CreateMessage(address, address);
+
+            // Act
+            var encryptedMessage = await protector.SignAndEncryptAsync(message).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(encryptedMessage.Protection.Type, Is.EqualTo(MessageProtectionType.SignatureAndEncryption));
+            Assert.That(encryptedMessage.MimeBody, Is.Not.Null);
         }
 
-        private Task<IDataStorage> CreateKeyStorage1Async()
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task PgpMessageProtectorTryVerifyAndDecryptAsyncSignedMessageVerifiesSignature()
         {
-            return CreateKeyStorageAsync(TestSeedPhrase1);
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+            var message = CreateMessage(address, address);
+            var signedMessage = protector.Sign(message);
+
+            // Act
+            var verifiedMessage = await protector.TryVerifyAndDecryptAsync(signedMessage, CancellationToken.None).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(verifiedMessage.Protection.Type, Is.EqualTo(MessageProtectionType.Signature));
         }
 
-        private int _storageId;
-
-        private async Task<IDataStorage> CreateKeyStorageAsync(string[] seedPhrase)
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task PgpMessageProtectorTryVerifyAndDecryptAsyncEncryptedMessageDecryptsSuccessfully()
         {
-            var keyFactory = new MasterKeyFactory(new ImplementationDetailsProvider("Tuvi seed", "Tuvi.Package", "backup@test"));
-            keyFactory.RestoreSeedPhrase(seedPhrase);
-            using var masterKey = keyFactory.GetMasterKey();
-            string path = $"test{_storageId++}.db";
-            File.Delete(path);
-            var storage = DataStorageProvider.GetDataStorage(path);
-            await storage.CreateAsync("123").ConfigureAwait(false);
-            await storage.InitializeMasterKeyAsync(masterKey, default).ConfigureAwait(false);
-            return storage;
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+            var message = CreateMessage(address, address);
+            var encryptedMessage = await protector.EncryptAsync(message).ConfigureAwait(true);
+
+            // Act
+            var decryptedMessage = await protector.TryVerifyAndDecryptAsync(encryptedMessage, CancellationToken.None).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(decryptedMessage.Protection.Type, Is.EqualTo(MessageProtectionType.Encryption));
         }
 
-        private static Mock<IDecStorage> CreateKeyStorageMock(MasterKey masterKey)
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task TryToAddDecPublicKeysAsyncImportsKeyForDecentralizedAddress()
         {
-            var messages = new Dictionary<EmailAddress, List<DecMessage>>();
-            var storage = new Mock<IDecStorage>();
-            storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
-            storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
-                                         It.IsAny<Folder>(),
-                                         It.IsAny<int>(),
-                                         It.IsAny<CancellationToken>()))
-                .ReturnsAsync((EmailAddress email, Folder folder, int c, CancellationToken ct) =>
-                {
-                    return messages[email].Where(x => x.FolderAttributes == FolderAttributes.Inbox).ToList();
-                });
-            storage.Setup(x => x.AddDecMessageAsync(It.IsAny<EmailAddress>(),
-                                        It.IsAny<DecMessage>(),
-                                        It.IsAny<CancellationToken>())).Callback((EmailAddress email, DecMessage message, CancellationToken ct) =>
-                                        {
-                                            if (!messages.ContainsKey(email))
-                                            {
-                                                messages[email] = new List<DecMessage>();
-                                            }
-                                            var emailMessages = messages[email];
-                                            if (!emailMessages.Contains(message))
-                                            {
-                                                emailMessages.Add(message);
-                                            }
-                                        });
-            return storage;
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+
+            // Act
+            await pgpContext.TryToAddDecPublicKeysAsync(new[] { address }).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.GreaterThan(0));
         }
 
-        private static Message CreateMessage(EmailAddress from, EmailAddress to)
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task TryToAddDecPublicKeysAsyncDoesNothingForRegularAddress()
         {
-            return CreateMessage(from, to, 890354, TimeSpan.Zero);
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var regularAddress = new EmailAddress("user@example.com");
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+
+            // Act
+            await pgpContext.TryToAddDecPublicKeysAsync(new[] { regularAddress }).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
         }
 
-        private static Message CreateMessage(EmailAddress from, EmailAddress to, uint id, TimeSpan timeSpan)
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task TryToAddDecPublicKeysAsyncOnlyDecentralizedImportedWhenMixedAddresses()
         {
-            Message message = new Message();
-            message.From.Add(from);
-            message.To.Add(to);
-            message.Subject = $"This is test TuviMail send message {id}";
-            message.TextBody = $"Text of the test message {id}";
-            message.Id = id;
-            message.Date = DateTime.Now.Add(timeSpan);
-            message.Folder = new Folder("Inbox", FolderAttributes.Inbox);
-            return message;
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            var decAddress = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
+            var regularAddress = new EmailAddress("user@example.com");
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+
+            // Act
+            await pgpContext.TryToAddDecPublicKeysAsync(new[] { decAddress, regularAddress }).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.GreaterThan(0));
         }
 
-        public static int CompareMessages(Message a, Message b)
+        [Test]
+        [Category("PgpMessageProtector")]
+        public async Task TryToAddDecPublicKeysAsyncEmptyCollectionDoesNothing()
         {
-            Contract.Assert(a != null && b != null);
-            if (AreEqualMessages(a, b))
-            {
-                return 0;
-            }
-            return a.Date.CompareTo(b.Date);
+            // Arrange
+            var storageMock = CreateKeyStorageMock1();
+            var storage = storageMock.Object;
+            using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+
+            // Act
+            await pgpContext.TryToAddDecPublicKeysAsync(Array.Empty<EmailAddress>()).ConfigureAwait(true);
+
+            // Assert
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
         }
-
-        private static bool AreEqualMessages(Message a, Message b)
-        {
-            return //a.Id == b.Id &&
-                   a.Date == b.Date &&
-                   a.Subject == b.Subject &&
-                   a.Folder.Equals(b.Folder) &&
-                   a.PreviewText == b.PreviewText &&
-                   a.HtmlBody == b.HtmlBody &&
-                   a.TextBody == b.TextBody &&
-                   a.IsFlagged == b.IsFlagged &&
-                   a.IsMarkedAsRead == b.IsMarkedAsRead &&
-                   a.Protection.Type == b.Protection.Type &&
-                   AreAddressesEqual(a.From, b.From) &&
-                   AreAddressesEqual(a.To, b.To) &&
-                   AreAddressesEqual(a.ReplyTo, b.ReplyTo) &&
-                   AreAddressesEqual(a.Cc, b.Cc) &&
-                   AreAddressesEqual(a.Bcc, b.Bcc);
-        }
-
-        private static bool AreAddressesEqual(IEnumerable<EmailAddress> left, IEnumerable<EmailAddress> right)
-        {
-            if (left == right)
-            {
-                return true;
-            }
-            if (left is null || right is null)
-            {
-                return false;
-            }
-            return Enumerable.SequenceEqual(left, right);
-        }
-
-        private static EmailAddress GetAddress1(string addressType)
-        {
-            if (addressType == HybridAddressType)
-            {
-                return new EmailAddress("test+agrutu67edu83skwcj4fkzd4n4xf2dadm9wwrzezh5s9t859sbier@test.com", "test@test.com");
-            }
-
-            if (addressType == DecentralizedAddressType)
-            {
-                return new EmailAddress("aft5f6u8uf42sfjb9buhzbra3rdbc3rdwggwdrwqtfgvegktxh8cc@eppie", "1");
-            }
-
-            throw new ArgumentException($"Unknown address type: {addressType}");
-        }
-
-        private static async Task<EmailAddress> GetAddress1Async(IKeyStorage keyStorage, string addressType)
-        {
-            if (addressType == HybridAddressType)
-            {
-                var keyTag = "test1@test.com";
-                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
-                var address = new EmailAddress("test1+" + pubKey + "@test.com", keyTag);
-                return address;
-            }
-
-            if (addressType == DecentralizedAddressType)
-            {
-                var pubKey = await GetDecAddressAsync(keyStorage, 1).ConfigureAwait(true);
-                var address = new EmailAddress(pubKey + "@eppie", "1");
-                return address;
-            }
-
-            throw new ArgumentException($"Unknown address type: {addressType}");
-        }
-
-        private static async Task<EmailAddress> GetAddress2Async(IKeyStorage keyStorage, string addressType)
-        {
-            if (addressType == HybridAddressType)
-            {
-                var keyTag = "test2@test.com";
-                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
-                var address = new EmailAddress("test2+" + pubKey + "@test.com", keyTag);
-                return address;
-            }
-
-            if (addressType == DecentralizedAddressType)
-            {
-                var pubKey = await GetDecAddressAsync(keyStorage, 2).ConfigureAwait(true);
-                var address = new EmailAddress(pubKey + "@eppie", "2");
-                return address;
-            }
-
-            throw new ArgumentException($"Unknown address type: {addressType}");
-        }
-
-        private static async Task<EmailAddress> GetAddress3Async(IKeyStorage keyStorage, string addressType)
-        {
-            if (addressType == HybridAddressType)
-            {
-                var keyTag = "test3@test.com";
-                var pubKey = await GetDecAddressAsync(keyStorage, keyTag).ConfigureAwait(true);
-                var address = new EmailAddress("test3+" + pubKey + "@test.com", keyTag);
-                return address;
-            }
-
-            if (addressType == DecentralizedAddressType)
-            {
-                var pubKey = await GetDecAddressAsync(keyStorage, 3).ConfigureAwait(true);
-                var address = new EmailAddress(pubKey + "@eppie", "3");
-                return address;
-            }
-
-            throw new ArgumentException($"Unknown address type: {addressType}");
-        }
-
-        private static readonly string[] TestSeedPhrase1 = {
-            "apple", "apple", "apple", "apple", "apple", "apple",
-            "apple", "apple", "apple", "apple", "apple", "apple"
-        };
     }
 }
