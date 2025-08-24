@@ -276,16 +276,14 @@ namespace Tuvi.Core.Entities
 
         private static string GetDecentralizedAddress(EmailAddress email)
         {
-            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1 && pos + EppieNetworkPostfix.Length == email.Address.Length)
+            if (email.Address.EndsWith(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
-                return email.Address.Substring(0, pos);
+                return email.Address.Substring(0, email.Address.Length - EppieNetworkPostfix.Length);
             }
 
-            pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1 && pos + BitcoinNetworkPostfix.Length == email.Address.Length)
+            if (email.Address.EndsWith(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
-                return email.Address.Substring(0, pos);
+                return email.Address.Substring(0, email.Address.Length - BitcoinNetworkPostfix.Length);
             }
 
             return string.Empty;
@@ -293,14 +291,12 @@ namespace Tuvi.Core.Entities
 
         private static NetworkType GetNetworkType(EmailAddress email)
         {
-            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1 && pos + EppieNetworkPostfix.Length == email.Address.Length)
+            if (email.Address.EndsWith(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
                 return NetworkType.Eppie;
             }
 
-            pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1 && pos + BitcoinNetworkPostfix.Length == email.Address.Length)
+            if (email.Address.EndsWith(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
                 return NetworkType.Bitcoin;
             }
