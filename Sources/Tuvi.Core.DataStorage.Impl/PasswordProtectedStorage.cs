@@ -1,11 +1,29 @@
-﻿using Konscious.Security.Cryptography;
-using SQLite;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Konscious.Security.Cryptography;
+using SQLite;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Impl
@@ -133,8 +151,8 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private async Task<bool> IsAlreadyOpenedAsync()
         {
-            return (Database != null &&
-                await IsDataStorageOpenedCorrectlyAsync().ConfigureAwait(false));
+            return Database != null &&
+                await IsDataStorageOpenedCorrectlyAsync().ConfigureAwait(false);
         }
 
         private static bool IsWasm()
@@ -170,6 +188,21 @@ namespace Tuvi.Core.DataStorage.Impl
             if (!IsStorageExist())
             {
                 throw new DataBaseNotCreatedException();
+            }
+
+            // close previous connection (if any) before creating a new one to avoid leaking file handles.
+            var existing = Database;
+            if (existing != null)
+            {
+                try
+                {
+                    await existing.CloseAsync().ConfigureAwait(false);
+                    Database = null;
+                    SQLiteAsyncConnection.ResetPool();
+                }
+#pragma warning disable CA1031 // Do not catch general exception types
+                catch { }
+#pragma warning restore CA1031 // Do not catch general exception types
             }
 
             var db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite).ConfigureAwait(false);
