@@ -15,6 +15,9 @@ namespace Tuvi.Core.Entities
         public string PubKey { get; private set; }
         public string Domain { get; private set; }
 
+        private const int ExpectedPublicKeyLength = 53; // Base32E encoded compressed secp256k1 key length
+        private const string Base32EAlphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+
         public EmailStructure(string address)
         {
             var parts = address.Split('@');
@@ -28,9 +31,34 @@ namespace Tuvi.Core.Entities
 
                 if (nameparts.Length == 2)
                 {
-                    PubKey = nameparts[1];
+                    var candidate = nameparts[1];
+                    if (LooksLikePublicKeyCandidate(candidate))
+                    {
+                        PubKey = candidate;
+                    }
                 }
             }
+        }
+
+        private static bool LooksLikePublicKeyCandidate(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length != ExpectedPublicKeyLength)
+            {
+                return false;
+            }
+
+            // syntactic check only: all characters in Base32E alphabet (case-insensitive)
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                char cl = char.ToLowerInvariant(c);
+                if (Base32EAlphabet.IndexOf(cl) == -1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
@@ -144,7 +172,14 @@ namespace Tuvi.Core.Entities
         public EmailAddress MakeHybrid(string pubkey)
         {
             var parts = new EmailStructure(Address);
-            return new EmailAddress(parts.Name + '+' + pubkey + '@' + parts.Domain, Name + " (Hybrid)");
+            var hybrid = new EmailAddress(parts.Name + '+' + pubkey + '@' + parts.Domain, Name + " (Hybrid)");
+
+            if (!hybrid.IsHybrid)
+            {
+                throw new InvalidOperationException("Can't make hybrid from not valid public key.");
+            }
+
+            return hybrid;
         }
 
         public int CompareTo(EmailAddress other)
