@@ -194,15 +194,9 @@ namespace Tuvi.Core.DataStorage.Impl
             var existing = Database;
             if (existing != null)
             {
-                try
-                {
-                    await existing.CloseAsync().ConfigureAwait(false);
-                    Database = null;
-                    SQLiteAsyncConnection.ResetPool();
-                }
-#pragma warning disable CA1031 // Do not catch general exception types
-                catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
+                await existing.CloseAsync().ConfigureAwait(false);
+                Database = null;
+                SQLiteAsyncConnection.ResetPool();
             }
 
             var db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite).ConfigureAwait(false);
