@@ -126,6 +126,10 @@ namespace Tuvi.Core.DataStorage.Tests
         [Test]
         public void MultiplePasswordChange()
         {
+            const string NewPassword1 = "newPass1";
+            const string NewPassword2 = "newPass2";
+            const string NewPassword3 = "newPass3";
+
             using (var storage = GetDataStorage())
             {
                 Assert.DoesNotThrowAsync(() => storage.CreateAsync(Password));
@@ -133,22 +137,22 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(Password, "newPass1"));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(Password, NewPassword1));
             }
 
             using (var storage = GetDataStorage())
             {
                 Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
-                Assert.DoesNotThrowAsync(() => storage.OpenAsync("newPass1"));
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync("newPass1", "newPass2"));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword1));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword1, NewPassword2));
             }
 
             using (var storage = GetDataStorage())
             {
                 Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync("newPass1"));
-                Assert.DoesNotThrowAsync(() => storage.OpenAsync("newPass2"));
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync("newPass2", "newPass3"));
+                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(NewPassword1));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword2));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword2, NewPassword3));
             }
         }
 
