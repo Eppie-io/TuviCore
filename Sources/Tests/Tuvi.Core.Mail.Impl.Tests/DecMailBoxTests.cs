@@ -351,6 +351,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
         const int CoinType = 3630; // Eppie coin type
         const int Channel = 10; // Email channel
+        const int AccountIndex = 10; // Account index
         const int KeyIndex = 0; // Key index
 
         private static async Task<string> GetDecAddressAsync(IKeyStorage storage, int accountIndex)
@@ -447,7 +448,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var receiverMessageProtector = MessageProtectorCreator.GetMessageProtector(receiverContext);
             var decryptedMessage = await receiverMessageProtector.TryVerifyAndDecryptAsync(encryptedMessage).ConfigureAwait(true);
             Assert.That(decryptedMessage, Is.EqualTo(message));
-            Assert.That(decryptedMessage.Protection.SignaturesInfo.Count, Is.EqualTo(0));
+            Assert.That(decryptedMessage.Protection.SignaturesInfo.Count, Is.Zero);
         }
 
         [Test]
@@ -906,7 +907,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, CoinType, AccountIndex, Channel, KeyIndex);
             var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
             var message = CreateMessage(address, address);
 
@@ -927,7 +928,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, CoinType, AccountIndex, Channel, KeyIndex);
             var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
             var message = CreateMessage(address, address);
 
@@ -948,7 +949,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, CoinType, AccountIndex, Channel, KeyIndex);
             var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
             var message = CreateMessage(address, address);
 
@@ -969,7 +970,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, CoinType, AccountIndex, Channel, KeyIndex);
             var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
             var message = CreateMessage(address, address);
             var signedMessage = protector.Sign(message);
@@ -990,7 +991,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, 3630, 1, 10, 0);
+            pgpContext.GeneratePgpKeysByBip44(await storage.GetMasterKeyAsync().ConfigureAwait(true), address.Address, CoinType, AccountIndex, Channel, KeyIndex);
             var protector = MessageProtectorCreator.GetMessageProtector(pgpContext);
             var message = CreateMessage(address, address);
             var encryptedMessage = await protector.EncryptAsync(message).ConfigureAwait(true);
@@ -1011,7 +1012,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var address = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
 
             // Act
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { address }).ConfigureAwait(true);
@@ -1029,13 +1030,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storage = storageMock.Object;
             var regularAddress = new EmailAddress("user@example.com");
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
 
             // Act
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { regularAddress }).ConfigureAwait(true);
 
             // Assert
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
         }
 
         [Test]
@@ -1048,7 +1049,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var decAddress = await GetAddress1Async(storage, DecentralizedAddressType).ConfigureAwait(true);
             var regularAddress = new EmailAddress("user@example.com");
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
 
             // Act
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { decAddress, regularAddress }).ConfigureAwait(true);
@@ -1065,13 +1066,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var storageMock = CreateKeyStorageMock1();
             var storage = storageMock.Object;
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
 
             // Act
             await pgpContext.TryToAddDecPublicKeysAsync(Array.Empty<EmailAddress>()).ConfigureAwait(true);
 
             // Assert
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.EqualTo(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
         }
     }
 }
