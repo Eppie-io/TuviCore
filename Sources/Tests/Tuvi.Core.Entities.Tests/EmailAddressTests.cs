@@ -157,12 +157,13 @@ namespace Tuvi.Core.Entities.Test
             Assert.That(email.HasSameAddress((string)null), Is.False);
         }
 
+        const string HybridAddressPubKey = "abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
         [Test]
         public void MakeHybridAddsPubKeyAndUpdatesName()
         {
             var email = new EmailAddress("user@domain.com", "User");
-            var hybrid = email.MakeHybrid("pubkey123");
-            Assert.That(hybrid.Address, Is.EqualTo("user+pubkey123@domain.com"));
+            var hybrid = email.MakeHybrid(HybridAddressPubKey);
+            Assert.That(hybrid.Address, Is.EqualTo($"user+{HybridAddressPubKey}@domain.com"));
             Assert.That(hybrid.Name, Is.EqualTo("User (Hybrid)"));
         }
 
@@ -192,7 +193,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void IsHybridWithPubKeyReturnsTrue()
         {
-            var email = new EmailAddress("user+pubkey@domain.com");
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
             Assert.That(email.IsHybrid, Is.True);
         }
 
@@ -206,7 +207,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void IsDecentralizedHybridReturnsTrue()
         {
-            var email = new EmailAddress("user+pubkey@domain.com");
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
             Assert.That(email.IsDecentralized, Is.True);
         }
 
@@ -234,7 +235,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void StandardAddressHybridRemovesPubKey()
         {
-            var email = new EmailAddress("user+pubkey@domain.com");
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
             Assert.That(email.StandardAddress, Is.EqualTo("user@domain.com"));
         }
 
@@ -248,7 +249,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void OriginalAddressReturnsNewWithStandardAddress()
         {
-            var email = new EmailAddress("user+pubkey@domain.com", "User");
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
             var original = email.OriginalAddress;
             Assert.That(original.Address, Is.EqualTo("user@domain.com"));
             Assert.That(original.Name, Is.EqualTo("User"));
@@ -257,8 +258,8 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void DecentralizedAddressHybridReturnsPubKey()
         {
-            var email = new EmailAddress("user+pubkey@domain.com");
-            Assert.That(email.DecentralizedAddress, Is.EqualTo("pubkey"));
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo(HybridAddressPubKey));
         }
 
         [Test]
@@ -285,7 +286,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void NetworkHybridReturnsEppie()
         {
-            var email = new EmailAddress("user+pubkey@domain.com");
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
             Assert.That(email.Network, Is.EqualTo(NetworkType.Eppie));
         }
 
@@ -339,6 +340,269 @@ namespace Tuvi.Core.Entities.Test
         public void CreateDecentralizedAddressUnsupportedThrowsArgumentException()
         {
             Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address", "Name"));
+        }
+
+        [Test]
+        public void HasSameAddressWithDifferentCaseReturnsTrue()
+        {
+            var email1 = new EmailAddress("User.Name@Example.COM");
+            var email2 = new EmailAddress("user.name@example.com");
+            Assert.That(email1.HasSameAddress(email2), Is.True);
+        }
+
+        [Test]
+        public void HasSameAddressWithDifferentLocalPartReturnsFalse()
+        {
+            var email1 = new EmailAddress("user1@example.com");
+            var email2 = new EmailAddress("user2@example.com");
+            Assert.That(email1.HasSameAddress(email2), Is.False);
+        }
+
+        [Test]
+        public void NetworkWithMixedCaseHybridAddressReturnsEppie()
+        {
+            var email = new EmailAddress($"User+{HybridAddressPubKey}@Domain.Com");
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Eppie));
+        }
+
+        [Test]
+        public void CreateDecentralizedAddressWithEmptyAddressThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "", "Name"));
+        }
+
+        [Test]
+        public void CreateDecentralizedAddressWithWhitespaceAddressThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   ", "Name"));
+        }
+
+        [Test]
+        public void DecentralizedAddressWithComplexHybridAddressExtractsCorrectPubKey()
+        {
+            var email = new EmailAddress($"user.name+{HybridAddressPubKey}@sub.domain.com");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo(HybridAddressPubKey));
+        }
+
+        [Test]
+        [TestCase("address@sub.bitcoin.domain")]
+        [TestCase("address@sub.eppie.domain")]
+        [TestCase("address@bitcoin-domain.com")]
+        [TestCase("address@eppie-domain.com")]
+        [TestCase("address@domain.bitcoin.com")]
+        [TestCase("address@domain.eppie.com")]
+        [TestCase("address@bitcoin.eppie.com")]
+        [TestCase("address@eppie.bitcoin.com")]
+        [TestCase("address@bitcoin.eppie.domain.com")]
+        [TestCase("address@eppie.bitcoin.domain.com")]
+        public void NetworkWithComplexDomainBitcoinReturnsUnsupported(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Unsupported));
+        }
+
+        [Test]
+        [TestCase("@eppie")]
+        [TestCase("address@eppie")]
+        [TestCase("address.sub@eppie")]
+        [TestCase("user@eppie")]
+        [TestCase("user.name@eppie")]
+        [TestCase("user+tag@eppie")]
+        [TestCase("user-name@eppie")]
+        [TestCase("user123@eppie")]
+        [TestCase("user@Eppie")]
+        [TestCase("user@ePpIe")]
+        [TestCase("user@EPPie")]
+        [TestCase("user@eppie")]
+        [TestCase("user!#$%&'*+-/=?^_`{|}~@eppie")]
+        public void NetworkWithComplexDomainBitcoinReturnsEppie(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Eppie));
+        }
+
+        [Test]
+        [TestCase("@bitcoin")]
+        [TestCase("address@bitcoin")]
+        [TestCase("address.sub@bitcoin")]
+        [TestCase("user@bitcoin")]
+        [TestCase("user.name@bitcoin")]
+        [TestCase("user+tag@bitcoin")]
+        [TestCase("user-name@bitcoin")]
+        [TestCase("user123@bitcoin")]
+        [TestCase("user@BitCoin")]
+        [TestCase("user@BITcoin")]
+        [TestCase("user@BITCOIN")]
+        [TestCase("user@bitcoin")]
+        [TestCase("user!#$%&'*+-/=?^_`{|}~@bitcoin")]
+        public void NetworkWithComplexDomainBitcoinReturnsBitcoin(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Bitcoin));
+        }
+
+        [Test]
+        [TestCase("user@subdomain.eppie.com")]
+        [TestCase("user@subdomain.bitcoin.com")]
+        [TestCase("user@eppie.domain.com")]
+        [TestCase("user@bitcoin.domain.com")]
+        [TestCase("user@domain.eppie.com")]
+        [TestCase("user@domain.bitcoin.com")]
+        [TestCase("user@eppie-domain.com")]
+        [TestCase("user@bitcoin-domain.com")]
+        [TestCase("user@eppie.bitcoin.com")]
+        [TestCase("user@bitcoin.eppie.com")]
+        public void IsDecentralizedWithValidNetworkButSubdomainReturnsFalse(string address)
+        {
+            var email = new EmailAddress(address);
+            Assert.That(email.IsDecentralized, Is.False);
+        }
+
+        [Test]
+        public void HasSameAddressWithEmptyEmailsReturnsFalse()
+        {
+            var email = new EmailAddress("user@domain.com");
+            Assert.That(email.HasSameAddress(string.Empty), Is.False);
+        }
+
+        [Test]
+        public void MakeHybridWithExistingPlusInAddressHandlesCorrectly()
+        {
+            const string NewHybridAddressPubKey = "aaaaaaahijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
+            var hybrid = email.MakeHybrid(NewHybridAddressPubKey);
+
+            Assert.That(hybrid.Address, Is.EqualTo($"user+{NewHybridAddressPubKey}@domain.com"));
+            Assert.That(hybrid.Name, Is.EqualTo("User (Hybrid)"));
+        }
+
+        [Test]
+        public void DisplayNameWithSpecialCharactersInNameFormatsCorrectly()
+        {
+            var email = new EmailAddress("test@example.com", "Test < User >");
+            Assert.That(email.DisplayName, Is.EqualTo("Test < User ><test@example.com>"));
+        }
+
+        [Test]
+        public void ParseWithSpecialCharactersInDisplayNameParsesCorrectly()
+        {
+            var result = EmailAddress.Parse("Test (User) <test@example.com>");
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Address, Is.EqualTo("test@example.com"));
+            Assert.That(result.Name, Is.EqualTo("Test (User)"));
+        }
+
+        [Test]
+        public void DecentralizedAddressWithMixedCasePostfixExtractsCorrectly()
+        {
+            var email = new EmailAddress("address@EPPie");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo("address"));
+        }
+
+        [Test]
+        public void GetHashCodeWithSameAddressDifferentNameReturnsSameHash()
+        {
+            var email1 = new EmailAddress("test@example.com", "Name1");
+            var email2 = new EmailAddress("test@example.com", "Name2");
+            Assert.That(email1.GetHashCode(), Is.EqualTo(email2.GetHashCode()));
+        }
+
+        [Test]
+        public void IsHybridWithMultiplePlusSegmentsReturnsFalse()
+        {
+            var email = new EmailAddress($"user+{HybridAddressPubKey}+extra@domain.com");
+
+            var isHybrid = email.IsHybrid;
+
+            Assert.That(isHybrid, Is.False);
+        }
+
+        [Test]
+        [TestCase("abcdefghijkmnpqrstuvwxyzo3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyzl3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz13456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz03456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuv")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstu")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrst")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrs")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwwww")]
+        public void StandardAddressWithInvalidHybridCandidateReturnsOriginal(string invalidLengthPubKey)
+        {
+            var addr = $"user+{invalidLengthPubKey}@domain.com";
+            var email = new EmailAddress(addr);
+
+            var standard = email.StandardAddress;
+            var isHybrid = email.IsHybrid;
+
+            Assert.That(isHybrid, Is.False);
+            Assert.That(standard, Is.EqualTo(addr));
+        }
+
+        [Test]
+        [TestCase("abcdefghijkmnpqrstuvwxyzo3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyzl3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz13456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz03456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuv")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstu")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrst")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrs")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwwww")]
+        public void DecentralizedAddressInvalidHybridReturnsEmpty(string invalidCharPubKey)
+        {
+            var email = new EmailAddress($"user+{invalidCharPubKey}@domain.com");
+
+            var isHybrid = email.IsHybrid;
+            var dec = email.DecentralizedAddress;
+
+            Assert.That(isHybrid, Is.False);
+            Assert.That(dec, Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void IsHybridMixedCasePubKeyReturnsTrue()
+        {
+            var firstPartUpper = new string(HybridAddressPubKey.AsSpan(0, 10)).ToUpperInvariant();
+            var mixedCasePubKey = string.Concat(firstPartUpper, HybridAddressPubKey.AsSpan(10));
+            var email = new EmailAddress($"user+{mixedCasePubKey}@domain.com");
+
+            var isHybrid = email.IsHybrid;
+
+            Assert.That(isHybrid, Is.True);
+        }
+
+        [Test]
+        [TestCase("abcdefghijkmnpqrstuvwxyzo3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyzl3456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz13456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz03456789abcdefghijkmnpqrstuvw")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuv")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstu")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrst")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrs")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwww")]
+        [TestCase("abcdefghijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvwwwww")]
+        public void MakeHybridFromAddressWithInvalidExistingCandidateWorks(string invalidLengthPubKey)
+        {
+            var baseEmail = new EmailAddress($"user+{invalidLengthPubKey}@domain.com", "User");
+            Assert.That(baseEmail.IsHybrid, Is.False); // sanity
+
+            var newHybrid = baseEmail.MakeHybrid(HybridAddressPubKey);
+
+            Assert.That(newHybrid.IsHybrid, Is.True);
+            Assert.That(newHybrid.Address, Is.EqualTo($"user+{HybridAddressPubKey}@domain.com"));
+            Assert.That(newHybrid.Name, Is.EqualTo("User (Hybrid)"));
         }
     }
 }

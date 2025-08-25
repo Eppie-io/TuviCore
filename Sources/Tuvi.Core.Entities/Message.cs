@@ -15,6 +15,9 @@ namespace Tuvi.Core.Entities
         public string PubKey { get; private set; }
         public string Domain { get; private set; }
 
+        private const int ExpectedPublicKeyLength = 53; // Base32E encoded compressed secp256k1 key length
+        private const string Base32EAlphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+
         public EmailStructure(string address)
         {
             var parts = address.Split('@');
@@ -28,14 +31,39 @@ namespace Tuvi.Core.Entities
 
                 if (nameparts.Length == 2)
                 {
-                    PubKey = nameparts[1];
+                    var candidate = nameparts[1];
+                    if (LooksLikePublicKeyCandidate(candidate))
+                    {
+                        PubKey = candidate;
+                    }
                 }
             }
+        }
+
+        private static bool LooksLikePublicKeyCandidate(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length != ExpectedPublicKeyLength)
+            {
+                return false;
+            }
+
+            // syntactic check only: all characters in Base32E alphabet (case-insensitive)
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                char cl = char.ToLowerInvariant(c);
+                if (Base32EAlphabet.IndexOf(cl) == -1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
     public enum NetworkType
-    {        
+    {
         Eppie,
         Bitcoin,
         Unsupported,
@@ -144,7 +172,14 @@ namespace Tuvi.Core.Entities
         public EmailAddress MakeHybrid(string pubkey)
         {
             var parts = new EmailStructure(Address);
-            return new EmailAddress(parts.Name + '+' + pubkey + '@' + parts.Domain, Name + " (Hybrid)");
+            var hybrid = new EmailAddress(parts.Name + '+' + pubkey + '@' + parts.Domain, Name + " (Hybrid)");
+
+            if (!hybrid.IsHybrid)
+            {
+                throw new InvalidOperationException("Cannot create hybrid address with invalid public key format.");
+            }
+
+            return hybrid;
         }
 
         public int CompareTo(EmailAddress other)
@@ -179,7 +214,7 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                if(IsHybrid)
+                if (IsHybrid)
                 {
                     var parts = new EmailStructure(Address);
 
@@ -223,6 +258,11 @@ namespace Tuvi.Core.Entities
 
         public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address, string name)
         {
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                throw new ArgumentException("Address is required.", nameof(address));
+            }
+
             switch (networkType)
             {
                 case NetworkType.Bitcoin:
@@ -236,38 +276,36 @@ namespace Tuvi.Core.Entities
 
         private static string GetDecentralizedAddress(EmailAddress email)
         {
-            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos == -1)
+            if (email.Address.EndsWith(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
-                pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-                if (pos == -1)
-                {
-                    return string.Empty;
-                }
+                return email.Address.Substring(0, email.Address.Length - EppieNetworkPostfix.Length);
             }
 
-            return email.Address.Substring(0, pos);
+            if (email.Address.EndsWith(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase))
+            {
+                return email.Address.Substring(0, email.Address.Length - BitcoinNetworkPostfix.Length);
+            }
+
+            return string.Empty;
         }
 
         private static NetworkType GetNetworkType(EmailAddress email)
         {
-            int pos = email.Address.IndexOf(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1)
+            if (email.Address.EndsWith(EppieNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
                 return NetworkType.Eppie;
             }
-            
-            pos = email.Address.IndexOf(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase);
-            if (pos != -1)
+
+            if (email.Address.EndsWith(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
                 return NetworkType.Bitcoin;
             }
-            
+
             if (email.IsHybrid)
             {
                 return NetworkType.Eppie;
             }
-                
+
             return NetworkType.Unsupported;
         }
     }

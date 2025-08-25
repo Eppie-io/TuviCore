@@ -276,23 +276,27 @@ namespace Tuvi.Core.Mail.Impl
             foreach (var emailAddress in emails)
             {
                 Contract.Requires(emailAddress != null);
-                try
+
+                if (emailAddress.IsDecentralized)
                 {
-                    var keys = context.GetPublicKeys(new List<MailboxAddress>() { emailAddress.ToMailboxAddress() }).ToList();
-                    var existingPublicKey = keys.FirstOrDefault();
-                    if (existingPublicKey != null)
+                    try
                     {
-                        continue;
+                        var keys = context.GetPublicKeys(new List<MailboxAddress>() { emailAddress.ToMailboxAddress() }).ToList();
+                        var existingPublicKey = keys.FirstOrDefault();
+                        if (existingPublicKey != null)
+                        {
+                            continue;
+                        }
                     }
-                }
-                catch (PublicKeyNotFoundException)
-                {
-                }
+                    catch (PublicKeyNotFoundException)
+                    {
+                    }
 
-                ECPublicKeyParameters reconvertedPublicKey = await PublicKeyConverter.ToPublicKeyAsync(emailAddress).ConfigureAwait(false);
-                PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
+                    ECPublicKeyParameters reconvertedPublicKey = await PublicKeyConverter.ToPublicKeyAsync(emailAddress).ConfigureAwait(false);
+                    PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
 
-                context.Import(keyRing);
+                    context.Import(keyRing);
+                }
             }
         }
     }
