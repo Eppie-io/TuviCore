@@ -1,4 +1,22 @@
-﻿using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using NUnit.Framework;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -108,6 +126,10 @@ namespace Tuvi.Core.DataStorage.Tests
         [Test]
         public void MultiplePasswordChange()
         {
+            const string NewPassword1 = "newPass1";
+            const string NewPassword2 = "newPass2";
+            const string NewPassword3 = "newPass3";
+
             using (var storage = GetDataStorage())
             {
                 Assert.DoesNotThrowAsync(() => storage.CreateAsync(Password));
@@ -115,22 +137,53 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(Password, "newPass1"));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(Password, NewPassword1));
             }
 
             using (var storage = GetDataStorage())
             {
                 Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
-                Assert.DoesNotThrowAsync(() => storage.OpenAsync("newPass1"));
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync("newPass1", "newPass2"));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword1));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword1, NewPassword2));
             }
 
             using (var storage = GetDataStorage())
             {
                 Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync("newPass1"));
-                Assert.DoesNotThrowAsync(() => storage.OpenAsync("newPass2"));
-                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync("newPass2", "newPass3"));
+                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(NewPassword1));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword2));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword2, NewPassword3));
+            }
+        }
+
+        [Test]
+        public void MultiplePasswordChangeWithReset()
+        {
+            const string NewPassword1 = "newPass1";
+            const string NewPassword2 = "newPass2";
+            const string NewPassword3 = "newPass3";
+
+            // Change Password -> newPass1 -> newPass2 -> newPass3
+            using (var storage = GetDataStorage())
+            {
+                Assert.DoesNotThrowAsync(() => storage.CreateAsync(Password));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(Password));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(Password, NewPassword1));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword1, NewPassword2));
+                Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword2, NewPassword3));
+
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword3));
+                Assert.DoesNotThrowAsync(() => storage.ResetAsync());
+
+                // Verify storage file removed and can be recreated again after reset
+                Assert.That(DatabaseFileExists(), Is.False);
+            }
+
+            using (var storage = GetDataStorage())
+            {
+                Assert.ThrowsAsync<DataBaseNotCreatedException>(() => storage.OpenAsync(NewPassword3));
+                Assert.DoesNotThrowAsync(() => storage.CreateAsync(NewPassword3));
+                Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword3));
             }
         }
     }
