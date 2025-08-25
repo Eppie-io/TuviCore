@@ -186,28 +186,57 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         {
             await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
 
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
-
-            if (mailFolder.Count == 0)
+            try
             {
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+
+            async Task<IReadOnlyList<Message>> DoGetMessagesAsync()
+            {
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+                if (mailFolder.Count == 0)
+                {
+                    await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    return new List<Message>();
+                }
+
+                if (count > mailFolder.Count || count == 0)
+                {
+                    count = mailFolder.Count;
+                }
+
+                List<Message> messages = await FetchMessagesAsync(mailFolder,
+                                                                  mailFolder.Count - count,
+                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
+                                                                  false,
+                                                                  cancellationToken).ConfigureAwait(false);
                 await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                return new List<Message>();
+
+                return messages;
             }
-
-            if (count > mailFolder.Count || count == 0)
-            {
-                count = mailFolder.Count;
-            }
-
-            List<Message> messages = await FetchMessagesAsync(mailFolder,
-                                                              mailFolder.Count - count,
-                                                              mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
-                                                              false,
-                                                              cancellationToken).ConfigureAwait(false);
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-            return messages;
         }
 
         internal async Task<List<Message>> FetchMessagesAsync(IMailFolder mailFolder, int startIndex, int endIndex, bool fast, CancellationToken cancellationToken)
