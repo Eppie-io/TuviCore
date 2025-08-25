@@ -219,7 +219,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 if (mailFolder.Count == 0)
                 {
-                    await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
                     return new List<Message>();
                 }
 
@@ -233,7 +233,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                                                                   mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
                                                                   false,
                                                                   cancellationToken).ConfigureAwait(false);
-                await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
 
                 return messages;
             }
@@ -641,7 +641,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 {
                     if (sentFolder.IsOpen)
                     {
-                        await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                        await SafeCloseAsync(sentFolder, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -722,7 +722,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                     message.Id = uid.Value.Id;
                     message.IsMarkedAsRead = true;
 
-                    await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(draftsFolder, cancellationToken).ConfigureAwait(false);
                 }
 
                 return message;
@@ -743,7 +743,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 message.Id = uid.Value.Id;
                 message.IsMarkedAsRead = true;
 
-                await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(draftsFolder, cancellationToken).ConfigureAwait(false);
             }
 
             return message;
@@ -898,7 +898,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
             await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
             await folder.AddFlagsAsync(ids.Select(id => new UniqueId(id)).ToList(), flags, false, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task RemoveFlagsAsync(IList<uint> ids, Folder folderPath, MessageFlags flags, CancellationToken cancellationToken)
@@ -906,7 +906,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
             await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
             await folder.RemoveFlagsAsync(ids.Select(id => new UniqueId(id)).ToList(), flags, false, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
         }
 
         public override async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, bool permanentDelete, CancellationToken cancellationToken)
@@ -954,7 +954,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         if (trash != null)
                         {
                             await folder.MoveToAsync(uniqueIds, trash, cancellationToken).ConfigureAwait(false);
-                            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
                             return;
                         }
                     }
@@ -965,7 +965,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
                 await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1012,7 +1012,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 try
                 {
                     await folder.MoveToAsync(uniqueIds, targetFolder, cancellationToken).ConfigureAwait(false);
-                    await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 catch (NotSupportedException)
@@ -1022,13 +1022,59 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
                 await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
             }
         }
 
         public override void Dispose()
         {
             ImapClient?.Dispose();
+        }
+
+        /// <summary>
+        /// Safely close an IMAP folder. Swallows close-time network/protocol errors (data already fetched) and restores connection if needed.
+        /// </summary>
+        private async Task SafeCloseAsync(IMailFolder folder, CancellationToken cancellationToken)
+        {
+            if (folder is null)
+            {
+                return;
+            }
+
+            if (!folder.IsOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            }
+            catch (System.IO.IOException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (IO)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (Protocol)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (Command)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close timeout");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (TaskCanceledException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close canceled/timeout");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }
