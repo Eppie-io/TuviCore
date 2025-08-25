@@ -222,7 +222,17 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 return new List<Message>(from message in messagesSymmarys select message.ToTuviMailMessage(mailFolder.ToTuviMailFolder()));
 
             }
+            catch (System.IO.IOException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
             catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
             {
                 // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -413,6 +423,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 return await GetEarlierMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                // retry once
+                return await GetEarlierMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
             {
                 // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
