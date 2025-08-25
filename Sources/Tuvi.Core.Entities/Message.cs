@@ -176,7 +176,7 @@ namespace Tuvi.Core.Entities
 
             if (!hybrid.IsHybrid)
             {
-                throw new InvalidOperationException("Can't make hybrid from not valid public key.");
+                throw new InvalidOperationException("Cannot create hybrid address with invalid public key format.");
             }
 
             return hybrid;
