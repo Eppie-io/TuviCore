@@ -1,9 +1,27 @@
-﻿using NUnit.Framework;
-using NUnit.Framework.Internal;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using NUnit.Framework.Internal;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -158,7 +176,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             var lastMessage = await db.GetContactLastMessageAsync(accountEmail, TestData.Folder, email, default).ConfigureAwait(true);
 
-            Assert.That(lastMessage.Id == message.Id, Is.True);            
+            Assert.That(lastMessage.Id == message.Id, Is.True);
             Assert.That(lastMessage.From, Does.Contain(email));
         }
 
@@ -701,7 +719,7 @@ namespace Tuvi.Core.DataStorage.Tests
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
             var accountEmail = TestData.AccountWithFolder.Email;
-            var newMessages = new List<Message>() { TestData.GetNewReadMessage()};
+            var newMessages = new List<Message>() { TestData.GetNewReadMessage() };
             await db.AddMessageListAsync(accountEmail, TestData.Folder, newMessages).ConfigureAwait(true);
             var storedMessages = await db.GetMessageListAsync(accountEmail, TestData.Folder, 100).ConfigureAwait(true);
             Assert.That(storedMessages.Count == 1, Is.True);
@@ -1268,6 +1286,51 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(message.Cc.First().Equals(TestData.Email), Is.True);
             Assert.That(message.Bcc.First().Equals(TestData.Email), Is.True);
             Assert.That(message.ReplyTo.First().Equals(TestData.Email), Is.True);
+        }
+
+        [Test]
+        public async Task AddMessageListDuplicateSecondIgnored()
+        {
+            using var db = await OpenDataStorageAsync().ConfigureAwait(true);
+            await db.AddAccountAsync(TestData.AccountWithFolder).ConfigureAwait(true);
+            var accountEmail = TestData.AccountWithFolder.Email;
+
+            // Arrange initial messages
+            var m1 = TestData.GetNewReadMessage(); // read
+            var m2 = TestData.GetNewUnreadMessage(); // unread
+            var m3 = TestData.GetNewUnreadMessage(); // unread
+            var list = new List<Message> { m1, m2, m3 };
+            await db.AddMessageListAsync(accountEmail, TestData.Folder, list).ConfigureAwait(true);
+
+            // Assert initial counts
+            var initialUnread = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
+            Assert.That(initialUnread, Is.EqualTo(2));
+
+            // Mutate in-memory objects (simulate re-import with different flags)
+            m1.IsMarkedAsRead = false; // would add +1 unread if applied
+            m1.IsFlagged = !m1.IsFlagged;
+            bool prevFlagM2 = m2.IsFlagged;
+            m2.IsFlagged = !prevFlagM2; // flag change only
+
+            // Re-import same list: should be ignored (duplicates skipped), no counter / flag changes
+            await db.AddMessageListAsync(accountEmail, TestData.Folder, list).ConfigureAwait(true);
+
+            // Fetch stored messages after attempted reimport
+            var stored = await db.GetMessageListAsync(accountEmail, TestData.Folder, 0).ConfigureAwait(true);
+            Assert.That(stored.Count, Is.EqualTo(3), "Reimport must not create duplicates");
+
+            var storedM1 = stored.First(x => x.Id == m1.Id);
+            var storedM2 = stored.First(x => x.Id == m2.Id);
+
+            // m1 should remain read (original state) and flag unchanged
+            Assert.That(storedM1.IsMarkedAsRead, Is.True, "m1 read flag must remain unchanged when duplicate ignored");
+            Assert.That(storedM1.IsFlagged, Is.Not.EqualTo(m1.IsFlagged), "m1 flag change in duplicate should not persist");
+
+            // m2 flag should also remain original
+            Assert.That(storedM2.IsFlagged, Is.EqualTo(prevFlagM2), "m2 flag change in duplicate should not persist");
+
+            var newUnread = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
+            Assert.That(newUnread, Is.EqualTo(initialUnread), "Unread count must not change when duplicates ignored");
         }
     }
 }
