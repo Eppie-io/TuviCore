@@ -997,7 +997,7 @@ namespace Tuvi.Core.DataStorage.Impl
                     {
                         // TODO: fix this situation (this appears when synchronization and get earlier messages are running simultaneously)
                         // Collision: message already stored – ignore second copy
-                        Logger.LogWarning("Collision: message already stored – ignore second copy.");
+                        Logger.LogWarning("Message collision for ID {MessageId} at path '{Path}': message already stored – ignore second copy.", message.Id, path);
                         continue;
                     }
                 }
