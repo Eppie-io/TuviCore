@@ -80,17 +80,17 @@ namespace Tuvi.Core.DataStorage.Impl
         public int ContactId { get; set; }
     }
 
-    class ProtonMessageIdV2
+    class ProtonMessageIdV3
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         [Indexed]
         public string MessageId { get; set; }
         [Indexed]
-        public int AccountId { get; set; } 
+        public int AccountId { get; set; }
     }
 
-    class ProtonLabelV2
+    class ProtonLabelV3
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
@@ -100,7 +100,7 @@ namespace Tuvi.Core.DataStorage.Impl
         public int AccountId { get; set; }
     }
 
-    class ProtonMessageLabel
+    class ProtonMessageLabelV2
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
@@ -354,7 +354,10 @@ namespace Tuvi.Core.DataStorage.Impl
             {
                 emailData.UpdateValue(email);
                 connection.Update(emailData);
+
                 InvalidateEmailAddressCache(emailData.Id);
+                InvalidateEmailAddressCache2(email);
+
                 return emailData.Id;
             }
             connection.Insert(new EmailAddressData(email));
@@ -945,7 +948,8 @@ namespace Tuvi.Core.DataStorage.Impl
                     UpdateContactsUnreadCount(connection, message, item);
                     item.IsFlagged = message.IsFlagged;
                     item.IsMarkedAsRead = message.IsMarkedAsRead;
-                    connection.Update(message);
+
+                    connection.Update(item);
                 }
             }, cancellationToken);
         }
@@ -1029,6 +1033,14 @@ namespace Tuvi.Core.DataStorage.Impl
             lock (_emailAddressDataCache)
             {
                 _emailAddressDataCache.Remove(emailId);
+            }
+        }
+
+        private void InvalidateEmailAddressCache2(EmailAddress email)
+        {
+            lock (_emailAddressesCache2)
+            {
+                _emailAddressesCache2.Remove(email);
             }
         }
 
@@ -1908,8 +1920,14 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 connection.UpdateAll(messages);
 
                 var emailData = FindEmailAddress(connection, prev);
-                emailData.Address = email.Address;
-                connection.Update(emailData);
+                if (emailData != null)
+                {
+                    emailData.Address = email.Address;
+                    connection.Update(emailData);
+
+                    InvalidateEmailAddressCache(emailData.Id);
+                    InvalidateEmailAddressCache2(prev);
+                }
 
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -1928,18 +1946,18 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                                        .Distinct()
                                        .OrderBy(x => x)
                                        .ToList(ct);
-                var storedLabels = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId)
+                var storedLabels = connection.Table<ProtonLabelV3>().Where(x => x.AccountId == accountId)
                                                                   .Select(x => x.LabelId)
                                                                   .OrderBy(x => x)
                                                                   .ToList(ct);
                 var newLabels = labelIds.Except(storedLabels);
-                foreach (var label in newLabels.Select(x => new ProtonLabelV2() { LabelId = x, AccountId = accountId }))
+                foreach (var label in newLabels.Select(x => new ProtonLabelV3() { LabelId = x, AccountId = accountId }))
                 {
                     ct.ThrowIfCancellationRequested();
                     connection.Insert(label);
                 }
 
-                var labelLookup = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId).ToDictionary(x => x.LabelId);
+                var labelLookup = connection.Table<ProtonLabelV3>().Where(x => x.AccountId == accountId).ToDictionary(x => x.LabelId);
 
                 foreach (var message in messages)
                 {
@@ -1959,11 +1977,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                         messageId = existingMessage.Id;
                         connection.Update(message);
                         // remove existing labels
-                        connection.Table<ProtonMessageLabel>().Delete(x => x.AccountId == accountId && x.MessageId == existingMessage.Id);
+                        connection.Table<ProtonMessageLabelV2>().Delete(x => x.AccountId == accountId && x.MessageId == existingMessage.Id);
                     }
-                    foreach (var label in message.LabelIds.Select(x => new ProtonMessageLabel() { MessageId = messageId, LabelId = labelLookup[x].Id, AccountId = accountId }))
+                    // ensure label ids per message are unique to avoid duplicate join rows
+                    foreach (var label in message.LabelIds.Select(x => new ProtonMessageLabelV2() { MessageId = messageId, LabelId = labelLookup[x].Id, AccountId = accountId }))
                     {
-                        connection.Insert(label);
+                        connection.Insert(label, "OR IGNORE");
                     }
                 }
             }, cancellationToken);
@@ -1973,30 +1992,35 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).FirstOrDefault();
+                var label = connection.Table<ProtonLabelV3>().Where(x => x.AccountId == accountId && x.LabelId == labelId).FirstOrDefault();
                 if (label is null)
                 {
                     return new List<Proton.Message>();
                 }
-                var labeledMessages = connection.Table<ProtonMessageLabel>()
-                                                .Where(x => x.AccountId == accountId && x.LabelId == label.Id)
-                                                .Select(x => x.MessageId);
-                var query = connection.Table<Proton.Message>()
-                                      .Where(x => x.AccountId == accountId && labeledMessages.Contains(x.Id))
-                                      .OrderByDescending(x => x.Id);
+                // Use raw SQL with JOIN instead of Contains to avoid generating huge IN (...) parameter list.
+                // DISTINCT prevents duplicates if the same (AccountId, MessageId, LabelId) is accidentally inserted twice.
+                var baseSql = "SELECT DISTINCT ProtonMessage.* FROM ProtonMessage INNER JOIN ProtonMessageLabelV2 ml ON ml.MessageId = ProtonMessage.Id AND ml.AccountId = ?1 AND ml.LabelId = ?2 WHERE ProtonMessage.AccountId = ?1";
+                var parameters = new List<object> { accountId, label.Id };
                 if (knownId > 0)
                 {
                     if (getEarlier)
                     {
-                        query = query.Where(x => x.Id < knownId);
+                        baseSql += " AND ProtonMessage.Id < ?3";
                     }
                     else
                     {
-                        query = query.Where(x => x.Id > knownId);
+                        baseSql += " AND ProtonMessage.Id > ?3";
                     }
+                    parameters.Add(knownId);
                 }
-
-                return GetMessagesImpl(count, ref query, ct);
+                baseSql += " ORDER BY ProtonMessage.Id DESC";
+                if (count > 0)
+                {
+                    baseSql += knownId > 0 ? " LIMIT ?4" : " LIMIT ?3"; // adjust placeholder position
+                    parameters.Add(count);
+                }
+                var result = connection.Query<Proton.Message>(baseSql, parameters.ToArray());
+                return (IReadOnlyList<Proton.Message>)result;
             }, cancellationToken);
         }
 
@@ -2013,8 +2037,8 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
-                var labeledMessage = connection.Table<ProtonMessageLabel>()
+                var label = connection.Table<ProtonLabelV3>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
+                var labeledMessage = connection.Table<ProtonMessageLabelV2>()
                                                .Where(x => x.AccountId == accountId && x.LabelId == label.Id && x.MessageId == id)
                                                .FirstOrDefault();
                 if (labeledMessage is null)
@@ -2031,9 +2055,41 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                return (IReadOnlyList<Proton.Message>)connection.Table<Proton.Message>()
-                                                                .Where(x => x.AccountId == accountId && ids.Contains((uint)x.Id))
-                                                                .ToList(ct);
+                if (ids.Count == 0)
+                {
+                    return (IReadOnlyList<Proton.Message>)new List<Proton.Message>();
+                }
+                // Chunk ids to avoid exceeding SQLite max variable number (default 999).
+                const int MaxChunk = 900; // safety margin
+                var all = new Dictionary<uint, Proton.Message>(ids.Count);
+                if (ids.Count <= MaxChunk)
+                {
+                    var list = connection.Table<Proton.Message>()
+                                          .Where(x => x.AccountId == accountId && ids.Contains((uint)x.Id))
+                                          .ToList(ct);
+                    foreach (var m in list)
+                    {
+                        all[(uint)m.Id] = m;
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < ids.Count; i += MaxChunk)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var slice = ids.Skip(i).Take(Math.Min(MaxChunk, ids.Count - i)).ToList();
+                        var part = connection.Table<Proton.Message>()
+                                              .Where(x => x.AccountId == accountId && slice.Contains((uint)x.Id))
+                                              .ToList(ct);
+                        foreach (var m in part)
+                        {
+                            all[(uint)m.Id] = m;
+                        }
+                    }
+                }
+                // Preserve input order
+                var ordered = ids.Select(x => all.TryGetValue(x, out var m) ? m : null).Where(m => m != null).ToList();
+                return (IReadOnlyList<Proton.Message>)ordered;
             }, cancellationToken);
         }
 
@@ -2046,11 +2102,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var table = connection.Table<ProtonMessageIdV2>();
+                var table = connection.Table<ProtonMessageIdV3>();
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Insert(new ProtonMessageIdV2() { MessageId = id, AccountId = accountId });
+                    // Use conflict resolution to skip duplicates silently under UNIQUE(AccountId, MessageId)
+                    connection.Insert(new ProtonMessageIdV3() { MessageId = id, AccountId = accountId }, "OR IGNORE");
                 }
             }, cancellationToken);
         }
@@ -2059,7 +2116,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
         {
             return ReadDatabaseAsync((connection, ct) =>
             {
-                return (IReadOnlyList<KeyValuePair<string, uint>>)connection.Table<ProtonMessageIdV2>()
+                return (IReadOnlyList<KeyValuePair<string, uint>>)connection.Table<ProtonMessageIdV3>()
                                                                             .Where(x => x.AccountId == accountId)
                                                                             .OrderBy(x => x.Id)
                                                                             .Select(x => new KeyValuePair<string, uint>(x.MessageId, (uint)x.Id))
@@ -2079,7 +2136,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Table<ProtonMessageIdV2>().Delete(x => x.AccountId == accountId && x.MessageId == id);
+                    connection.Table<ProtonMessageIdV3>().Delete(x => x.AccountId == accountId && x.MessageId == id);
                     connection.Table<Proton.Message>().Delete(x => x.AccountId == accountId && x.MessageId == id);
                 }
             }, cancellationToken);
@@ -2094,11 +2151,11 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
-                var label = connection.Table<ProtonLabelV2>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
+                var label = connection.Table<ProtonLabelV3>().Where(x => x.AccountId == accountId && x.LabelId == labelId).First();
                 foreach (var id in ids)
                 {
                     ct.ThrowIfCancellationRequested();
-                    connection.Table<ProtonMessageLabel>().Delete(x => x.AccountId == accountId && x.MessageId == id && x.LabelId == label.Id);
+                    connection.Table<ProtonMessageLabelV2>().Delete(x => x.AccountId == accountId && x.MessageId == id && x.LabelId == label.Id);
                 }
             }, cancellationToken);
         }
