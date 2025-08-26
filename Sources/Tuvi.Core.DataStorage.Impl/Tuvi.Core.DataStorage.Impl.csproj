@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tuvi.Core.DataStorage\Tuvi.Core.DataStorage.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Logging\Tuvi.Core.Logging.csproj" />
     <ProjectReference Include="..\Tuvi.Proton\Tuvi.Proton.csproj" />
   </ItemGroup>
 

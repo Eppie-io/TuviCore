@@ -1,4 +1,21 @@
-﻿using SQLite;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +24,10 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using SQLite;
 using Tuvi.Core.Entities;
+using Tuvi.Core.Logging;
 
 namespace Tuvi.Core.DataStorage.Impl
 {
@@ -87,7 +107,7 @@ namespace Tuvi.Core.DataStorage.Impl
         [Indexed]
         public string MessageId { get; set; }
         [Indexed]
-        public int AccountId { get; set; } 
+        public int AccountId { get; set; }
     }
 
     class ProtonLabelV2
@@ -208,6 +228,8 @@ namespace Tuvi.Core.DataStorage.Impl
 
     internal class DataStorage : KeyStorage, IDataStorage, Proton.IStorage
     {
+        private static readonly ILogger Logger = LoggingExtension.Log<DataStorage>();
+
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
         public event EventHandler<ContactChangedEventArgs> ContactChanged;
         public event EventHandler<ContactDeletedEventArgs> ContactDeleted;
@@ -745,7 +767,7 @@ namespace Tuvi.Core.DataStorage.Impl
         }
 
         private static LastMessageData CreateLastMessageData(EmailAddress accountEmail, Message message)
-        {   
+        {
             return new LastMessageData(message.Folder.AccountId, accountEmail, message.Id, message.Date);
         }
 
@@ -963,6 +985,8 @@ namespace Tuvi.Core.DataStorage.Impl
 
                 foreach (var message in messages)
                 {
+                    ct.ThrowIfCancellationRequested();
+
                     message.Path = path;
                     var exists = connection.Find<Entities.Message>(x => x.Path == path && x.Id == message.Id);
                     if (exists is null)
@@ -971,7 +995,10 @@ namespace Tuvi.Core.DataStorage.Impl
                     }
                     else
                     {
-                        throw new MessageAlreadyExistInDatabaseException();
+                        // TODO: fix this situation (this appears when synchronization and get earlier messages are running simultaneously)
+                        // Collision: message already stored – ignore second copy
+                        Logger.LogWarning("Message collision for ID {MessageId} at path '{Path}': message already stored – ignore second copy.", message.Id, path);
+                        continue;
                     }
                 }
             }, cancellationToken);
@@ -1782,7 +1809,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 connection.Update(item);
             }, cancellationToken);
         }
-        
+
         public Task<int> GetContactUnreadMessagesCountAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
         {
             if (_isDisposed)
