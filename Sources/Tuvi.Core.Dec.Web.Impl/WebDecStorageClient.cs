@@ -52,6 +52,7 @@ namespace Tuvi.Core.Dec.Web.Impl
             var uri = $"{Url}/send?address={Escape(address)}&hash={Escape(hash)}&code=testnet";
             using (var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false))
             {
+                response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
         }
@@ -61,6 +62,7 @@ namespace Tuvi.Core.Dec.Web.Impl
             var uri = $"{Url}/list?address={Escape(address)}&code=testnet";
             using (var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false))
             {
+                response.EnsureSuccessStatusCode();
                 var list = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return JsonSerializer.Deserialize<IEnumerable<string>>(list);
             }
@@ -71,6 +73,7 @@ namespace Tuvi.Core.Dec.Web.Impl
             var uri = $"{Url}/get?hash={Escape(hash)}&code=testnet";
             using (var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false))
             {
+                response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             }
         }
@@ -117,6 +120,7 @@ namespace Tuvi.Core.Dec.Web.Impl
         {
             using (var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false))
             {
+                response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
         }
