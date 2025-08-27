@@ -109,7 +109,7 @@ namespace Tuvi.Core.Dec.Web.Impl
                 throw new System.ArgumentException("Name is empty.", nameof(name));
             }
 
-            var url = $"{Url}/address?name={System.Uri.EscapeDataString(name)}&code=testnet";
+            var url = $"{Url}/address?name={Escape(name)}&code=testnet";
             return await GetStringWithCancellationAsync(url, cancellationToken).ConfigureAwait(false);
         }
 
