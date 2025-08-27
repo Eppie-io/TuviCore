@@ -98,7 +98,7 @@ namespace Tuvi.Core.Dec.Web.Impl
                 throw new System.ArgumentException("Address is empty.", nameof(address));
             }
 
-            var url = $"{Url}/claim?name={System.Uri.EscapeDataString(name)}&address={System.Uri.EscapeDataString(address)}&code=testnet";
+            var url = $"{Url}/claim?name={Escape(name)}&address={Escape(address)}&code=testnet";
             return await GetStringWithCancellationAsync(url, cancellationToken).ConfigureAwait(false);
         }
 
