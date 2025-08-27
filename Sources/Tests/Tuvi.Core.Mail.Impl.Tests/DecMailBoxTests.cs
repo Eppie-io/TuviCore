@@ -71,30 +71,30 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var decMessages = new Dictionary<string, string>();
             var decData = new Dictionary<string, byte[]>();
             var client = new Mock<IDecStorageClient>();
-            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, string hash) =>
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, string hash, CancellationToken ct) =>
                   {
                       decMessages[hash] = address;
                       return hash;
                   });
-            client.Setup(x => x.ListAsync(It.IsAny<string>()))
+            client.Setup(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (string address) =>
+                (string address, CancellationToken ct) =>
                 {
                     return decMessages
                             .Where(x => x.Value == address)
                             .Select(x => x.Key)
                             .ToList();
                 });
-            client.Setup(x => x.GetAsync(It.IsAny<string>()))
+            client.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (string hash) =>
+                (string hash, CancellationToken ct) =>
                 {
                     return decData[hash];
                 });
-            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (byte[] data) =>
+                (byte[] data, CancellationToken ct) =>
                 {
                     var hash = GetSHA256(data);
                     decData[hash] = data;
@@ -107,26 +107,26 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             var decMessages = new Dictionary<string, Dictionary<string, byte[]>>();
             var client = new Mock<IDecStorageClient>();
-            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()))
-                  .ReturnsAsync((string address, string hash) =>
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, string hash, CancellationToken ct) =>
                   {
                       throw new DecException();
                   });
-            client.Setup(x => x.ListAsync(It.IsAny<string>()))
+            client.Setup(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (string address) =>
+                (string address, CancellationToken ct) =>
                 {
                     throw new DecException();
                 });
-            client.Setup(x => x.GetAsync(It.IsAny<string>()))
+            client.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (string hash) =>
+                (string hash, CancellationToken ct) =>
                 {
                     throw new DecException();
                 });
-            client.Setup(x => x.PutAsync(It.IsAny<byte[]>()))
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(
-                (byte[] data) =>
+                (byte[] data, CancellationToken ct) =>
                 {
                     throw new DecException();
                 });
@@ -573,10 +573,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var inbox = await mailBox.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
             Assert.That(inbox, Is.Not.Null);
             Assert.DoesNotThrowAsync(async () => await mailBox.SendMessageAsync(message, default).ConfigureAwait(true));
-            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             var messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
-            client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
             Assert.That(messages.Count, Is.EqualTo(1));
         }
 
@@ -617,7 +617,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(sent, Is.Not.Null);
             message.Folder = sent;
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true));
-            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             await CheckReceiverMessageAsync(receiverAddress, message, client, receiverStorage).ConfigureAwait(true);
         }
@@ -647,7 +647,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             message2.Folder = sent;
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message1, default).ConfigureAwait(true));
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message2, default).ConfigureAwait(true));
-            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeast(2));
+            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
 
             using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage);
             var receiverFolders = await receiver.GetFoldersStructureAsync(default).ConfigureAwait(true);
@@ -662,10 +662,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             messageCopy2.Folder = inbox;
 
             var messages = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
-            client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
             Assert.That(messages.Count, Is.EqualTo(2));
             var messages2 = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
-            client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeast(2));
+            client.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
             Assert.That(messages2.Count, Is.EqualTo(2));
             // Verify that message has decrypted correctly
             Assert.That(messages, Is.EqualTo(messages2).Using(new MessageComparer()));
@@ -704,7 +704,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             message.Folder = sent;
 
             Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true));
-            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             await CheckReceiverMessageAsync(receiverAddress1, message, client, receiverStorage1.Object).ConfigureAwait(true);
             await CheckReceiverMessageAsync(receiverAddress2, message, client, receiverStorage2.Object).ConfigureAwait(true);
@@ -722,10 +722,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             messageCopy.Folder = inbox;
 
             var messages = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
-            client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
             Assert.That(messages.Count, Is.EqualTo(1));
             var messages2 = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
-            client.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeast(2));
+            client.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
             Assert.That(messages2.Count, Is.EqualTo(1));
             // Verify that message has decrypted correctly
             Assert.That(AreEqualMessages(messages[0], messages2[0]), Is.True);
@@ -798,13 +798,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(messages.Count, Is.EqualTo(1));
 
             // Both clients should be called
-            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
-            client1.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client1.Verify(x => x.GetAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
-            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
-            client2.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client2.Verify(x => x.GetAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
 
         private static Account CreateAccount(string addressType, EmailAddress address)
@@ -848,17 +848,17 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(messages.Count, Is.EqualTo(1));
 
             // All clients should be called
-            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
-            client1.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client1.Verify(x => x.GetAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
-            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
-            client2.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client2.Verify(x => x.GetAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
-            client3.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
-            client3.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client3.Verify(x => x.GetAsync(It.IsAny<string>()), Times.AtLeastOnce);
+            client3.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client3.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client3.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
 
         [Test]
@@ -887,15 +887,15 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(messages, Is.Null);
 
             // Both clients should be called
-            client1.Verify(x => x.PutAsync(It.IsAny<byte[]>()), Times.AtLeastOnce);
-            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-            client1.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client1.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
+            client1.Verify(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            client1.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client1.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
 
-            client2.Verify(x => x.PutAsync(It.IsAny<byte[]>()), Times.AtLeastOnce);
-            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-            client2.Verify(x => x.ListAsync(It.IsAny<string>()), Times.AtLeastOnce);
-            client2.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
+            client2.Verify(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            client2.Verify(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client2.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
