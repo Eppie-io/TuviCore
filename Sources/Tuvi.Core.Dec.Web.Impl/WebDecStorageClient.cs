@@ -84,8 +84,12 @@ namespace Tuvi.Core.Dec.Web.Impl
             using (var formData = new MultipartFormDataContent())
             {
                 formData.Add(dataContent, "data", "data");
-                var response = await _httpClient.PostAsync($"{Url}/put?code=testnet", formData, cancellationToken).ConfigureAwait(false);
-                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                using (var response = await _httpClient.PostAsync($"{Url}/put?code=testnet", formData, cancellationToken).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
             }
         }
 
