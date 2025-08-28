@@ -16,7 +16,6 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +25,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
@@ -41,7 +41,7 @@ namespace Tuvi.Core.Dec.Impl
         {
             return new DecMailBox(account,
                                   storage,
-                                  DecStorageBuilder.CreateAzureClient(new Uri("https://testnet2.eppie.io/api")),
+                                  DecStorageBuilder.CreateWebClient(new Uri("https://testnet2.eppie.io/api")),
                                   new PgpDecProtector(storage));
         }
     }
@@ -125,7 +125,7 @@ namespace Tuvi.Core.Dec.Impl
             if (folder.IsInbox)
             {
                 string decentralizedAddress = await GetDecentralizedAddressAsync(AccountSettings, cancellationToken).ConfigureAwait(false);
-                var list = await ListDecClientsMessagesAsync(decentralizedAddress).ConfigureAwait(false);
+                var list = await ListDecClientsMessagesAsync(decentralizedAddress, cancellationToken).ConfigureAwait(false);
                 var trash = (await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false)).Where(f => f.IsTrash).FirstOrDefault();
 
                 var tasks = list.Distinct().Select(hash => Task.Run(() => GetMessageListImplAsync(email, folder, trash, decentralizedAddress, hash, cancellationToken))).ToList();
@@ -157,7 +157,7 @@ namespace Tuvi.Core.Dec.Impl
             {
                 return;
             }
-            var data = await GetDecClientsMessageAsync(hash).ConfigureAwait(false);
+            var data = await GetDecClientsMessageAsync(hash, cancellationToken).ConfigureAwait(false);
 
             var json = string.Empty;
             json = await Protector.DecryptAsync(AccountSettings, data, cancellationToken).ConfigureAwait(false);
@@ -168,19 +168,19 @@ namespace Tuvi.Core.Dec.Impl
 
         private async Task<string> SendToDecClientsAsync(string address, byte[] data, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(async () => 
-            { 
-                var hash = await x.PutAsync(data).ConfigureAwait(false);
-                await x.SendAsync(address, hash).ConfigureAwait(false);
+            var tasks = DecClients.Select(x => Task.Run(async () =>
+            {
+                var hash = await x.PutAsync(data, cancellationToken).ConfigureAwait(false);
+                await x.SendAsync(address, hash, cancellationToken).ConfigureAwait(false);
                 return hash;
             })).ToList();
             await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
             return string.Concat(tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result));
         }
 
-        private async Task<IReadOnlyList<string>> ListDecClientsMessagesAsync(string address)
+        private async Task<IReadOnlyList<string>> ListDecClientsMessagesAsync(string address, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(() => x.ListAsync(address))).ToList();
+            var tasks = DecClients.Select(x => Task.Run(() => x.ListAsync(address, cancellationToken))).ToList();
             await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
             ConvertExceptions(tasks);
             return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
@@ -196,9 +196,9 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
-        private async Task<byte[]> GetDecClientsMessageAsync(string hash)
+        private async Task<byte[]> GetDecClientsMessageAsync(string hash, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(() => x.GetAsync(hash))).ToList();
+            var tasks = DecClients.Select(x => Task.Run(() => x.GetAsync(hash, cancellationToken))).ToList();
             await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
             // TODO: probably we should throw an exception here
             ConvertExceptions(tasks);
