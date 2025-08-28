@@ -22,7 +22,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Tuvi.Core.Dec.Azure.Tests
+namespace Tuvi.Core.Dec.Web.Tests
 {
     [Ignore("Integration tests for the WebDecStorageClient are disabled for ci.")]
     public class WebDecStorageTests

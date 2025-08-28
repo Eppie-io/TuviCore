@@ -39,7 +39,7 @@ namespace Tuvi.Core.Dec.Web.Impl
             _httpClient = new HttpClient();
         }
 
-        public WebDecStorageClient(string url, HttpMessageHandler handler)
+        internal WebDecStorageClient(string url, HttpMessageHandler handler)
         {
             Url = url;
             _httpClient = new HttpClient(handler, disposeHandler: true);
