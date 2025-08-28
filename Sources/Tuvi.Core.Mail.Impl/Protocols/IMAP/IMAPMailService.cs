@@ -1,11 +1,29 @@
-﻿using MailKit;
-using Microsoft.Extensions.Logging;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using MailKit;
+using Microsoft.Extensions.Logging;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
 
@@ -60,8 +78,37 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         protected override MailKit.MailService Service { get => ImapClient; }
 
+        /// <summary>
+        /// Perform a lightweight NOOP to proactively detect silently closed connections (idle timeout) and restore if needed.
+        /// Minimal helper: used only where justified to reduce risk of excessive round-trips.
+        /// </summary>
+        private async Task EnsureConnectionAliveAsync(CancellationToken cancellationToken)
+        {
+            if (ImapClient.IsConnected && ImapClient.IsAuthenticated)
+            {
+                try
+                {
+                    await ImapClient.NoOpAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (System.IO.IOException)
+                {
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (MailKit.Net.Imap.ImapProtocolException)
+                {
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (MailKit.Net.Imap.ImapCommandException)
+                {
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
         public override async Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             async Task<IList<Folder>> GetFoldersAsync()
             {
                 var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -79,19 +126,16 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         catch (System.IO.IOException)
                         {
                             this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            // after exception connection may be lost
                             await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                         }
                         catch (MailKit.Net.Imap.ImapProtocolException)
                         {
                             this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            // after exception connection may be lost
                             await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                         }
                         catch (MailKit.Net.Imap.ImapCommandException)
                         {
                             this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            // after exception connection may be lost
                             await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                         }
                     }
@@ -106,23 +150,17 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
             }
 
@@ -137,28 +175,53 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IReadOnlyList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken)
         {
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
 
-            if (mailFolder.Count == 0)
+            try
             {
-                await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                return new List<Message>();
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessagesAsync().ConfigureAwait(false);
             }
 
-            if (count > mailFolder.Count || count == 0)
+            async Task<IReadOnlyList<Message>> DoGetMessagesAsync()
             {
-                count = mailFolder.Count;
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+                if (mailFolder.Count == 0)
+                {
+                    await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+                    return new List<Message>();
+                }
+
+                if (count > mailFolder.Count || count == 0)
+                {
+                    count = mailFolder.Count;
+                }
+
+                List<Message> messages = await FetchMessagesAsync(mailFolder,
+                                                                  mailFolder.Count - count,
+                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
+                                                                  false,
+                                                                  cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+
+                return messages;
             }
-
-            List<Message> messages = await FetchMessagesAsync(mailFolder,
-                                                              mailFolder.Count - count,
-                                                              mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
-                                                              false,
-                                                              cancellationToken).ConfigureAwait(false);
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-            return messages;
         }
 
         internal async Task<List<Message>> FetchMessagesAsync(IMailFolder mailFolder, int startIndex, int endIndex, bool fast, CancellationToken cancellationToken)
@@ -173,9 +236,16 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 return new List<Message>(from message in messagesSymmarys select message.ToTuviMailMessage(mailFolder.ToTuviMailFolder()));
 
             }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -206,45 +276,65 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<int> GetMessageCountAsync(Folder folder, CancellationToken cancellationToken)
         {
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-
-            if (!mailFolder.Exists)
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                throw new FolderIsNotExistException(folder.FullName);
+                return await DoGetMessageCountAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessageCountAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessageCountAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetMessageCountAsync().ConfigureAwait(false);
             }
 
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
-            int count = mailFolder.Count;
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            async Task<int> DoGetMessageCountAsync()
+            {
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
 
-            return count;
+                if (!mailFolder.Exists)
+                {
+                    throw new FolderIsNotExistException(folder.FullName);
+                }
+
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+                int count = mailFolder.Count;
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+
+                return count;
+            }
         }
 
         public override async Task<Message> GetMessageAsync(Folder folder, uint id, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 return await GetMessageAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await GetMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await GetMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await GetMessageAsync().ConfigureAwait(false);
             }
 
@@ -265,7 +355,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         message.IsFlagged = messageSummary.Flags.Value.HasFlag(MessageFlags.Flagged);
                     }
 
-                    await imapFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(imapFolder, cancellationToken).ConfigureAwait(false);
 
                     return message;
                 }
@@ -278,88 +368,114 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IReadOnlyList<Message>> GetLaterMessagesAsync(Folder folder, int count, Message lastMessage, CancellationToken cancellationToken)
         {
-            List<Message> messages = new List<Message>();
-
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
-
-            int startIndex;
-            if (lastMessage == null)
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                if (count > mailFolder.Count || count == 0)
-                {
-                    count = mailFolder.Count;
-                }
-
-                startIndex = 0;
+                return await DoGetLaterMessagesAsync().ConfigureAwait(false);
             }
-            else
+            catch (System.IO.IOException)
             {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetLaterMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetLaterMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoGetLaterMessagesAsync().ConfigureAwait(false);
+            }
 
-                // Try to find message with last loaded id
-                var uids = new List<UniqueId> { new UniqueId(lastMessage.Id) };
-                var messageSummary = await mailFolder.FetchAsync(uids, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
-                if (messageSummary.Count > 0)
+            async Task<IReadOnlyList<Message>> DoGetLaterMessagesAsync()
+            {
+                List<Message> messages = new List<Message>();
+
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+                int startIndex;
+                if (lastMessage == null)
                 {
-                    // Start with next message index
-                    startIndex = messageSummary[0].Index + 1;
+                    if (count > mailFolder.Count || count == 0)
+                    {
+                        count = mailFolder.Count;
+                    }
+
+                    startIndex = 0;
                 }
                 else
                 {
-                    // If failed to find message by id, try to find messages with higher id
-                    var uidsRange = new UniqueIdRange(new UniqueId(lastMessage.Id + 1), UniqueId.MaxValue);
-                    messageSummary = await mailFolder.FetchAsync(uidsRange, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
-
+                    // Try to find message with last loaded id
+                    var uids = new List<UniqueId> { new UniqueId(lastMessage.Id) };
+                    var messageSummary = await mailFolder.FetchAsync(uids, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
                     if (messageSummary.Count > 0)
                     {
-                        // Start with first found message index
-                        startIndex = messageSummary[0].Index;
+                        // Start with next message index
+                        startIndex = messageSummary[0].Index + 1;
                     }
                     else
                     {
-                        // No more later messages were found
-                        await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-                        return messages;
+                        // If failed to find message by id, try to find messages with higher id
+                        var uidsRange = new UniqueIdRange(new UniqueId(lastMessage.Id + 1), UniqueId.MaxValue);
+                        messageSummary = await mailFolder.FetchAsync(uidsRange, MessageSummaryItems.Fast, cancellationToken).ConfigureAwait(false);
+
+                        if (messageSummary.Count > 0)
+                        {
+                            // Start with first found message index
+                            startIndex = messageSummary[0].Index;
+                        }
+                        else
+                        {
+                            // No more later messages were found
+                            await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+                            return messages;
+                        }
+                    }
+
+                    var restCount = mailFolder.Count - startIndex;
+                    if (count == 0 || count > restCount)
+                    {
+                        count = restCount;
                     }
                 }
 
-                var restCount = mailFolder.Count - startIndex;
-                if (count == 0 || count > restCount)
+                var endIndex = startIndex + count - 1;
+
+                if (endIndex >= startIndex)
                 {
-                    count = restCount;
+                    messages = await FetchMessagesAsync(mailFolder, startIndex, endIndex, false, cancellationToken).ConfigureAwait(false);
                 }
+
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+
+                return messages;
             }
-
-            var endIndex = startIndex + count - 1;
-
-            if (endIndex >= startIndex)
-            {
-                messages = await FetchMessagesAsync(mailFolder, startIndex, endIndex, false, cancellationToken).ConfigureAwait(false);
-            }
-
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
-
-            return messages;
         }
 
         public override async Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool fast, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 return await GetEarlierMessagesAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await GetEarlierMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
+                return await GetEarlierMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                 return await GetEarlierMessagesAsync().ConfigureAwait(false);
             }
 
@@ -393,7 +509,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         if (endIndex < UniqueId.MinValue.Id)
                         {
                             // No more earlier messages were found
-                            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
                             return messages;
                         }
                     }
@@ -433,7 +549,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         if (found == false)
                         {
                             // No more earlier messages were found
-                            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
                             return messages;
                         }
                     }
@@ -452,7 +568,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                     messages = await FetchMessagesAsync(mailFolder, startIndex, endIndex, fast, cancellationToken).ConfigureAwait(false);
                 }
 
-                await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
 
                 return messages;
             }
@@ -460,44 +576,64 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IList<Message>> CheckNewMessagesAsync(Folder folder, DateTime dateTime, CancellationToken cancellationToken)
         {
-            var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await DoCheckNewMessagesAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCheckNewMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCheckNewMessagesAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCheckNewMessagesAsync().ConfigureAwait(false);
+            }
 
-            var ids = await mailFolder.SearchAsync(MailKit.Search.SearchQuery.DeliveredAfter(dateTime), cancellationToken).ConfigureAwait(false);
-            var messagesSymmarys = await mailFolder.FetchAsync(ids, MessageSummaryItems.Full | MessageSummaryItems.PreviewText | MessageSummaryItems.UniqueId, cancellationToken).ConfigureAwait(false);
+            async Task<IList<Message>> DoCheckNewMessagesAsync()
+            {
+                var mailFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
-            List<Message> messages = new List<Message>();
-            messages.AddRange(from message in messagesSymmarys select message.ToTuviMailMessage(mailFolder.ToTuviMailFolder()));
-            await mailFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                var ids = await mailFolder.SearchAsync(MailKit.Search.SearchQuery.DeliveredAfter(dateTime), cancellationToken).ConfigureAwait(false);
+                var messagesSymmarys = await mailFolder.FetchAsync(ids, MessageSummaryItems.Full | MessageSummaryItems.PreviewText | MessageSummaryItems.UniqueId, cancellationToken).ConfigureAwait(false);
 
-            return messages;
+                List<Message> messages = new List<Message>();
+                messages.AddRange(from message in messagesSymmarys select message.ToTuviMailMessage(mailFolder.ToTuviMailFolder()));
+                await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
+
+                return messages;
+            }
         }
 
         public override async Task AppendSentMessageAsync(Message message, string messageId, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await AppendMessageAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await AppendMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await AppendMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await AppendMessageAsync().ConfigureAwait(false);
             }
 
@@ -534,7 +670,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 {
                     if (sentFolder.IsOpen)
                     {
-                        await sentFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                        await SafeCloseAsync(sentFolder, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -568,29 +704,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<Message> AppendDraftMessageAsync(Message message, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 return await AppendDraftMessageAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await AppendDraftMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await AppendDraftMessageAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 return await AppendDraftMessageAsync().ConfigureAwait(false);
             }
 
@@ -613,7 +745,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                     message.Id = uid.Value.Id;
                     message.IsMarkedAsRead = true;
 
-                    await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(draftsFolder, cancellationToken).ConfigureAwait(false);
                 }
 
                 return message;
@@ -622,47 +754,67 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<Message> ReplaceDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken)
         {
-            var draftsFolder = GetDraftsFolder();
-            await draftsFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
-
-            using (var mimeMessage = message.ToMimeMessage())
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                message.Date = DateTimeOffset.UtcNow;
-                var uid = await draftsFolder.ReplaceAsync(new UniqueId(id), mimeMessage, MessageFlags.Draft | MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
-                message.Id = uid.Value.Id;
-                message.IsMarkedAsRead = true;
-
-                await draftsFolder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                return await DoReplaceDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoReplaceDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoReplaceDraftMessageAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoReplaceDraftMessageAsync().ConfigureAwait(false);
             }
 
-            return message;
+            async Task<Message> DoReplaceDraftMessageAsync()
+            {
+                var draftsFolder = GetDraftsFolder();
+                await draftsFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+
+                using (var mimeMessage = message.ToMimeMessage())
+                {
+                    message.Date = DateTimeOffset.UtcNow;
+                    var uid = await draftsFolder.ReplaceAsync(new UniqueId(id), mimeMessage, MessageFlags.Draft | MessageFlags.Seen, cancellationToken).ConfigureAwait(false);
+                    message.Id = uid.Value.Id;
+                    message.IsMarkedAsRead = true;
+
+                    await SafeCloseAsync(draftsFolder, cancellationToken).ConfigureAwait(false);
+                }
+
+                return message;
+            }
         }
 
         public override async Task MarkMessagesAsReadAsync(IList<uint> ids, Folder folderPath, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await MarkMessagesAsReadAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsReadAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsReadAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsReadAsync().ConfigureAwait(false);
             }
 
@@ -674,29 +826,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task MarkMessagesAsUnReadAsync(IList<uint> ids, Folder folderPath, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MarkMessagesAsUnReadAsync().ConfigureAwait(false);
             }
 
@@ -708,29 +856,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task FlagMessagesAsync(IList<uint> ids, Folder folderPath, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await FlagMessagesAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await FlagMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await FlagMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await FlagMessagesAsync().ConfigureAwait(false);
             }
 
@@ -742,29 +886,25 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task UnflagMessagesAsync(IList<uint> ids, Folder folderPath, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await UnflagMessagesAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await UnflagMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await UnflagMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await UnflagMessagesAsync().ConfigureAwait(false);
             }
 
@@ -779,7 +919,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
             await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
             await folder.AddFlagsAsync(ids.Select(id => new UniqueId(id)).ToList(), flags, false, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task RemoveFlagsAsync(IList<uint> ids, Folder folderPath, MessageFlags flags, CancellationToken cancellationToken)
@@ -787,34 +927,30 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             var folder = await ImapClient.GetFolderAsync(folderPath.FullName, cancellationToken).ConfigureAwait(false);
             await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
             await folder.RemoveFlagsAsync(ids.Select(id => new UniqueId(id)).ToList(), flags, false, cancellationToken).ConfigureAwait(false);
-            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
         }
 
         public override async Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, bool permanentDelete, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await DeleteMessagesAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await DeleteMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await DeleteMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await DeleteMessagesAsync().ConfigureAwait(false);
             }
 
@@ -833,7 +969,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         if (trash != null)
                         {
                             await folder.MoveToAsync(uniqueIds, trash, cancellationToken).ConfigureAwait(false);
-                            await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                            await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
                             return;
                         }
                     }
@@ -844,35 +980,31 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
                 await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
             }
         }
 
         public override async Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, Folder targetFolderPath, CancellationToken cancellationToken)
         {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await MoveMessagesAsync().ConfigureAwait(false);
             }
             catch (System.IO.IOException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MoveMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapProtocolException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MoveMessagesAsync().ConfigureAwait(false);
             }
             catch (MailKit.Net.Imap.ImapCommandException)
             {
-                // after exception connection may be lost
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                // retry once
                 await MoveMessagesAsync().ConfigureAwait(false);
             }
 
@@ -889,7 +1021,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 try
                 {
                     await folder.MoveToAsync(uniqueIds, targetFolder, cancellationToken).ConfigureAwait(false);
-                    await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                    await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 catch (NotSupportedException)
@@ -899,13 +1031,59 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 await folder.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true, cancellationToken).ConfigureAwait(false);
                 await folder.ExpungeAsync(uniqueIds, cancellationToken).ConfigureAwait(false);
-                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+                await SafeCloseAsync(folder, cancellationToken).ConfigureAwait(false);
             }
         }
 
         public override void Dispose()
         {
             ImapClient?.Dispose();
+        }
+
+        /// <summary>
+        /// Safely close an IMAP folder. Swallows close-time network/protocol errors (data already fetched) and restores connection if needed.
+        /// </summary>
+        private async Task SafeCloseAsync(IMailFolder folder, CancellationToken cancellationToken)
+        {
+            if (folder is null)
+            {
+                return;
+            }
+
+            if (!folder.IsOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                await folder.CloseAsync(false, cancellationToken).ConfigureAwait(false);
+            }
+            catch (System.IO.IOException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (IO)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (Protocol)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close failed (Command)");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close timeout");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (TaskCanceledException ex)
+            {
+                this.Log().LogWarning(ex, "IMAP folder close canceled/timeout");
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }
