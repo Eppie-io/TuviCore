@@ -61,7 +61,7 @@ namespace Tuvi.Core.DataStorage.Tests
             var c = await protonStorage.GetMessagesAsync(account.Id, "C", 0, true, 10, default).ConfigureAwait(true);
             Assert.That(a.Count, Is.EqualTo(1));
             Assert.That(b.Count, Is.EqualTo(1));
-            Assert.That(c.Count, Is.EqualTo(0));
+            Assert.That(c.Count, Is.Zero);
         }
 
         [Test]
@@ -113,7 +113,7 @@ namespace Tuvi.Core.DataStorage.Tests
             await protonStorage.AddOrUpdateMessagesAsync(account.Id, new List<Tuvi.Proton.Message> { PM(500) }).ConfigureAwait(true);
             // Query arbitrary label should return none
             var any = await protonStorage.GetMessagesAsync(account.Id, "NonExisting", 0, true, 10, default).ConfigureAwait(true);
-            Assert.That(any.Count, Is.EqualTo(0));
+            Assert.That(any.Count, Is.Zero);
         }
 
         [Test]
@@ -172,7 +172,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             Assert.That(m1.Count, Is.EqualTo(1));
             Assert.That(m2.Count, Is.EqualTo(1));
-            Assert.That(m3.Count, Is.EqualTo(0), "Label L3 should have been removed on update");
+            Assert.That(m3.Count, Is.Zero, "Label L3 should have been removed on update");
             Assert.That(m4.Count, Is.EqualTo(1));
         }
 

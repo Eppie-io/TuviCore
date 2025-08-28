@@ -611,7 +611,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var top = all[0]; // Ordered DESC by Id => highest Id
 
             var later = await storage.GetMessagesAsync(accountId, label, (uint)top.Id, getEarlier: false, count: 5).ConfigureAwait(true);
-            Assert.That(later.Count, Is.EqualTo(0), "Should be no messages with Id greater than knownId when using getEarlier=false.");
+            Assert.That(later.Count, Is.Zero, "Should be no messages with Id greater than knownId when using getEarlier=false.");
         }
 
         [Test]
