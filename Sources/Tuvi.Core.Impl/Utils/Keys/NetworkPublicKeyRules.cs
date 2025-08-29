@@ -24,8 +24,8 @@ namespace Tuvi.Core.Utils
     internal interface INetworkPublicKeyRules
     {
         bool IsSyntacticallyValid(string value);
-        bool TrySemanticValidate(string value); // e.g. decode
-        bool TryValidate(string value); // syntax + semantic
+        bool TrySemanticValidate(string value);
+        bool TryValidate(string value);
     }
 
     internal sealed class EppieNetworkPublicKeyRules : INetworkPublicKeyRules
