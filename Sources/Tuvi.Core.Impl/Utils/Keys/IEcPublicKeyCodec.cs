@@ -68,7 +68,7 @@ namespace Tuvi.Core.Utils
 
             if (encoded.Length != ExpectedEmailNameLength)
             {
-                throw new ArgumentException("Incorrect length of email name.", nameof(encoded));
+                throw new ArgumentException("Incorrect length of encoded key.", nameof(encoded));
             }
 
             byte[] bytes = Base32EConverter.FromEmailBase32(encoded);
