@@ -78,4 +78,13 @@ namespace Tuvi.Core.Dec
         /// <returns>Underlying address or error text / not-found indication.</returns>
         Task<string> GetAddressByNameAsync(string name, CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// Resolves human readable Eppie names to Base32E public keys.
+    /// Placed in Dec layer to allow adapters over IDecStorageClient without depending on higher layers.
+    /// </summary>
+    public interface IEppieNameResolver
+    {
+        Task<string> ResolveAsync(string name, CancellationToken cancellationToken = default);
+    }
 }
