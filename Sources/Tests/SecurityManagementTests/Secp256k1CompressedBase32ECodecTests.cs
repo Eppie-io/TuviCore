@@ -79,11 +79,8 @@ namespace SecurityManagementTests
         {
             const string valid = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var mutated = string.Concat("z", valid.AsSpan(1));
-            if (mutated == valid) mutated = string.Concat("y", valid.AsSpan(1));
 
-            TestDelegate act = () => _codec.Decode(mutated);
-
-            Assert.Throws<FormatException>(act);
+            Assert.Throws<FormatException>(() => _codec.Decode(mutated));
         }
     }
 }
