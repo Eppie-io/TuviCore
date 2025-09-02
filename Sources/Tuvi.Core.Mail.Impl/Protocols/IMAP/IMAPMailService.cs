@@ -76,7 +76,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 {
                     try
                     {
-                        await ImapClient.DisconnectAsync(true, CancellationToken.None).ConfigureAwait(false);
+                        await ImapClient.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
                     }
                     catch (MailKit.ServiceNotConnectedException ex)
                     {
