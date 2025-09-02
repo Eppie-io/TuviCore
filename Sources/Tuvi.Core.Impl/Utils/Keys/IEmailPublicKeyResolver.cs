@@ -57,14 +57,14 @@ namespace Tuvi.Core.Utils
 
         public async Task<string> ResolveAsync(EmailAddress email, CancellationToken cancellationToken)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }
 
             var bitcoinAddress = email.DecentralizedAddress;
             var publicKey = await _fetcher.FetchAsync(bitcoinAddress).ConfigureAwait(false);
-            if (publicKey == null)
+            if (publicKey is null)
             {
                 throw new NoPublicKeyException(email, $"Public key is not found for the {bitcoinAddress} Bitcoin address");
             }
@@ -93,7 +93,7 @@ namespace Tuvi.Core.Utils
 
         private async Task<string> ResolveInternalAsync(EmailAddress email, CancellationToken ct)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }
@@ -112,12 +112,12 @@ namespace Tuvi.Core.Utils
             var resolved = await _nameResolver.ResolveAsync(segment, ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(resolved))
             {
-                throw new NoPublicKeyException(email, "Public key not found for '" + segment + "'.");
+                throw new NoPublicKeyException(email, $"Public key not found for {segment}.");
             }
 
             if (!_rules.TryValidate(resolved))
             {
-                throw new NoPublicKeyException(email, "Resolved value for '" + segment + "' has invalid format.");
+                throw new NoPublicKeyException(email, $"Resolved value for {segment} has invalid format.");
             }
 
             return resolved;
@@ -135,7 +135,7 @@ namespace Tuvi.Core.Utils
 
         public Task<string> ResolveAsync(EmailAddress email, CancellationToken cancellationToken)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }

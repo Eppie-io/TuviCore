@@ -50,7 +50,7 @@ namespace Tuvi.Core.Utils
 
         public string Encode(ECPublicKeyParameters publicKey)
         {
-            if (publicKey == null)
+            if (publicKey is null)
             {
                 throw new ArgumentNullException(nameof(publicKey));
             }
@@ -61,7 +61,7 @@ namespace Tuvi.Core.Utils
 
         public ECPublicKeyParameters Decode(string encoded)
         {
-            if (encoded == null)
+            if (encoded is null)
             {
                 throw new ArgumentNullException(nameof(encoded));
             }

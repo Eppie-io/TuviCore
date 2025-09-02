@@ -36,14 +36,26 @@ namespace Tuvi.Core.Utils
     {
         public ECPublicKeyParameters Derive(MasterKey masterKey, int coin, int account, int channel, int index)
         {
-            if (masterKey == null) throw new ArgumentNullException(nameof(masterKey));
+            if (masterKey is null)
+            {
+                throw new ArgumentNullException(nameof(masterKey));
+            }
+
             return EccPgpContext.GenerateEccPublicKey(masterKey, coin, account, channel, index);
         }
 
         public ECPublicKeyParameters Derive(MasterKey masterKey, string keyTag)
         {
-            if (masterKey == null) throw new ArgumentNullException(nameof(masterKey));
-            if (string.IsNullOrEmpty(keyTag)) throw new ArgumentException("Key tag must not be null or empty.", nameof(keyTag));
+            if (masterKey is null)
+            {
+                throw new ArgumentNullException(nameof(masterKey));
+            }
+
+            if (string.IsNullOrEmpty(keyTag))
+            {
+                throw new ArgumentException("Key tag must not be null or empty.", nameof(keyTag));
+            }
+
             return EccPgpContext.GenerateEccPublicKey(masterKey, keyTag);
         }
     }

@@ -76,7 +76,7 @@ namespace Tuvi.Core.Utils
 
         public async Task<ECPublicKeyParameters> GetByEmailAsync(EmailAddress email, CancellationToken cancellationToken)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }
@@ -87,7 +87,7 @@ namespace Tuvi.Core.Utils
 
         public Task<string> GetEncodedByEmailAsync(EmailAddress email, CancellationToken cancellationToken)
         {
-            if (email == null)
+            if (email is null)
             {
                 throw new ArgumentNullException(nameof(email));
             }

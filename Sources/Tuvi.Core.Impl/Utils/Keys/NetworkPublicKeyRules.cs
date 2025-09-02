@@ -61,7 +61,7 @@ namespace Tuvi.Core.Utils
 
     internal sealed class BitcoinNetworkPublicKeyRules : INetworkPublicKeyRules
     {
-        // Placeholder: syntactic validation for Bitcoin public key/address segment could be added here later.
+        // TODO: syntactic validation for Bitcoin public key/address segment could be added here later.
         public bool IsSyntacticallyValid(string value)
         {
             return !string.IsNullOrEmpty(value);
@@ -69,7 +69,7 @@ namespace Tuvi.Core.Utils
 
         public bool TrySemanticValidate(string value)
         {
-            // No semantic validation implemented yet.
+            // TODO: No semantic validation implemented yet.
             return !string.IsNullOrEmpty(value);
         }
 

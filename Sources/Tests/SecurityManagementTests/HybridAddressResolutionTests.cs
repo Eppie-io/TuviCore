@@ -41,9 +41,9 @@ namespace SecurityManagementTests
 
         private sealed class EppieNameResolverStub : Tuvi.Core.Dec.IEppieNameResolver
         {
-            private readonly System.Func<string, string> _f;
-            public EppieNameResolverStub(System.Func<string, string> f) { _f = f; }
-            public Task<string> ResolveAsync(string name, System.Threading.CancellationToken cancellationToken = default) => Task.FromResult(_f(name));
+            private readonly System.Func<string, string> _resolver;
+            public EppieNameResolverStub(System.Func<string, string> resolver) { _resolver = resolver; }
+            public Task<string> ResolveAsync(string name, System.Threading.CancellationToken cancellationToken = default) => Task.FromResult(_resolver(name));
         }
     }
 }
