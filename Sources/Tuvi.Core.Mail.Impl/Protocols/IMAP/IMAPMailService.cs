@@ -60,7 +60,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
     class IMAPMailService : ReceiverService
     {
         private MailKit.Net.Imap.ImapClient ImapClient { get; }
-        private readonly SemaphoreSlim _forceReconnectLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _forceReconnectLock = new SemaphoreSlim(1);
 
         protected override Task ForceReconnectCoreAsync(CancellationToken cancellationToken)
         {
@@ -262,7 +262,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 List<Message> messages = await FetchMessagesAsync(mailFolder,
                                                                   mailFolder.Count - count,
-                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
+                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substract 1
                                                                   false,
                                                                   cancellationToken).ConfigureAwait(false);
                 await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
