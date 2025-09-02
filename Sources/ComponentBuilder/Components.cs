@@ -59,8 +59,8 @@ namespace ComponentBuilder
 
         private static IDecStorageClient GetDecClient()
         {
-            return DecStorageBuilder.CreateWebClient(new System.Uri("http://localhost:7071/api"));
-            //return DecStorageBuilder.CreateWebClient(new System.Uri("https://testnet2.eppie.io/api"));
+            //return DecStorageBuilder.CreateWebClient(new System.Uri("http://localhost:7071/api"));
+            return DecStorageBuilder.CreateWebClient(new System.Uri("https://testnet2.eppie.io/api"));
         }
 
         private static ISecurityManager GetSecurityManager(IDataStorage dataStorage, IDecStorageClient decClient, IPublicKeyService publicKeyService)
