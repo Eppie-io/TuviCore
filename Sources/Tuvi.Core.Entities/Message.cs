@@ -268,6 +268,13 @@ namespace Tuvi.Core.Entities
         }
 
         [JsonIgnore]
+        /// <summary>
+        /// Gets the address to be displayed to users. 
+        /// For decentralized addresses that are not hybrid and have a non-empty <c>Name</c>, 
+        /// this property returns the <c>Name</c> with the Eppie network postfix (e.g., "Name@eppie").
+        /// Otherwise, it returns the raw <c>Address</c>.
+        /// Use this property when presenting the address in UI or logs, as it may differ from <c>Address</c> for user-friendly display.
+        /// </summary>
         public string DisplayAddress
         {
             get
