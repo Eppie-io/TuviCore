@@ -78,7 +78,7 @@ namespace SecurityManagementTests
             var codec = new Secp256k1CompressedBase32ECodec();
             var rules = new EppieNetworkPublicKeyRules(codec);
 
-            var result = rules.TrySemanticValidate(ValidEppieKey);
+            var result = rules.IsSemanticallyValid(ValidEppieKey);
 
             Assert.That(result, Is.True);
         }
@@ -88,7 +88,7 @@ namespace SecurityManagementTests
         {
             var rules = new EppieNetworkPublicKeyRules(new FailingDecodeCodec());
 
-            var result = rules.TrySemanticValidate(ValidEppieKey);
+            var result = rules.IsSemanticallyValid(ValidEppieKey);
 
             Assert.That(result, Is.False);
         }
@@ -99,7 +99,7 @@ namespace SecurityManagementTests
             var codec = new Secp256k1CompressedBase32ECodec();
             var rules = new EppieNetworkPublicKeyRules(codec);
 
-            var result = rules.TryValidate(ValidEppieKey);
+            var result = rules.IsValid(ValidEppieKey);
 
             Assert.That(result, Is.True);
         }
@@ -110,7 +110,7 @@ namespace SecurityManagementTests
             var rules = new EppieNetworkPublicKeyRules(new UnexpectedDecodeCodec());
             var invalid = ValidEppieKey + "x"; // wrong length
 
-            var result = rules.TryValidate(invalid);
+            var result = rules.IsValid(invalid);
 
             Assert.That(result, Is.False);
         }
@@ -120,7 +120,7 @@ namespace SecurityManagementTests
         {
             var rules = new EppieNetworkPublicKeyRules(new FailingDecodeCodec());
 
-            var result = rules.TryValidate(ValidEppieKey);
+            var result = rules.IsValid(ValidEppieKey);
 
             Assert.That(result, Is.False);
         }
@@ -132,8 +132,8 @@ namespace SecurityManagementTests
             const string value = "someAddress";
 
             var syntax = rules.IsSyntacticallyValid(value);
-            var semantic = rules.TrySemanticValidate(value);
-            var combined = rules.TryValidate(value);
+            var semantic = rules.IsSemanticallyValid(value);
+            var combined = rules.IsValid(value);
 
             Assert.That(syntax, Is.True);
             Assert.That(semantic, Is.True);
@@ -146,7 +146,7 @@ namespace SecurityManagementTests
             var rules = new BitcoinNetworkPublicKeyRules();
 
             var syntax = rules.IsSyntacticallyValid(string.Empty);
-            var combined = rules.TryValidate(string.Empty);
+            var combined = rules.IsValid(string.Empty);
 
             Assert.That(syntax, Is.False);
             Assert.That(combined, Is.False);
