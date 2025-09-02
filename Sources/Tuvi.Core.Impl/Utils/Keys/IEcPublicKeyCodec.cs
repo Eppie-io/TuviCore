@@ -1,4 +1,4 @@
-﻿// ---------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------- //
 //                                                                              //
 //   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
@@ -74,7 +74,7 @@ namespace Tuvi.Core.Utils
             byte[] bytes = Base32EConverter.FromEmailBase32(encoded);
             if (bytes.Length == 0 || (bytes[0] != PrefixEven && bytes[0] != PrefixOdd))
             {
-                throw new FormatException("Wrong format. Encoded compressed public keys should start with 0x02 or 0x03.");
+                throw new FormatException("Wrong format. Expected a Base32E-encoded compressed EC public key whose decoded bytes start with 0x02 or 0x03.");
             }
 
             var point = Curve.DecodePoint(bytes);
