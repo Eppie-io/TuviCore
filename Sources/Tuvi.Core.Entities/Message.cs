@@ -1,4 +1,22 @@
-﻿using System;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -15,9 +33,6 @@ namespace Tuvi.Core.Entities
         public string PubKey { get; private set; }
         public string Domain { get; private set; }
 
-        private const int ExpectedPublicKeyLength = 53; // Base32E encoded compressed secp256k1 key length
-        private const string Base32EAlphabet = "abcdefghijkmnpqrstuvwxyz23456789";
-
         public EmailStructure(string address)
         {
             var parts = address.Split('@');
@@ -32,33 +47,12 @@ namespace Tuvi.Core.Entities
                 if (nameparts.Length == 2)
                 {
                     var candidate = nameparts[1];
-                    if (LooksLikePublicKeyCandidate(candidate))
+                    if (EppiePublicKeySyntax.IsValid(candidate))
                     {
                         PubKey = candidate;
                     }
                 }
             }
-        }
-
-        private static bool LooksLikePublicKeyCandidate(string value)
-        {
-            if (string.IsNullOrEmpty(value) || value.Length != ExpectedPublicKeyLength)
-            {
-                return false;
-            }
-
-            // syntactic check only: all characters in Base32E alphabet (case-insensitive)
-            for (int i = 0; i < value.Length; i++)
-            {
-                char c = value[i];
-                char cl = char.ToLowerInvariant(c);
-                if (Base32EAlphabet.IndexOf(cl) == -1)
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
     }
 
@@ -171,6 +165,26 @@ namespace Tuvi.Core.Entities
 
         public EmailAddress MakeHybrid(string pubkey)
         {
+            if (string.IsNullOrWhiteSpace(pubkey))
+            {
+                throw new ArgumentException("Public key is required.", nameof(pubkey));
+            }
+
+            if (!EppiePublicKeySyntax.IsValid(pubkey))
+            {
+                throw new ArgumentException("Invalid public key format.", nameof(pubkey));
+            }
+
+            if (IsDecentralized && !IsHybrid)
+            {
+                throw new NotSupportedException("Cannot create hybrid address for a decentralized network address.");
+            }
+
+            if (IsHybrid)
+            {
+                throw new NotSupportedException("Cannot create hybrid from an existing hybrid address.");
+            }
+
             var parts = new EmailStructure(Address);
             var hybrid = new EmailAddress(parts.Name + '+' + pubkey + '@' + parts.Domain, Name + " (Hybrid)");
 
@@ -253,10 +267,26 @@ namespace Tuvi.Core.Entities
             }
         }
 
+        [JsonIgnore]
+        public string DisplayAddress
+        {
+            get
+            {
+                var res = Address;
+
+                if (IsDecentralized && !IsHybrid && !string.IsNullOrWhiteSpace(Name))
+                {
+                    res = $"{Name}{EppieNetworkPostfix}";
+                }
+
+                return res;
+            }
+        }
+
         private static readonly string EppieNetworkPostfix = "@eppie";
         private static readonly string BitcoinNetworkPostfix = "@bitcoin";
 
-        public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address, string name)
+        public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address)
         {
             if (string.IsNullOrWhiteSpace(address))
             {
@@ -266,12 +296,22 @@ namespace Tuvi.Core.Entities
             switch (networkType)
             {
                 case NetworkType.Bitcoin:
-                    return new EmailAddress(address + BitcoinNetworkPostfix, name);
+                    address = address + BitcoinNetworkPostfix;
+                    break;
                 case NetworkType.Eppie:
-                    return new EmailAddress(address + EppieNetworkPostfix, name);
+                    address = address + EppieNetworkPostfix;
+                    break;
                 default:
                     throw new ArgumentException("Unsupported network type", nameof(networkType));
             }
+
+            var parts = new EmailStructure(address);
+            if (!string.IsNullOrEmpty(parts.PubKey))
+            {
+                throw new NotSupportedException("Hybrid local-part is not allowed for decentralized network addresses.");
+            }
+
+            return new EmailAddress(address);
         }
 
         private static string GetDecentralizedAddress(EmailAddress email)

@@ -37,7 +37,7 @@ namespace SecurityManagementTests
         public void BitcoinResolverPublicKeyMissingThrows()
         {
             var resolver = new BitcoinEmailPublicKeyResolver(new MockEmptyBitcoinFetcher());
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i");
 
             AsyncTestDelegate act = () => resolver.ResolveAsync(email, default);
 
@@ -48,7 +48,7 @@ namespace SecurityManagementTests
         public async Task EppieResolverReturnsAddress()
         {
             var resolver = new EppieEmailPublicKeyResolver(new Secp256k1CompressedBase32ECodec(), PublicKeyService.NoOpNameResolver);
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c");
 
             var res = await resolver.ResolveAsync(email, default).ConfigureAwait(false);
 
@@ -62,7 +62,7 @@ namespace SecurityManagementTests
             {
                 { NetworkType.Eppie, new EppieEmailPublicKeyResolver(new Secp256k1CompressedBase32ECodec(), PublicKeyService.NoOpNameResolver) }
             });
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c");
 
             AsyncTestDelegate act = () => composite.ResolveAsync(email, default);
 

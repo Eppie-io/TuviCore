@@ -104,7 +104,7 @@ namespace Tuvi.Core.Utils
                 throw new NoPublicKeyException(email, "Eppie address segment is empty.");
             }
 
-            if (_rules.TryValidate(segment))
+            if (_rules.IsValid(segment))
             {
                 return segment;
             }
@@ -115,7 +115,7 @@ namespace Tuvi.Core.Utils
                 throw new NoPublicKeyException(email, $"Public key not found for {segment}.");
             }
 
-            if (!_rules.TryValidate(resolved))
+            if (!_rules.IsValid(resolved))
             {
                 throw new NoPublicKeyException(email, $"Resolved value for {segment} has invalid format.");
             }

@@ -24,8 +24,8 @@ namespace Tuvi.Core.Utils
     internal interface INetworkPublicKeyRules
     {
         bool IsSyntacticallyValid(string value);
-        bool TrySemanticValidate(string value);
-        bool TryValidate(string value);
+        bool IsSemanticallyValid(string value);
+        bool IsValid(string value);
     }
 
     internal sealed class EppieNetworkPublicKeyRules : INetworkPublicKeyRules
@@ -42,7 +42,7 @@ namespace Tuvi.Core.Utils
             return EppiePublicKeySyntax.IsValid(value);
         }
 
-        public bool TrySemanticValidate(string value)
+        public bool IsSemanticallyValid(string value)
         {
             try
             {
@@ -53,9 +53,9 @@ namespace Tuvi.Core.Utils
             catch (FormatException) { return false; }
         }
 
-        public bool TryValidate(string value)
+        public bool IsValid(string value)
         {
-            return IsSyntacticallyValid(value) && TrySemanticValidate(value);
+            return IsSyntacticallyValid(value) && IsSemanticallyValid(value);
         }
     }
 
@@ -67,15 +67,15 @@ namespace Tuvi.Core.Utils
             return !string.IsNullOrEmpty(value);
         }
 
-        public bool TrySemanticValidate(string value)
+        public bool IsSemanticallyValid(string value)
         {
             // TODO: No semantic validation implemented yet.
             return !string.IsNullOrEmpty(value);
         }
 
-        public bool TryValidate(string value)
+        public bool IsValid(string value)
         {
-            return IsSyntacticallyValid(value) && TrySemanticValidate(value);
+            return IsSyntacticallyValid(value) && IsSemanticallyValid(value);
         }
     }
 

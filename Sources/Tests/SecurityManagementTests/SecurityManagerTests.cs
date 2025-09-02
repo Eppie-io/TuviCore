@@ -1,8 +1,26 @@
-﻿using Moq;
-using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
@@ -28,12 +46,15 @@ namespace SecurityManagementTests
             var pgpContent = TemporalKeyStorage.GetTemporalContextAsync(storage).Result;
             var messageProtectorMock = new Mock<IMessageProtector>();
             var backupProtectorMock = new Mock<IBackupProtector>();
+            var publicKeyService = PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver);
 
             var manager = SecurityManagerCreator.GetSecurityManager(
-                storage,
-                pgpContent,
-                messageProtectorMock.Object,
-                backupProtectorMock.Object);
+                    storage,
+                    pgpContent,
+                    messageProtectorMock.Object,
+                    backupProtectorMock.Object,
+                    publicKeyService);
+
             manager.SetKeyDerivationDetails(new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
 
             return manager;
@@ -173,7 +194,7 @@ namespace SecurityManagementTests
                 Assert.That(keyString, Is.Not.Null);
                 Assert.That(keyString, Is.Not.Empty);
                 Assert.That(keyString, Is.EqualTo("agd5r3j32csbqxy5j9tqs5xwqvh48rfht9ursj3vbamnjycbbseup"));
-                Assert.DoesNotThrow(() => PublicKeyConverter.ToPublicKey(keyString));
+                Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
             }
         }
 
@@ -192,7 +213,7 @@ namespace SecurityManagementTests
 
                 Assert.That(accountIndex, Is.EqualTo(0));
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
-                Assert.DoesNotThrow(() => PublicKeyConverter.ToPublicKey(keyString));
+                Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
             }
         }
 

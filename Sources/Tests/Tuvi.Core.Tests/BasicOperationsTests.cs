@@ -1,11 +1,30 @@
-﻿using Moq;
-using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using Tuvi.Core.DataStorage;
+using Tuvi.Core.Dec;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Impl;
 using Tuvi.Core.Mail;
@@ -444,7 +463,7 @@ namespace Tuvi.Core.Tests
 
             Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>()); });
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
-            messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>()), Times.Once);
+            messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -476,7 +495,7 @@ namespace Tuvi.Core.Tests
 
             Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: false, sign: true, default); });
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
-            messageProtector.Verify(x => x.Sign(It.IsNotNull<Message>()), Times.Once);
+            messageProtector.Verify(x => x.SignAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -507,7 +526,7 @@ namespace Tuvi.Core.Tests
 
             Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: false, default); });
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
-            messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>()), Times.Once);
+            messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         private static Mock<IMailBox> CreateMockMailbox(Account account)
@@ -586,14 +605,16 @@ namespace Tuvi.Core.Tests
             var credentialsManager = new Mock<ICredentialsManager>();
             credentialsManager.Setup(x => x.CreateCredentialsProvider(It.IsAny<Account>()))
                               .Returns(new Mock<ICredentialsProvider>().Object);
-                        
+            var decStorageClient = new Mock<IDecStorageClient>();
+
             return new TuviMail(mailBoxFactory.Object,
                                 mailServerTester.Object,
                                 dataStorage,
                                 securityManager.Object,
                                 backupManager.Object,
                                 credentialsManager.Object,
-                                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                                decStorageClient.Object);
         }
     }
 }

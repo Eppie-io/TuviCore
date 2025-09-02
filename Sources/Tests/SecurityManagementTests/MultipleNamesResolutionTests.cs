@@ -50,8 +50,8 @@ namespace SecurityManagementTests
             var resolver = new StubResolver();
             var service = PublicKeyService.CreateDefault(resolver);
             var emails = new[]{
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias1", string.Empty),
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias2", string.Empty)
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias1"),
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias2")
             };
             var keys = await Task.WhenAll(emails.Select(e => service.GetEncodedByEmailAsync(e, default))).ConfigureAwait(false);
             Assert.That(keys[0], Is.EqualTo("agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c"));

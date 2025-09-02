@@ -1,14 +1,33 @@
-﻿using MimeKit;
-using MimeKit.Cryptography;
-using NUnit.Framework;
-using SecurityManagementTests;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using MimeKit;
+using MimeKit.Cryptography;
+using NUnit.Framework;
+using SecurityManagementTests;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail.Impl.Protocols;
+using Tuvi.Core.Utils;
 using TuviPgpLib.Entities;
 using TuviPgpLibImpl;
 
@@ -23,6 +42,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             context.LoadContextAsync().Wait();
             return context;
         }
+
+        private static readonly IPublicKeyService _publicKeyService = PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver);
 
         [Test]
         public void VerifySignedMessage()
@@ -51,7 +72,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                     Is.EqualTo(message.Protection.Type),
                     "Signed message protection type was not properly set.");
 
-                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext, _publicKeyService);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
                 Assert.That(
@@ -90,7 +111,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                     Is.EqualTo(message.Protection.Type),
                     "Signed and encrypted message protection type was not properly set.");
 
-                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext, _publicKeyService);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
                 Assert.That(
@@ -141,8 +162,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 message.Attachments.Add(EncryptionTestsData.Attachment);
                 message.Folder = new Folder();
 
-                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
-                message = await messageProtector.SignAndEncryptAsync(message).ConfigureAwait(true);
+                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext, _publicKeyService);
+                message = await messageProtector.SignAndEncryptAsync(message, default).ConfigureAwait(true);
 
                 Assert.That(
                     MessageProtectionType.SignatureAndEncryption,
@@ -165,7 +186,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
                 var message = mimeMessage.ToTuviMailMessage(new Folder());
 
-                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext);
+                var messageProtector = MessageProtectorCreator.GetMessageProtector(pgpContext, _publicKeyService);
                 message = messageProtector.TryVerifyAndDecryptAsync(message).Result;
 
                 Assert.That(
@@ -188,6 +209,6 @@ namespace Tuvi.Core.Mail.Impl.Tests
                     Is.EqualTo(message.Attachments.FirstOrDefault()),
                     "Message attachment was corrupted.");
             }
-        }        
+        }
     }
 }
