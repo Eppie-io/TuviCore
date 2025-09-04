@@ -1,13 +1,33 @@
-﻿using MimeKit;
-using NUnit.Framework;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Crypto.Parameters;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using MimeKit;
+using NUnit.Framework;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
 using Tuvi.Base32EConverterLib;
+using Tuvi.Core.Dec;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Utils;
 using TuviPgpLibImpl;
@@ -16,6 +36,11 @@ namespace SecurityManagementTests
 {
     public class PublicKeyConvertingTests
     {
+        private sealed class TestNoOpResolver : IEppieNameResolver
+        {
+            public Task<string> ResolveAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult<string>(null);
+        }
+        private readonly PublicKeyService _svc = PublicKeyService.CreateDefault(new TestNoOpResolver());
         private static TuviPgpContext InitializeTuviPgpContext()
         {
             var keyStorage = new MockPgpKeyStorage().Get();
@@ -26,7 +51,7 @@ namespace SecurityManagementTests
 
         [Test]
         public void ECPubKeyConverting()
-        {            
+        {
             for (int i = 0; i < 50; i++)
             {
                 var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, i);
@@ -43,11 +68,11 @@ namespace SecurityManagementTests
         public void ECPubKeyParametersConverting()
         {
             for (int i = 0; i < 50; i++)
-            {   
+            {
                 var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, i);
 
-                string emailName = PublicKeyConverter.ToPublicKeyBase32E(publicKey);
-                var reconvertedPublicKey = PublicKeyConverter.ToPublicKey(emailName);
+                string emailName = _svc.Encode(publicKey);
+                var reconvertedPublicKey = _svc.Decode(emailName);
 
                 Assert.That(publicKey, Is.EqualTo(reconvertedPublicKey));
             }
@@ -57,7 +82,7 @@ namespace SecurityManagementTests
         public void PublicKeyImportTest()
         {
             const string EmailName = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
-            var reconvertedPublicKey = PublicKeyConverter.ToPublicKey(EmailName);
+            var reconvertedPublicKey = _svc.Decode(EmailName);
 
             PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, EmailName);
 
@@ -78,10 +103,10 @@ namespace SecurityManagementTests
 
             const string EmailName = "ae5ky7ah5gepibreyyts88vcdenmhk786cmec8xyjburepk5bxufc";
 
-            ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ToPublicKey(EmailName);
+            ECPublicKeyParameters reconvertedPublicKey = _svc.Decode(EmailName);
 
             PgpPublicKeyRing publicKeyRing = EccPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, EmailName);
-            PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey );
+            PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey);
 
             using EccPgpContext ctx = InitializeTuviPgpContext();
             var encryptedMime = ctx.Encrypt(new List<PgpPublicKey> { publicKey }, inputData);
@@ -103,14 +128,14 @@ namespace SecurityManagementTests
         [Test]
         public void EmailNameConvertingNullEmailNameThrowArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => PublicKeyConverter.ToPublicKey(null), "Email name can not be a null.");
+            Assert.Throws<ArgumentNullException>(() => _svc.Decode(null), "Email name can not be a null.");
         }
 
         [TestCase(1)]
         [TestCase(3)]
         [TestCase(15)]
         public void ECPubKeyConvertingTooLongPubKeyThrowArgumentException(int childKeyNum)
-        {            
+        {
             var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, childKeyNum);
 
             byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(false);
@@ -126,7 +151,7 @@ namespace SecurityManagementTests
         [TestCase("abracadabraabracadabraabracadabraabracadabraabracadabraabracadabraabracadabra")]
         public void EmailNameConvertingWrongEmailNameLengthThrowArgumentException(string emailName)
         {
-            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKey(emailName), "Incorrect length of email name.");
+            Assert.Throws<ArgumentException>(() => _svc.Decode(emailName), "Incorrect length of email name.");
         }
 
         [TestCase("abracadabraabracadabraabracadabraabracadabraabracadab")]
@@ -140,13 +165,13 @@ namespace SecurityManagementTests
         [TestCase("6gwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c")]
         public void EmailNameConvertingWrongFormatThrowArgumentException(string emailName)
         {
-            Assert.Throws<FormatException>(() => PublicKeyConverter.ToPublicKey(emailName), "Invalid point format. Encoded public key should start with 0x02 or 0x03.");
+            Assert.Throws<FormatException>(() => _svc.Decode(emailName), "Invalid point format. Encoded public key should start with 0x02 or 0x03.");
         }
 
         [Test]
         public void ToPublicKeyBase32ENullPublicKeyThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => PublicKeyConverter.ToPublicKeyBase32E((ECPublicKeyParameters)null));
+            Assert.Throws<ArgumentNullException>(() => _svc.Encode((ECPublicKeyParameters)null));
         }
 
         [Test]
@@ -160,9 +185,9 @@ namespace SecurityManagementTests
 
             // Generate expected public key parameters using the underlying method
             var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, Coin, Account, Channel, Index);
-            var expectedBase32E = PublicKeyConverter.ToPublicKeyBase32E(expectedPublicKey);
+            var expectedBase32E = _svc.Encode(expectedPublicKey);
 
-            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, Coin, Account, Channel, Index);
+            var result = _svc.DeriveEncoded(masterKey, Coin, Account, Channel, Index);
 
             Assert.That(result, Is.EqualTo(expectedBase32E));
         }
@@ -170,7 +195,7 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyBase32ENullMasterKeyWithDerivationParamsThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => PublicKeyConverter.ToPublicKeyBase32E(null, 0, 0, 0, 0));
+            Assert.Throws<ArgumentNullException>(() => _svc.DeriveEncoded(null, 0, 0, 0, 0));
         }
 
         [Test]
@@ -181,9 +206,9 @@ namespace SecurityManagementTests
 
             // Generate expected public key parameters using the underlying method
             var expectedPublicKey = EccPgpContext.GenerateEccPublicKey(masterKey, KeyTag);
-            var expectedBase32E = PublicKeyConverter.ToPublicKeyBase32E(expectedPublicKey);
+            var expectedBase32E = _svc.Encode(expectedPublicKey);
 
-            var result = PublicKeyConverter.ToPublicKeyBase32E(masterKey, KeyTag);
+            var result = _svc.DeriveEncoded(masterKey, KeyTag);
 
             Assert.That(result, Is.EqualTo(expectedBase32E));
         }
@@ -191,31 +216,31 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyBase32ENullMasterKeyWithKeyTagThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => PublicKeyConverter.ToPublicKeyBase32E(null, "test-tag"));
+            Assert.Throws<ArgumentNullException>(() => _svc.DeriveEncoded(null, "test-tag"));
         }
 
         [Test]
         public void ToPublicKeyBase32ENullKeyTagThrowsArgumentNullException()
         {
             var masterKey = TestData.MasterKey;
-            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKeyBase32E(masterKey, null));
+            Assert.Throws<ArgumentException>(() => _svc.DeriveEncoded(masterKey, null));
         }
 
         [Test]
         public void ToPublicKeyBase32EEmptyKeyTagThrowsArgumentException()
         {
             var masterKey = TestData.MasterKey;
-            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKeyBase32E(masterKey, string.Empty));
+            Assert.Throws<ArgumentException>(() => _svc.DeriveEncoded(masterKey, string.Empty));
         }
 
         [Test]
         public async Task ToPublicKeyBase32EAsyncEppieNetworkReturnsDecentralizedAddress()
         {
             var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, 1);
-            var publicKeyBase32E = PublicKeyConverter.ToPublicKeyBase32E(publicKey);
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, publicKeyBase32E, string.Empty);
+            var publicKeyBase32E = _svc.Encode(publicKey);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, publicKeyBase32E);
 
-            var result = await PublicKeyConverter.ToPublicKeyBase32EAsync(email).ConfigureAwait(false);
+            var result = await _svc.GetEncodedByEmailAsync(email, default).ConfigureAwait(false);
 
             Assert.That(publicKeyBase32E, Is.EqualTo(email.DecentralizedAddress));
         }
@@ -224,41 +249,37 @@ namespace SecurityManagementTests
         public void ToPublicKeyBase32EAsyncUnsupportedNetworkThrowsArgumentException()
         {
             var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, 1);
-            var publicKeyBase32E = PublicKeyConverter.ToPublicKeyBase32E(publicKey);
-            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress((NetworkType)999, publicKeyBase32E, string.Empty)); 
+            var publicKeyBase32E = _svc.Encode(publicKey);
+            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress((NetworkType)999, publicKeyBase32E));
         }
 
         [Test]
         public void ToPublicKeyBase32EAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => PublicKeyConverter.ToPublicKeyBase32EAsync(null));
+            Assert.ThrowsAsync<ArgumentNullException>(() => _svc.GetEncodedByEmailAsync(null, default));
         }
 
         [Test]
         public async Task ToPublicKeyAsyncEppieNetworkReturnsPublicKeyParameters()
         {
             const string PublicKeyBase32E = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, PublicKeyBase32E, string.Empty);
-            
-            var expectedPublicKey = PublicKeyConverter.ToPublicKey(email.DecentralizedAddress);
-
-            var result = await PublicKeyConverter.ToPublicKeyAsync(email).ConfigureAwait(false);
-
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, PublicKeyBase32E);
+            var expectedPublicKey = _svc.Decode(email.DecentralizedAddress);
+            var result = await _svc.GetByEmailAsync(email, default).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(expectedPublicKey));
         }
 
         [Test]
         public void ToPublicKeyAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => PublicKeyConverter.ToPublicKeyAsync(null));
+            Assert.ThrowsAsync<ArgumentNullException>(() => _svc.GetByEmailAsync(null, default));
         }
 
         [Test]
         public void ToPublicKeyInvalidCurveOidThrowsException()
         {
-            const string InvalidEncodedKey = "invalidbase32ethatdecodestowrongpoint"; // Craft a string that passes length but fails DecodePoint
-
-            Assert.Throws<ArgumentException>(() => PublicKeyConverter.ToPublicKey(InvalidEncodedKey)); // Adjust exception type as per actual throw
+            const string InvalidEncodedKey = "invalidbase32ethatdecodestowrongpoint";
+            Assert.Throws<ArgumentException>(() => _svc.Decode(InvalidEncodedKey));
         }
     }
 }

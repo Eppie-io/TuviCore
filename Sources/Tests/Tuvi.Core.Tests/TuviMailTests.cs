@@ -1,6 +1,21 @@
-﻿using KeyDerivation;
-using Moq;
-using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,8 +24,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation;
+using Moq;
+using NUnit.Framework;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
+using Tuvi.Core.Dec;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Impl;
 using Tuvi.Core.Mail;
@@ -57,6 +76,7 @@ namespace Tuvi.Core.Tests
             var dataStorageMock = new Mock<IDataStorage>();
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
             dataStorageMock.Setup(a => a.GetAccountsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(accountsList);
 
             using var core = TuviCoreCreator.CreateTuviMailCore(
@@ -66,7 +86,8 @@ namespace Tuvi.Core.Tests
                 securityManagerMock.Object,
                 backupManager.Object,
                 credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
 
             var accounts = await core.GetAccountsAsync().ConfigureAwait(true);
 
@@ -83,6 +104,7 @@ namespace Tuvi.Core.Tests
             var mailBoxMock = new Mock<IMailBox>();
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
 
             var account = TestAccountInfo.GetAccount();
             var folderStructureList = new List<Folder> { new Folder("inbox", FolderAttributes.Inbox), new Folder("spam", FolderAttributes.Junk) };
@@ -99,7 +121,9 @@ namespace Tuvi.Core.Tests
                 securityManagerMock.Object,
                 backupManager.Object,
                 credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
+
             await core.AddAccountAsync(account, default).ConfigureAwait(true);
 
             Assert.Pass();
@@ -115,6 +139,7 @@ namespace Tuvi.Core.Tests
             var mailBoxMock = new Mock<IMailBox>();
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
 
             var account = TestAccountInfo.GetAccount();
             var folderStructureList = new List<Folder> { new Folder("inbox", FolderAttributes.Inbox), new Folder("spam", FolderAttributes.Junk) };
@@ -130,7 +155,9 @@ namespace Tuvi.Core.Tests
                 securityManagerMock.Object,
                 backupManager.Object,
                 credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test")
+                , decStorageClient.Object);
+
             Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true));
         }
 
@@ -144,6 +171,7 @@ namespace Tuvi.Core.Tests
             var mailBoxMock = new Mock<IMailBox>();
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
 
             var account = TestAccountInfo.GetAccount();
             dataStorageMock.Setup(a => a.AddAccountAsync(account, It.IsAny<CancellationToken>()));
@@ -159,7 +187,9 @@ namespace Tuvi.Core.Tests
                 securityManagerMock.Object,
                 backupManager.Object,
                 credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
+
             Assert.ThrowsAsync<ConnectionException>(async () => await core.AddAccountAsync(account, default).ConfigureAwait(true));
         }
 
@@ -184,6 +214,7 @@ namespace Tuvi.Core.Tests
             var mailBoxMock = new Mock<IMailBox>();
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
 
             securityManagerMock.Setup(a => a.IsNeverStartedAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
@@ -194,7 +225,8 @@ namespace Tuvi.Core.Tests
                 securityManagerMock.Object,
                 backupManager.Object,
                 credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"));
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
             Assert.That(core.IsFirstApplicationStartAsync().Result, Is.True);
 
             securityManagerMock.Setup(a => a.IsNeverStartedAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
@@ -214,31 +246,31 @@ namespace Tuvi.Core.Tests
 
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, null, null, null, null, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, null, null, null, null, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, dataStorageMock.Object, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, null, dataStorageMock.Object, null, null, null, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, securityManagerMock.Object, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, securityManagerMock.Object, null, null, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, backupManager.Object, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, backupManager.Object, null, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, credentialsManager.Object, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, credentialsManager.Object, null, null);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, null, null, null);
             });
         }
 

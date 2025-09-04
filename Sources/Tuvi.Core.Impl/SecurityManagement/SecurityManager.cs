@@ -1,4 +1,22 @@
-﻿using KeyDerivation;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using KeyDerivation;
 using KeyDerivation.Keys;
 using KeyDerivationLib;
 using Org.BouncyCastle.Bcpg;
@@ -26,9 +44,10 @@ namespace Tuvi.Core.Impl.SecurityManagement
             IDataStorage storage,
             ITuviPgpContext pgpContext,
             IMessageProtector messageProtector,
-            IBackupProtector backupProtector)
+            IBackupProtector backupProtector,
+            IPublicKeyService publicKeyService)
         {
-            return new SecurityManager(storage, pgpContext, messageProtector, backupProtector);
+            return new SecurityManager(storage, pgpContext, messageProtector, backupProtector, publicKeyService);
         }
 
         public static ISeedQuiz CreateSeedQuiz(string[] seedPhrase)
@@ -39,26 +58,40 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
     internal class SecurityManager : ISecurityManager
     {
+        private SeedQuiz _seedQuiz;
+        private IKeyDerivationDetailsProvider _keyDerivationDetails;
+        private MasterKeyFactory _keyFactory;
+        private Dictionary<SpecialPgpKeyType, string> _specialPgpKeyIdentities;
+        private readonly SeedValidator _seedValidator;
+        private readonly IKeyStorage _keyStorage;
+        private readonly IDataStorage _dataStorage;
+        private readonly ITuviPgpContext _pgpContext;
+        private readonly IMessageProtector _messageProtector;
+        private readonly IBackupProtector _backupProtector;
+        private readonly IPublicKeyService _publicKeyService;
+
         /// <param name="backupProtector">Setup of protector is performed here.</param>
         public SecurityManager(
             IDataStorage storage,
             ITuviPgpContext pgpContext,
             IMessageProtector messageProtector,
-            IBackupProtector backupProtector)
+            IBackupProtector backupProtector,
+            IPublicKeyService publicKeyService)
         {
-            SeedValidator = new SeedValidator();
-            KeyStorage = storage;
-            DataStorage = storage;
-            PgpContext = pgpContext;
-            MessageProtector = messageProtector;
-            BackupProtector = backupProtector;
+            _seedValidator = new SeedValidator();
+            _keyStorage = storage ?? throw new ArgumentNullException(nameof(storage));
+            _dataStorage = storage;
+            _pgpContext = pgpContext ?? throw new ArgumentNullException(nameof(pgpContext));
+            _messageProtector = messageProtector ?? throw new ArgumentNullException(nameof(messageProtector));
+            _backupProtector = backupProtector ?? throw new ArgumentNullException(nameof(backupProtector));
+            _publicKeyService = publicKeyService ?? throw new ArgumentNullException(nameof(publicKeyService));
         }
 
         private void InitializeManager()
         {
-            KeyFactory = new MasterKeyFactory(KeyDerivationDetails);
-            SpecialPgpKeyIdentities = KeyDerivationDetails.GetSpecialPgpKeyIdentities();
-            BackupProtector.SetPgpKeyIdentity(SpecialPgpKeyIdentities[SpecialPgpKeyType.Backup]);
+            _keyFactory = new MasterKeyFactory(_keyDerivationDetails);
+            _specialPgpKeyIdentities = _keyDerivationDetails.GetSpecialPgpKeyIdentities();
+            _backupProtector.SetPgpKeyIdentity(_specialPgpKeyIdentities[SpecialPgpKeyType.Backup]);
         }
 
         public void SetKeyDerivationDetails(IKeyDerivationDetailsProvider keyDerivationDetailsProvider)
@@ -68,54 +101,54 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new ArgumentNullException(nameof(keyDerivationDetailsProvider));
             }
 
-            KeyDerivationDetails = keyDerivationDetailsProvider;
+            _keyDerivationDetails = keyDerivationDetailsProvider;
             InitializeManager();
         }
 
         public async Task<bool> IsSeedPhraseInitializedAsync(CancellationToken cancellationToken = default)
         {
-            return await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false);
+            return await _keyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<string[]> CreateSeedPhraseAsync()
         {
-            if (KeyFactory is null)
+            if (_keyFactory is null)
             {
-                throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
+                throw new InvalidOperationException($"{nameof(_keyFactory)} is not initialized.");
             }
 
-            var seedPhrase = await Task.Run(() => KeyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
-            SeedQuiz = new SeedQuiz(seedPhrase);
+            var seedPhrase = await Task.Run(() => _keyFactory.GenerateSeedPhrase()).ConfigureAwait(false);
+            _seedQuiz = new SeedQuiz(seedPhrase);
 
             return seedPhrase;
         }
 
         public Task RestoreSeedPhraseAsync(string[] seedPhrase)
         {
-            if (KeyFactory is null)
+            if (_keyFactory is null)
             {
-                throw new InvalidOperationException($"{nameof(KeyFactory)} is not initialized.");
+                throw new InvalidOperationException($"{nameof(_keyFactory)} is not initialized.");
             }
 
-            return Task.Run(() => KeyFactory.RestoreSeedPhrase(seedPhrase));
+            return Task.Run(() => _keyFactory.RestoreSeedPhrase(seedPhrase));
         }
 
         public async Task StartAsync(string password, CancellationToken cancellationToken = default)
         {
             try
             {
-                if (await DataStorage.IsStorageExistAsync(cancellationToken).ConfigureAwait(false))
+                if (await _dataStorage.IsStorageExistAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    await DataStorage.OpenAsync(password, cancellationToken).ConfigureAwait(false);
+                    await _dataStorage.OpenAsync(password, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await DataStorage.CreateAsync(password, cancellationToken).ConfigureAwait(false);
+                    await _dataStorage.CreateAsync(password, cancellationToken).ConfigureAwait(false);
                 }
 
-                await PgpContext.LoadContextAsync().ConfigureAwait(false);
+                await _pgpContext.LoadContextAsync().ConfigureAwait(false);
 
-                if (!await KeyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
+                if (!await _keyStorage.IsMasterKeyExistAsync(cancellationToken).ConfigureAwait(false))
                 {
                     await InitializeMasterKeyAsync(cancellationToken).ConfigureAwait(false);
                 }
@@ -128,9 +161,9 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public async Task InitializeMasterKeyAsync(CancellationToken cancellationToken = default)
         {
-            using (var masterKey = await Task.Run(() => KeyFactory.GetMasterKey()).ConfigureAwait(false))
+            using (var masterKey = await Task.Run(() => _keyFactory.GetMasterKey()).ConfigureAwait(false))
             {
-                await KeyStorage.InitializeMasterKeyAsync(masterKey, cancellationToken).ConfigureAwait(false);
+                await _keyStorage.InitializeMasterKeyAsync(masterKey, cancellationToken).ConfigureAwait(false);
                 await CreateDefaultPgpKeysForAllAccountsAsync(cancellationToken).ConfigureAwait(false);
                 await CreateSpecialPgpKeysAsync().ConfigureAwait(false);
             }
@@ -139,53 +172,53 @@ namespace Tuvi.Core.Impl.SecurityManagement
         public async Task ResetAsync()
         {
             // TODO: Zeroise seed phrase.
-            SeedQuiz = null;
+            _seedQuiz = null;
 
-            await DataStorage.ResetAsync().ConfigureAwait(false);
+            await _dataStorage.ResetAsync().ConfigureAwait(false);
         }
 
         public async Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
         {
-            await DataStorage.ChangePasswordAsync(currentPassword, newPassword, cancellationToken).ConfigureAwait(false);
+            await _dataStorage.ChangePasswordAsync(currentPassword, newPassword, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<bool> IsNeverStartedAsync(CancellationToken cancellationToken)
         {
-            return !await DataStorage.IsStorageExistAsync(cancellationToken).ConfigureAwait(false);
+            return !await _dataStorage.IsStorageExistAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public ISeedQuiz GetSeedQuiz()
         {
-            return SeedQuiz;
+            return _seedQuiz;
         }
 
         public ISeedValidator GetSeedValidator()
         {
-            return SeedValidator;
+            return _seedValidator;
         }
 
         private Task<MasterKey> GetMasterKeyAsync(CancellationToken cancellationToken = default)
         {
-            return KeyStorage.GetMasterKeyAsync(cancellationToken);
+            return _keyStorage.GetMasterKeyAsync(cancellationToken);
         }
 
         private async Task CreateSpecialPgpKeysAsync()
         {
             using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
-                foreach (var specialKey in SpecialPgpKeyIdentities)
+                foreach (var specialKey in _specialPgpKeyIdentities)
                 {
                     string keyIdentity = specialKey.Value;
                     var dummyBackupAddress = new EmailAddress(keyIdentity);
 
-                    PgpContext.GeneratePgpKeysByTagOld(masterKey, keyIdentity, keyIdentity);
+                    _pgpContext.GeneratePgpKeysByTagOld(masterKey, keyIdentity, keyIdentity);
                 }
             }
         }
 
         private async Task CreateDefaultPgpKeysForAllAccountsAsync(CancellationToken cancellationToken = default)
         {
-            var accounts = await DataStorage.GetAccountsAsync(cancellationToken).ConfigureAwait(false);
+            var accounts = await _dataStorage.GetAccountsAsync(cancellationToken).ConfigureAwait(false);
 
             using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -213,28 +246,28 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             if (account.Email.IsHybrid)
             {
-                PgpContext.GeneratePgpKeysByTag(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+                _pgpContext.GeneratePgpKeysByTag(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
             }
             else if (account.Email.IsDecentralized)
             {
-                PgpContext.GeneratePgpKeysByBip44(masterKey, account.GetPgpUserIdentity(), account.GetCoinType(), account.DecentralizedAccountIndex, account.GetChannel(), account.GetKeyIndex());
+                _pgpContext.GeneratePgpKeysByBip44(masterKey, account.GetPgpUserIdentity(), account.GetCoinType(), account.DecentralizedAccountIndex, account.GetChannel(), account.GetKeyIndex());
             }
             else
             {
-                PgpContext.GeneratePgpKeysByTagOld(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
+                _pgpContext.GeneratePgpKeysByTagOld(masterKey, account.GetPgpUserIdentity(), account.GetKeyTag());
             }
         }
 
         public ICollection<PgpKeyInfo> GetPublicPgpKeysInfo()
         {
-            List<PgpKeyInfo> keys = PgpContext.GetPublicKeysInfo().ToList();
+            List<PgpKeyInfo> keys = _pgpContext.GetPublicKeysInfo().ToList();
             keys.RemoveAll(key => IsServiceKey(key));
             return keys;
         }
 
         private bool IsServiceKey(PgpKeyInfo pgpKey)
         {
-            foreach (var specialKey in SpecialPgpKeyIdentities)
+            foreach (var specialKey in _specialPgpKeyIdentities)
             {
                 if (pgpKey.UserIdentity.Contains(specialKey.Value))
                 {
@@ -248,7 +281,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             using (var stream = new MemoryStream(keyData))
             {
-                PgpContext.ImportPublicKeys(stream, true);
+                _pgpContext.ImportPublicKeys(stream, true);
             }
         }
 
@@ -259,12 +292,12 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 var header = keyIn.GetArmorHeaderLine();
                 if (header?.IndexOf("private", StringComparison.InvariantCultureIgnoreCase) >= 0)
                 {
-                    PgpContext.ImportSecretKeys(keyIn, false);
+                    _pgpContext.ImportSecretKeys(keyIn, false);
                     return;
                 }
                 if (header?.IndexOf("public", StringComparison.InvariantCultureIgnoreCase) >= 0)
                 {
-                    PgpContext.ImportPublicKeys(keyIn, false);
+                    _pgpContext.ImportPublicKeys(keyIn, false);
                     return;
                 }
             }
@@ -273,27 +306,27 @@ namespace Tuvi.Core.Impl.SecurityManagement
 
         public Task ExportPgpKeyRingAsync(long keyId, Stream stream, CancellationToken cancellationToken)
         {
-            return PgpContext.ExportPublicKeyRingAsync(keyId, stream, cancellationToken);
+            return _pgpContext.ExportPublicKeyRingAsync(keyId, stream, cancellationToken);
         }
 
         public int GetRequiredSeedPhraseLength()
         {
-            if (KeyDerivationDetails is null)
+            if (_keyDerivationDetails is null)
             {
-                throw new InvalidOperationException($"{nameof(KeyDerivationDetails)} is not set.");
+                throw new InvalidOperationException($"{nameof(_keyDerivationDetails)} is not set.");
             }
 
-            return KeyDerivationDetails.GetSeedPhraseLength();
+            return _keyDerivationDetails.GetSeedPhraseLength();
         }
 
         public IMessageProtector GetMessageProtector()
         {
-            return MessageProtector;
+            return _messageProtector;
         }
 
         public IBackupProtector GetBackupProtector()
         {
-            return BackupProtector;
+            return _backupProtector;
         }
 
         public void RemovePgpKeys(Account account)
@@ -303,12 +336,12 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new ArgumentNullException(nameof(account));
             }
 
-            PgpContext.RemoveKeys(account.GetPgpUserIdentity());
+            _pgpContext.RemoveKeys(account.GetPgpUserIdentity());
         }
 
         public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)
         {
-            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            var settings = await _dataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
             using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
                 switch (network)
@@ -316,7 +349,7 @@ namespace Tuvi.Core.Impl.SecurityManagement
                     case NetworkType.Eppie:
                         {
                             var account = settings.EppieAccountCounter;
-                            return (PublicKeyConverter.ToPublicKeyBase32E(masterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
+                            return (_publicKeyService.DeriveEncoded(masterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
                         }
                     case NetworkType.Bitcoin:
                         {
@@ -361,19 +394,8 @@ namespace Tuvi.Core.Impl.SecurityManagement
         {
             using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
             {
-                return PublicKeyConverter.ToPublicKeyBase32E(masterKey, email.GetKeyTag());
+                return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
             }
         }
-
-        private SeedQuiz SeedQuiz;
-        private IKeyDerivationDetailsProvider KeyDerivationDetails;
-        private MasterKeyFactory KeyFactory;
-        private Dictionary<SpecialPgpKeyType, string> SpecialPgpKeyIdentities;
-        private readonly SeedValidator SeedValidator;
-        private readonly IKeyStorage KeyStorage;
-        private readonly IDataStorage DataStorage;
-        private readonly ITuviPgpContext PgpContext;
-        private readonly IMessageProtector MessageProtector;
-        private readonly IBackupProtector BackupProtector;
     }
 }

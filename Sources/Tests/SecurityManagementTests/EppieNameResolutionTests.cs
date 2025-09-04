@@ -1,4 +1,4 @@
-﻿// ---------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------- //
 //                                                                              //
 //   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
@@ -31,8 +31,8 @@ namespace SecurityManagementTests
     {
         private sealed class FakeNameResolver : IEppieNameResolver
         {
-            private readonly Func<string,string> _resolver;
-            public FakeNameResolver(Func<string,string> resolver) => _resolver = resolver;
+            private readonly Func<string, string> _resolver;
+            public FakeNameResolver(Func<string, string> resolver) => _resolver = resolver;
             public Task<string> ResolveAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult(_resolver(name));
         }
 
@@ -42,7 +42,7 @@ namespace SecurityManagementTests
         public async Task ResolvesHumanReadableNameToKey()
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(name => name == "alias" ? ValidKey : null));
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias");
             var encoded = await service.GetEncodedByEmailAsync(email, default).ConfigureAwait(false);
             Assert.That(encoded, Is.EqualTo(ValidKey));
         }
@@ -51,7 +51,7 @@ namespace SecurityManagementTests
         public void ThrowsWhenNameNotFound()
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => null));
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "unknown", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "unknown");
             Assert.ThrowsAsync<NoPublicKeyException>(() => service.GetEncodedByEmailAsync(email, default));
         }
 
@@ -59,7 +59,7 @@ namespace SecurityManagementTests
         public void ThrowsWhenResolvedValueInvalid()
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => "invalid_key"));
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias", string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias");
             Assert.ThrowsAsync<NoPublicKeyException>(() => service.GetEncodedByEmailAsync(email, default));
         }
 
@@ -68,7 +68,7 @@ namespace SecurityManagementTests
         {
             bool invoked = false;
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => { invoked = true; return ValidKey; }));
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, ValidKey, string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, ValidKey);
             var encoded = await service.GetEncodedByEmailAsync(email, default).ConfigureAwait(false);
             Assert.That(encoded, Is.EqualTo(ValidKey));
             Assert.That(invoked, Is.False, "Resolver should not be called for direct key");

@@ -19,7 +19,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -35,37 +34,50 @@ using Tuvi.Core.Utils;
 
 namespace Tuvi.Core.Dec.Impl
 {
+    /// <summary>
+    /// Factory for decentralized mailbox.
+    /// </summary>
     public static class MailBoxCreator
     {
-        public static IMailBox Create(Account account, IDecStorage storage)
+        public static IMailBox Create(Account account, IDecStorage storage, IDecStorageClient decClient, IPublicKeyService publicKeyService)
         {
-            return new DecMailBox(account,
-                                  storage,
-                                  DecStorageBuilder.CreateWebClient(new Uri("https://testnet2.eppie.io/api")),
-                                  new PgpDecProtector(storage));
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            if (storage is null)
+            {
+                throw new ArgumentNullException(nameof(storage));
+            }
+
+            var protector = new PgpDecProtector(storage, publicKeyService);
+
+            return new DecMailBox(account, storage, decClient, protector, publicKeyService);
         }
     }
 
     internal class DecMailBox : IMailBox
     {
         private readonly Account AccountSettings;
-        private readonly IEnumerable<IDecStorageClient> DecClients;
+        private readonly IDecStorageClient DecClient;
         private readonly IDecStorage Storage;
         private readonly IDecProtector Protector;
+        private readonly IPublicKeyService PublicKeyService;
 
         public bool HasFolderCounters => false;
 
-        public DecMailBox(Account accountData, IDecStorage storage, IDecStorageClient decClient, IDecProtector protector)
-            : this(accountData, storage, new List<IDecStorageClient>() { decClient }, protector)
+        internal DecMailBox(Account accountData,
+                           IDecStorage storage,
+                           IDecStorageClient decClient,
+                           IDecProtector protector,
+                           IPublicKeyService publicKeyService)
         {
-        }
-
-        public DecMailBox(Account accountData, IDecStorage storage, IEnumerable<IDecStorageClient> decClients, IDecProtector protector)
-        {
-            AccountSettings = accountData;
-            Storage = storage;
-            DecClients = decClients;
-            Protector = protector;
+            AccountSettings = accountData ?? throw new ArgumentNullException(nameof(accountData));
+            Storage = storage ?? throw new ArgumentNullException(nameof(storage));
+            DecClient = decClient ?? throw new ArgumentNullException(nameof(decClient));
+            Protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            PublicKeyService = publicKeyService ?? throw new ArgumentNullException(nameof(publicKeyService));
         }
 
         private static string GetStringHashSha256(string input)
@@ -80,23 +92,29 @@ namespace Tuvi.Core.Dec.Impl
 
         public async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
         {
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
             message.Date = DateTime.Now;
             var rawMessage = new DecMessageRaw(message);
             var data = JsonConvert.SerializeObject(rawMessage);
-            string finalHash = "";
+            var finalHashBuilder = new StringBuilder();
 
             foreach (var email in message.AllRecipients.Where(x => x.IsDecentralized))
             {
-                string publicKey = await PublicKeyConverter.ToPublicKeyBase32EAsync(email).ConfigureAwait(false);
+                string publicKey = await PublicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
                 var encryptedData = await Protector.EncryptAsync(publicKey, data, cancellationToken).ConfigureAwait(false);
-                finalHash += await SendToDecClientsAsync(publicKey, encryptedData, cancellationToken).ConfigureAwait(false);
+                finalHashBuilder.Append(await SendToDecClientsAsync(publicKey, encryptedData, cancellationToken).ConfigureAwait(false));
             }
 
             message.IsMarkedAsRead = true;
             message.IsDecentralized = true;
 
             // save dec message to sent folder
-            await Storage.AddDecMessageAsync(AccountSettings.Email, new DecMessage(GetStringHashSha256(finalHash), message), cancellationToken).ConfigureAwait(false);
+            var finalHash = GetStringHashSha256(finalHashBuilder.ToString());
+            await Storage.AddDecMessageAsync(AccountSettings.Email, new DecMessage(finalHash, message), cancellationToken).ConfigureAwait(false);
         }
 
         public Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
@@ -109,6 +127,7 @@ namespace Tuvi.Core.Dec.Impl
                 new Folder("Trash", FolderAttributes.Trash),
             });
         }
+
         public Task<Folder> GetDefaultInboxFolderAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(GetInboxFolder());
@@ -126,10 +145,10 @@ namespace Tuvi.Core.Dec.Impl
             {
                 string decentralizedAddress = await GetDecentralizedAddressAsync(AccountSettings, cancellationToken).ConfigureAwait(false);
                 var list = await ListDecClientsMessagesAsync(decentralizedAddress, cancellationToken).ConfigureAwait(false);
-                var trash = (await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false)).Where(f => f.IsTrash).FirstOrDefault();
+                var trash = (await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(f => f.IsTrash);
 
-                var tasks = list.Distinct().Select(hash => Task.Run(() => GetMessageListImplAsync(email, folder, trash, decentralizedAddress, hash, cancellationToken))).ToList();
-                await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
+                var tasks = list.Distinct().Select(hash => GetMessageListImplAsync(email, folder, trash, decentralizedAddress, hash, cancellationToken));
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
 
             var items = await Storage.GetDecMessagesAsync(email, folder, count, cancellationToken).ConfigureAwait(false);
@@ -142,16 +161,16 @@ namespace Tuvi.Core.Dec.Impl
 
             if (accountSettings.Email.IsHybrid)
             {
-                return PublicKeyConverter.ToPublicKeyBase32E(masterKey, accountSettings.GetKeyTag());
+                return PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetKeyTag());
             }
 
-            return PublicKeyConverter.ToPublicKeyBase32E(masterKey, accountSettings.GetCoinType(), accountSettings.DecentralizedAccountIndex, accountSettings.GetChannel(), accountSettings.GetKeyIndex());
+            return PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetCoinType(), accountSettings.DecentralizedAccountIndex, accountSettings.GetChannel(), accountSettings.GetKeyIndex());
         }
 
         private async Task GetMessageListImplAsync(EmailAddress email, Folder folder, Folder trashFolder, string address, string hash, CancellationToken cancellationToken)
         {
             bool exists = await Storage.IsDecMessageExistsAsync(email, folder.FullName, hash, cancellationToken).ConfigureAwait(false)
-            || (trashFolder != null && await Storage.IsDecMessageExistsAsync(email, trashFolder.FullName, hash, cancellationToken).ConfigureAwait(false));
+                         || (trashFolder != null && await Storage.IsDecMessageExistsAsync(email, trashFolder.FullName, hash, cancellationToken).ConfigureAwait(false));
 
             if (exists)
             {
@@ -159,8 +178,7 @@ namespace Tuvi.Core.Dec.Impl
             }
             var data = await GetDecClientsMessageAsync(hash, cancellationToken).ConfigureAwait(false);
 
-            var json = string.Empty;
-            json = await Protector.DecryptAsync(AccountSettings, data, cancellationToken).ConfigureAwait(false);
+            var json = await Protector.DecryptAsync(AccountSettings, data, cancellationToken).ConfigureAwait(false);
             var message = JsonConvert.DeserializeObject<DecMessageRaw>(json).ToMessage();
             message.Folder = folder;
             await Storage.AddDecMessageAsync(email, new DecMessage(hash, message), cancellationToken).ConfigureAwait(false);
@@ -168,41 +186,20 @@ namespace Tuvi.Core.Dec.Impl
 
         private async Task<string> SendToDecClientsAsync(string address, byte[] data, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(async () =>
-            {
-                var hash = await x.PutAsync(data, cancellationToken).ConfigureAwait(false);
-                await x.SendAsync(address, hash, cancellationToken).ConfigureAwait(false);
-                return hash;
-            })).ToList();
-            await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
-            return string.Concat(tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result));
+            var hash = await DecClient.PutAsync(data, cancellationToken).ConfigureAwait(false);
+            await DecClient.SendAsync(address, hash, cancellationToken).ConfigureAwait(false);
+            return hash;
         }
 
         private async Task<IReadOnlyList<string>> ListDecClientsMessagesAsync(string address, CancellationToken cancellationToken)
         {
-            var tasks = DecClients.Select(x => Task.Run(() => x.ListAsync(address, cancellationToken))).ToList();
-            await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
-            ConvertExceptions(tasks);
-            return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).SelectMany(x => x.Result).ToList();
+            var res = await DecClient.ListAsync(address, cancellationToken).ConfigureAwait(false);
+            return res.ToList();
         }
 
-        private static void ConvertExceptions(IEnumerable<Task> tasks)
+        private Task<byte[]> GetDecClientsMessageAsync(string hash, CancellationToken cancellationToken)
         {
-            var connectionError = tasks.Where(x => x.Status == TaskStatus.Faulted)
-                                       .SelectMany(x => x.Exception.Flatten().InnerExceptions).FirstOrDefault();
-            if (connectionError != null && connectionError is HttpRequestException)
-            {
-                throw new ConnectionException();
-            }
-        }
-
-        private async Task<byte[]> GetDecClientsMessageAsync(string hash, CancellationToken cancellationToken)
-        {
-            var tasks = DecClients.Select(x => Task.Run(() => x.GetAsync(hash, cancellationToken))).ToList();
-            await tasks.DoWithLogAsync<DecMailBox>().ConfigureAwait(false);
-            // TODO: probably we should throw an exception here
-            ConvertExceptions(tasks);
-            return tasks.Where(x => x.Status == TaskStatus.RanToCompletion).Select(x => x.Result).FirstOrDefault();
+            return DecClient.GetAsync(hash, cancellationToken);
         }
 
         public async Task<IReadOnlyList<Message>> GetMessagesAsync(Folder folder, int count, CancellationToken cancellationToken)
@@ -242,7 +239,7 @@ namespace Tuvi.Core.Dec.Impl
                                                                                       Message lastMessage,
                                                                                       CancellationToken cancellationToken)
         {
-            // TODO: make different loagic for message retrieving during synchronization
+            // TODO: make different logic for message retrieving during synchronization
             return GetEarlierMessagesAsync(folder, count, lastMessage, cancellationToken);
         }
 

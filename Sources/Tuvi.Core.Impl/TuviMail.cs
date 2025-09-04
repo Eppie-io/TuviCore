@@ -16,8 +16,6 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using BackupServiceClientLibrary;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -26,7 +24,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BackupServiceClientLibrary;
+using Microsoft.Extensions.Logging;
 using Tuvi.Core.DataStorage;
+using Tuvi.Core.Dec;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
@@ -64,6 +65,7 @@ namespace Tuvi.Core.Impl
         private readonly IDataStorage DataStorage;
         private readonly ISecurityManager SecurityManager;
         private readonly IBackupManager BackupManager;
+        private readonly IDecStorageClient DecStorageClient;
         public ICredentialsManager CredentialsManager { get; private set; }
 
         private ConcurrentDictionary<int, AccountGroup> AccountGroupCache = new ConcurrentDictionary<int, AccountGroup>();
@@ -93,7 +95,8 @@ namespace Tuvi.Core.Impl
             ISecurityManager securityManager,
             IBackupManager backupManager,
             ICredentialsManager credentialsManager,
-            ImplementationDetailsProvider implementationDetailsProvider)
+            ImplementationDetailsProvider implementationDetailsProvider,
+            IDecStorageClient decStorageClient)
         {
             if (mailBoxFactory is null)
             {
@@ -119,6 +122,10 @@ namespace Tuvi.Core.Impl
             {
                 throw new ArgumentNullException(nameof(credentialsManager));
             }
+            if (decStorageClient is null)
+            {
+                throw new ArgumentNullException(nameof(decStorageClient));
+            }
 
 #if NET461_OR_GREATER || NETSTANDARD || NET5_0_OR_GREATER
             // Note: The CodePagesEncodingProvider was introduced in .NET Framework v4.6.1
@@ -131,6 +138,7 @@ namespace Tuvi.Core.Impl
             SecurityManager = securityManager;
             BackupManager = backupManager;
             CredentialsManager = credentialsManager;
+            DecStorageClient = decStorageClient;
 
             BackupManager.AccountRestoredAsync += RestoreAccountFromBackupAsync;
             BackupManager.MessagesRestoredAsync += RestoreMessagesFromBackupAsync;
@@ -235,10 +243,10 @@ namespace Tuvi.Core.Impl
         private async Task CheckForNewMessagesForceAsync(Account account, CancellationToken cancellationToken, bool silent = false)
         {
             if (AccountSchedulers.TryGetValue(account.Email, out SchedulerWithTimer scheduler))
-            {                
+            {
                 await scheduler.ExecuteActionForceAsync().ConfigureAwait(false);
-            }                
-        }        
+            }
+        }
 
         private void CheckDisposed()
         {
@@ -705,7 +713,7 @@ namespace Tuvi.Core.Impl
         public async Task CreateHybridAccountAsync(Account account, CancellationToken cancellationToken)
         {
             CheckDisposed();
-            
+
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
@@ -848,7 +856,7 @@ namespace Tuvi.Core.Impl
             if (await DataStorage.ExistsContactWithEmailAddressAsync(contactEmail, cancellationToken).ConfigureAwait(false))
             {
                 var contact = await DataStorage.GetContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
-                
+
                 contact.FullName = newName;
                 contact.Email = new EmailAddress(contact.Email.Address, newName);
                 await DataStorage.UpdateContactAsync(contact, cancellationToken).ConfigureAwait(false);
@@ -1099,8 +1107,8 @@ namespace Tuvi.Core.Impl
                     res.Add(address);
                 }
 
-                var traditional = message.AllRecipients.Where( x => !x.IsDecentralized).Any();
-                if(traditional)
+                var traditional = message.AllRecipients.Where(x => !x.IsDecentralized).Any();
+                if (traditional)
                 {
                     // if we have traditional email recipients
                     res.Add(address.OriginalAddress);
@@ -1195,6 +1203,29 @@ namespace Tuvi.Core.Impl
         {
             CheckDisposed();
             return DataStorage.UpdateMessageProcessingResultAsync(message, result, cancellationToken);
+        }
+
+        public async Task<bool> ClaimDecentralizedNameAsync(string name, EmailAddress address, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Name is empty", nameof(name));
+            }
+
+            if (address is null)
+            {
+                throw new ArgumentNullException(nameof(address));
+            }
+
+            if (address.Network != NetworkType.Eppie)
+            {
+                throw new NotSupportedException($"Unsupported network type: {address.Network}");
+            }
+
+            var response = await DecStorageClient.ClaimNameAsync(name, address.DecentralizedAddress, cancellationToken).ConfigureAwait(false);
+
+            return response.Equals(address.DecentralizedAddress, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

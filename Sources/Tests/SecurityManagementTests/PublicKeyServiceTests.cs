@@ -1,4 +1,4 @@
-﻿// ---------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------- //
 //                                                                              //
 //   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
@@ -128,7 +128,7 @@ namespace SecurityManagementTests
         {
             var expectedKey = EccPgpContext.GenerateEccPublicKey(_masterKey, 0, 0, 0, 1);
             var encoded = _svc.Encode(expectedKey);
-            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, encoded, string.Empty);
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, encoded);
 
             var resolvedEncoded = await _svc.GetEncodedByEmailAsync(email, default).ConfigureAwait(false);
             var resolvedKey = await _svc.GetByEmailAsync(email, default).ConfigureAwait(false);

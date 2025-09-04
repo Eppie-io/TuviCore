@@ -16,10 +16,6 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using KeyDerivation.Keys;
-using MimeKit;
-using Org.BouncyCastle.Bcpg.OpenPgp;
-using Org.BouncyCastle.Crypto.Parameters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -29,6 +25,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation.Keys;
+using MimeKit;
+using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Utils;
 using TuviPgpLib;
@@ -41,10 +41,12 @@ namespace Tuvi.Core.Dec.Impl
     internal class PgpDecProtector : IDecProtector
     {
         private readonly IKeyStorage _keyStorage;
+        private readonly IPublicKeyService _publicKeyService;
 
-        public PgpDecProtector(IKeyStorage keyStorage)
+        public PgpDecProtector(IKeyStorage keyStorage, IPublicKeyService publicKeyService)
         {
-            _keyStorage = keyStorage;
+            _keyStorage = keyStorage ?? throw new ArgumentNullException(nameof(keyStorage));
+            _publicKeyService = publicKeyService ?? throw new ArgumentNullException(nameof(publicKeyService));
         }
 
         public Task<string> DecryptAsync(Account account, byte[] data, CancellationToken cancellationToken)
@@ -85,7 +87,7 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
-        private static byte[] Encrypt(TuviPgpContext pgpContext, string address, string message, CancellationToken cancellationToken = default)
+        private byte[] Encrypt(TuviPgpContext pgpContext, string address, string message, CancellationToken cancellationToken = default)
         {
             if (pgpContext is null)
             {
@@ -97,7 +99,7 @@ namespace Tuvi.Core.Dec.Impl
                 throw new ArgumentException("Address cannot be null or empty.", nameof(address));
             }
 
-            ECPublicKeyParameters reconvertedPublicKey = PublicKeyConverter.ToPublicKey(address);
+            ECPublicKeyParameters reconvertedPublicKey = _publicKeyService.Decode(address);
             PgpPublicKeyRing publicKeyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, address);
             PgpPublicKey publicKey = publicKeyRing.GetPublicKeys().FirstOrDefault(x => x.IsEncryptionKey);
 

@@ -1,5 +1,23 @@
-﻿using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
+using NUnit.Framework;
 
 namespace Tuvi.Core.Entities.Test
 {
@@ -323,23 +341,21 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void CreateDecentralizedAddressEppieAddsPostfix()
         {
-            var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "address", "Name");
+            var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "address");
             Assert.That(result.Address, Is.EqualTo("address@eppie"));
-            Assert.That(result.Name, Is.EqualTo("Name"));
         }
 
         [Test]
         public void CreateDecentralizedAddressBitcoinAddsPostfix()
         {
-            var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "address", "Name");
+            var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "address");
             Assert.That(result.Address, Is.EqualTo("address@bitcoin"));
-            Assert.That(result.Name, Is.EqualTo("Name"));
         }
 
         [Test]
         public void CreateDecentralizedAddressUnsupportedThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address", "Name"));
+            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address"));
         }
 
         [Test]
@@ -369,14 +385,14 @@ namespace Tuvi.Core.Entities.Test
         public void CreateDecentralizedAddressWithEmptyAddressThrowsArgumentException()
         {
             Assert.Throws<ArgumentException>(() =>
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "", "Name"));
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, ""));
         }
 
         [Test]
         public void CreateDecentralizedAddressWithWhitespaceAddressThrowsArgumentException()
         {
             Assert.Throws<ArgumentException>(() =>
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   ", "Name"));
+                EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   "));
         }
 
         [Test]
@@ -467,11 +483,21 @@ namespace Tuvi.Core.Entities.Test
             Assert.That(email.HasSameAddress(string.Empty), Is.False);
         }
 
+
+        [Test]
+        public void MakeHybridWithExistingPlusInAddressThrows()
+        {
+            const string NewHybridAddressPubKey = "aaaaaaahijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
+            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
+
+            Assert.Throws<NotSupportedException>(() => email.MakeHybrid(NewHybridAddressPubKey));
+        }
+
         [Test]
         public void MakeHybridWithExistingPlusInAddressHandlesCorrectly()
         {
             const string NewHybridAddressPubKey = "aaaaaaahijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
-            var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
+            var email = new EmailAddress($"user@domain.com", "User");
             var hybrid = email.MakeHybrid(NewHybridAddressPubKey);
 
             Assert.That(hybrid.Address, Is.EqualTo($"user+{NewHybridAddressPubKey}@domain.com"));

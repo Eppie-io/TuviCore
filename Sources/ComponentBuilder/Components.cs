@@ -1,16 +1,36 @@
-﻿using Microsoft.Extensions.Logging;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using Microsoft.Extensions.Logging;
 using Tuvi.Core;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Backup.Impl;
 using Tuvi.Core.Backup.Impl.JsonUtf8;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.DataStorage.Impl;
+using Tuvi.Core.Dec;
 using Tuvi.Core.Impl;
 using Tuvi.Core.Impl.BackupManagement;
 using Tuvi.Core.Impl.CredentialsManagement;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Mail.Impl;
+using Tuvi.Core.Utils;
 using TuviPgpLib;
 
 namespace ComponentBuilder
@@ -25,32 +45,46 @@ namespace ComponentBuilder
             }
 
             var dataStorage = GetDataStorage(filePath);
-            var securityManager = GetSecurityManager(dataStorage);
+            var decClient = GetDecClient();
+            var publicKeyService = GetPublicKeyService(decClient);
+            var securityManager = GetSecurityManager(dataStorage, decClient, publicKeyService);
             var backupProtector = securityManager.GetBackupProtector();
             var backupManager = GetBackupManager(dataStorage, backupProtector, new JsonUtf8SerializationFactory(backupProtector), securityManager);
             var credentialsManager = GetCredentialsManager(dataStorage, tokenRefresher);
-            var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, securityManager);
+            var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService);
             var mailServerTester = GetMailServerTester();
 
-            return TuviCoreCreator.CreateTuviMailCore(mailBoxFactory, mailServerTester, dataStorage, securityManager, backupManager, credentialsManager, implementationDetailsProvider);
+            return TuviCoreCreator.CreateTuviMailCore(mailBoxFactory, mailServerTester, dataStorage, securityManager, backupManager, credentialsManager, implementationDetailsProvider, decClient);
         }
 
-        private static ISecurityManager GetSecurityManager(IDataStorage dataStorage)
+        private static IDecStorageClient GetDecClient()
+        {
+            //return DecStorageBuilder.CreateWebClient(new System.Uri("http://localhost:7071/api"));
+            return DecStorageBuilder.CreateWebClient(new System.Uri("https://testnet2.eppie.io/api"));
+        }
+
+        private static ISecurityManager GetSecurityManager(IDataStorage dataStorage, IDecStorageClient decClient, IPublicKeyService publicKeyService)
         {
             var pgpContext = GetPgpContext(dataStorage);
-            var messageProtector = GetMessageProtector(pgpContext);
+            var messageProtector = GetMessageProtector(pgpContext, publicKeyService);
             var backupProtector = GetBackupProtector(pgpContext);
 
             return SecurityManagerCreator.GetSecurityManager(
                 dataStorage,
                 pgpContext,
                 messageProtector,
-                backupProtector);
+                backupProtector,
+                publicKeyService);
         }
 
-        private static IMailBoxFactory GetMailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, ISecurityManager securityManager)
+        private static PublicKeyService GetPublicKeyService(IDecStorageClient decClient)
         {
-            return new Tuvi.MailBoxFactory(dataStorage, credentialsManager, securityManager);
+            return PublicKeyService.CreateDefault(new Tuvi.Core.Dec.Impl.DecClientNameResolver(decClient));
+        }
+
+        private static IMailBoxFactory GetMailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService)
+        {
+            return new Tuvi.MailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService);
         }
 
         private static IMailServerTester GetMailServerTester()
@@ -68,9 +102,9 @@ namespace ComponentBuilder
             return TuviPgpLibImpl.TuviPgpContextCreator.GetPgpContext(keyStorage);
         }
 
-        private static IMessageProtector GetMessageProtector(ITuviPgpContext pgpContext)
+        private static IMessageProtector GetMessageProtector(ITuviPgpContext pgpContext, IPublicKeyService publicKeyService)
         {
-            return MessageProtectorCreator.GetMessageProtector(pgpContext);
+            return MessageProtectorCreator.GetMessageProtector(pgpContext, publicKeyService);
         }
 
         private static IBackupProtector GetBackupProtector(ITuviPgpContext pgpContext)

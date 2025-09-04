@@ -16,13 +16,13 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
@@ -73,15 +73,15 @@ namespace Tuvi.Core.Impl
             var messageCopy = message.ShallowCopy();
             if (encrypt && sign)
             {
-                await MessageProtector.SignAndEncryptAsync(messageCopy).ConfigureAwait(false);
+                await MessageProtector.SignAndEncryptAsync(messageCopy, cancellationToken).ConfigureAwait(false);
             }
             else if (encrypt)
             {
-                await MessageProtector.EncryptAsync(messageCopy).ConfigureAwait(false);
+                await MessageProtector.EncryptAsync(messageCopy, cancellationToken).ConfigureAwait(false);
             }
             else if (sign)
             {
-                MessageProtector.Sign(messageCopy);
+                await MessageProtector.SignAsync(messageCopy, cancellationToken).ConfigureAwait(false);
             }
 
             messageCopy.Folder = Account.SentFolder;
