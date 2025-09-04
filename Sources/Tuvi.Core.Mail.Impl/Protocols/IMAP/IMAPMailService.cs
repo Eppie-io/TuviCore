@@ -60,6 +60,53 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
     class IMAPMailService : ReceiverService
     {
         private MailKit.Net.Imap.ImapClient ImapClient { get; }
+        private readonly SemaphoreSlim _forceReconnectLock = new SemaphoreSlim(1);
+
+        protected override Task ForceReconnectCoreAsync(CancellationToken cancellationToken)
+        {
+            return ForceReconnectAsync(cancellationToken);
+        }
+
+        private async Task ForceReconnectAsync(CancellationToken cancellationToken)
+        {
+            await _forceReconnectLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (ImapClient.IsConnected)
+                {
+                    try
+                    {
+                        await ImapClient.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (MailKit.ServiceNotConnectedException ex)
+                    {
+                        this.Log().LogDebug(ex, "IMAP already disconnected before force reconnect");
+                    }
+                    catch (MailKit.Net.Imap.ImapProtocolException ex)
+                    {
+                        this.Log().LogDebug(ex, "IMAP protocol error on disconnect during force reconnect");
+                    }
+                    catch (MailKit.Net.Imap.ImapCommandException ex)
+                    {
+                        this.Log().LogDebug(ex, "IMAP command error on disconnect during force reconnect");
+                    }
+                    catch (System.IO.IOException ex)
+                    {
+                        this.Log().LogDebug(ex, "IMAP IO error on disconnect during force reconnect");
+                    }
+                    catch (ObjectDisposedException ex)
+                    {
+                        this.Log().LogDebug(ex, "IMAP client disposed before force reconnect");
+                    }
+                }
+                await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                await AuthenticateAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _forceReconnectLock.Release();
+            }
+        }
 
         public IMAPMailService(string serverAddress, int serverPort, ICredentialsProvider credentialsProvider)
             : base(serverAddress, serverPort, credentialsProvider)
@@ -215,7 +262,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 List<Message> messages = await FetchMessagesAsync(mailFolder,
                                                                   mailFolder.Count - count,
-                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substruct 1
+                                                                  mailFolder.Count - 1, // this range should include border, for zero-base indecies we should substract 1
                                                                   false,
                                                                   cancellationToken).ConfigureAwait(false);
                 await SafeCloseAsync(mailFolder, cancellationToken).ConfigureAwait(false);
@@ -1038,6 +1085,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         public override void Dispose()
         {
             ImapClient?.Dispose();
+            _forceReconnectLock.Dispose();
         }
 
         /// <summary>

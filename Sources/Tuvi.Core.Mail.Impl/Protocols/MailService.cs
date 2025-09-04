@@ -1,4 +1,22 @@
-﻿using System;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +30,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public bool IsConnected => Service.IsConnected;
 
-        public bool IsAuthentificated => Service.IsAuthenticated;
+        public bool IsAuthenticated => Service.IsAuthenticated;
 
         private string ServerAddress { get; }
         private int ServerPort { get; }
@@ -60,6 +78,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                 }
                 throw new ConnectionException(exp.Message, exp);
             }
+            catch (MailKit.Security.SslHandshakeException exp)
+            {
+                throw new ConnectionException(exp.Message, exp);
+            }
             catch (MailKit.ProtocolException exp)
             {
                 throw new ConnectionException(exp.Message, exp);
@@ -81,6 +103,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                 throw new AuthenticationException(exp.Message, exp);
             }
             catch (System.IO.IOException exp)
+            {
+                throw new AuthenticationException(exp.Message, exp);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException exp)
             {
                 throw new AuthenticationException(exp.Message, exp);
             }
@@ -134,6 +160,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                 }
                 throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
             }
+            catch (MailKit.Net.Imap.ImapCommandException exp)
+            {
+                throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
+            }
             catch (MailKit.ProtocolException exp)
             {
                 throw new AuthenticationException(new EmailAddress(userName), exp.Message, exp);
@@ -145,15 +175,46 @@ namespace Tuvi.Core.Mail.Impl.Protocols
             await Service.DisconnectAsync(true).ConfigureAwait(false);
         }
 
+        protected virtual Task ForceReconnectCoreAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
         protected async Task RestoreConnectionAsync(CancellationToken cancellationToken)
         {
-            if (!IsConnected)
+            bool needHardReconnect = false;
+            try
             {
-                await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                if (!IsConnected)
+                {
+                    await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                if (IsConnected && !IsAuthenticated)
+                {
+                    await AuthenticateAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
-            if (IsConnected && !IsAuthentificated)
+            catch (ConnectionException)
             {
-                await AuthenticateAsync(cancellationToken).ConfigureAwait(false);
+                needHardReconnect = true;
+            }
+            catch (System.IO.IOException)
+            {
+                needHardReconnect = true;
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                needHardReconnect = true;
+            }
+            catch (MailKit.ProtocolException)
+            {
+                needHardReconnect = true;
+            }
+
+            if (needHardReconnect || !IsConnected || !IsAuthenticated)
+            {
+                await ForceReconnectCoreAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

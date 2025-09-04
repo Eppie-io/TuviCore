@@ -13,6 +13,6 @@ namespace Tuvi.Core.Mail.Impl.Protocols
         Task DisconnectAsync();
 
         bool IsConnected { get; }
-        bool IsAuthentificated { get; }
+        bool IsAuthenticated { get; }
     }
 }
