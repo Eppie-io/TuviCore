@@ -366,7 +366,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storageMock.Object).ConfigureAwait(true);
             Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { aliasEmail }, svc, default).ConfigureAwait(true);
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.GreaterThan(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Positive);
             Assert.That(resolver.CallCount, Is.EqualTo(1));
         }
     }

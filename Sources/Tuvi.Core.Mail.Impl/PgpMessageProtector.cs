@@ -59,7 +59,7 @@ namespace Tuvi.Core.Mail.Impl
         public PgpMessageProtector(ITuviPgpContext pgpContext, IPublicKeyService publicKeyService)
         {
             PgpContext = pgpContext as OpenPgpContext;
-            if (PgpContext == null)
+            if (PgpContext is null)
             {
                 throw new IncompatibleCryptoContextException();
             }
@@ -67,11 +67,11 @@ namespace Tuvi.Core.Mail.Impl
             PublicKeyService = publicKeyService;
         }
 
-        public Task<Message> SignAsync(Message message, CancellationToken cancellationToken)
+        public async Task<Message> SignAsync(Message message, CancellationToken cancellationToken)
         {
             try
             {
-                return TrySignMessageAsync(message, cancellationToken);
+                return await TrySignMessageAsync(message, cancellationToken).ConfigureAwait(false);
             }
             catch (PrivateKeyNotFoundException e)
             {

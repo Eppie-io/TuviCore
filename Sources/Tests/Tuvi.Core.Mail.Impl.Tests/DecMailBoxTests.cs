@@ -931,7 +931,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { address }, _publicKeyService, default).ConfigureAwait(true);
 
             // Assert
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.GreaterThan(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Positive);
         }
 
         [Test]
@@ -968,7 +968,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { decAddress, regularAddress }, _publicKeyService, default).ConfigureAwait(true);
 
             // Assert
-            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.GreaterThan(0));
+            Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Positive);
         }
 
         [Test]

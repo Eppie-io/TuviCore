@@ -92,7 +92,7 @@ namespace Tuvi.Core.Dec.Impl
 
         public async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
         {
-            if (message == null)
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
