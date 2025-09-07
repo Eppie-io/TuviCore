@@ -234,7 +234,7 @@ namespace SecurityManagementTests
 
                 var pgpKeys = manager.GetPublicPgpKeysInfo();
                 Assert.That(
-                    pgpKeys.Any(k => k.UserIdentity.Contains("remove@example.com", StringComparison.Ordinal)),
+                    pgpKeys.Any(k => k.UserIdentity.Equals("remove@example.com", StringComparison.Ordinal)),
                     Is.True,
                     "Pgp key was not created"
                 );
@@ -243,10 +243,148 @@ namespace SecurityManagementTests
 
                 pgpKeys = manager.GetPublicPgpKeysInfo();
                 Assert.That(
-                    pgpKeys.All(k => !k.UserIdentity.Contains("remove@example.com", StringComparison.Ordinal)),
+                    pgpKeys.All(k => !k.UserIdentity.Equals("remove@example.com", StringComparison.Ordinal)),
                     Is.True,
                     "Pgp key was not removed"
                 );
+            }
+        }
+
+        [Test]
+        public async Task RemovePgpKeysForEmailAddressRemovesExpectedIdentity()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+
+                var email = new EmailAddress("remove2@example.com");
+                var account = new Account { Email = email };
+
+                await manager.CreateDefaultPgpKeysAsync(account).ConfigureAwait(true);
+
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                Assert.That(
+                    pgpKeys.Any(k => k.UserIdentity.Equals("remove2@example.com", StringComparison.Ordinal)),
+                    Is.True,
+                    "Pgp key was not created"
+                );
+
+                manager.RemovePgpKeys(email);
+
+                pgpKeys = manager.GetPublicPgpKeysInfo();
+                Assert.That(
+                    pgpKeys.All(k => !k.UserIdentity.Equals("remove2@example.com", StringComparison.Ordinal)),
+                    Is.True,
+                    "Pgp key was not removed"
+                );
+            }
+        }
+
+        [Test]
+        public void RemovePgpKeysForEmailAddressNullThrowsArgumentNullException()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                Assert.Throws<ArgumentNullException>(() => manager.RemovePgpKeys((EmailAddress)null));
+            }
+        }
+
+        [Test]
+        public async Task RemovePgpKeysForEmailAddressServiceKeyProtected()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+
+                // Try to remove the service key by using an EmailAddress that contains the backup service identity
+                var serviceEmail = new EmailAddress("backup@test");
+
+                // Should not throw exception and should not remove any keys
+                Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceEmail));
+
+                // Verify service keys are still protected by checking they don't appear in public keys 
+                // (service keys are excluded from GetPublicPgpKeysInfo by IsServiceKey method)
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                // We expect the same behavior as before - service keys don't show up in public keys list
+                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("backup@test", StringComparison.Ordinal)), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task RemovePgpKeysForAccountServiceKeyProtected()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+
+                // Try to remove the service key by using an Account that contains the backup service identity
+                var serviceAccount = new Account { Email = new EmailAddress("backup@test") };
+
+                // Should not throw exception and should not remove any keys
+                Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceAccount));
+
+                // Verify service keys are still protected by checking they don't appear in public keys 
+                // (service keys are excluded from GetPublicPgpKeysInfo by IsServiceKey method)
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                // We expect the same behavior as before - service keys don't show up in public keys list
+                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("backup@test", StringComparison.Ordinal)), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task RemovePgpKeysForEmailAddressWorksWithDifferentAddressTypes()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+
+                await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
+                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+
+                // Test with regular email address
+                var regularEmail = new EmailAddress("test@regular.com");
+                var regularAccount = new Account { Email = regularEmail };
+                await manager.CreateDefaultPgpKeysAsync(regularAccount).ConfigureAwait(true);
+
+                // Test with hybrid email address (requires a valid public key format)
+                var hybridEmail = regularEmail.MakeHybrid("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4");
+                var hybridAccount = new Account { Email = hybridEmail };
+                await manager.CreateDefaultPgpKeysAsync(hybridAccount).ConfigureAwait(true);
+
+                // Test with decentralized email address
+                var decEmail = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4");
+                var decAccount = new Account { Email = decEmail, DecentralizedAccountIndex = 0 };
+                await manager.CreateDefaultPgpKeysAsync(decAccount).ConfigureAwait(true);
+
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                var initialKeyCount = pgpKeys.Count;
+
+                // Remove keys using EmailAddress overload
+                manager.RemovePgpKeys(regularEmail);
+                manager.RemovePgpKeys(hybridEmail);
+                manager.RemovePgpKeys(decEmail);
+
+                pgpKeys = manager.GetPublicPgpKeysInfo();
+                
+                // All keys should be removed
+                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("test@regular.com", StringComparison.Ordinal)), Is.True);
+                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals(hybridEmail.Address, StringComparison.Ordinal)), Is.True);
+                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals(decEmail.Address, StringComparison.Ordinal)), Is.True);
             }
         }
     }

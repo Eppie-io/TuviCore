@@ -336,7 +336,28 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new ArgumentNullException(nameof(account));
             }
 
-            _pgpContext.RemoveKeys(account.GetPgpUserIdentity());
+            RemovePgpKeys(account.Email);
+        }
+
+        public void RemovePgpKeys(EmailAddress email)
+        {
+            if (email is null)
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+
+            string identity = email.GetPgpUserIdentity();
+
+            // Skip removal if it matches any special service key identity
+            foreach (var specialKey in _specialPgpKeyIdentities)
+            {
+                if (identity.Equals(specialKey.Value, StringComparison.Ordinal))
+                {
+                    return; // Do not remove service keys
+                }
+            }
+
+            _pgpContext.RemoveKeys(identity);
         }
 
         public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)

@@ -14,7 +14,7 @@ namespace Tuvi.Core
                 throw new ArgumentNullException(nameof(account), "PGP user id is impossible to get.");
             }
 
-            return email.Address;
+            return email.GetPgpUserIdentity();
         }
 
         public static string GetKeyTag(this Account account)
@@ -60,6 +60,16 @@ namespace Tuvi.Core
 
     public static class EmailAddressExtensions
     {
+        public static string GetPgpUserIdentity(this EmailAddress emailAddress)
+        {
+            if (emailAddress is null)
+            {
+                throw new ArgumentNullException(nameof(emailAddress));
+            }
+
+            return emailAddress.Address;
+        }
+
         public static UserIdentity ToUserIdentity(this EmailAddress emailAddress)
         {
             if (emailAddress is null)
