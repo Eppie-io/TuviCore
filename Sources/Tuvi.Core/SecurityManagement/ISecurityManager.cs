@@ -143,6 +143,11 @@ namespace Tuvi.Core
         void RemovePgpKeys(Account account);
 
         /// <summary>
+        /// Remove PGP keys for <paramref name="email"/>.
+        /// </summary>
+        void RemovePgpKeys(EmailAddress email);
+
+        /// <summary>
         /// Get next decentralized account public key and index.
         /// </summary> 
         Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType networkType, CancellationToken cancellationToken);
