@@ -29,6 +29,7 @@ using Tuvi.Core.Entities;
 using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
+using TuviPgpLibImpl;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
 namespace SecurityManagementTests
@@ -43,14 +44,20 @@ namespace SecurityManagementTests
 
         private static ISecurityManager GetSecurityManager(IDataStorage storage)
         {
-            var pgpContent = TemporalKeyStorage.GetTemporalContextAsync(storage).Result;
+            var pgpContext = TemporalKeyStorage.GetTemporalContextAsync(storage).Result;
+
+            return GetSecurityManager(storage, pgpContext);
+        }
+
+        private static ISecurityManager GetSecurityManager(IDataStorage storage, TuviPgpContext pgpContext)
+        {
             var messageProtectorMock = new Mock<IMessageProtector>();
             var backupProtectorMock = new Mock<IBackupProtector>();
             var publicKeyService = PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver);
 
             var manager = SecurityManagerCreator.GetSecurityManager(
                     storage,
-                    pgpContent,
+                    pgpContext,
                     messageProtectorMock.Object,
                     backupProtectorMock.Object,
                     publicKeyService);
@@ -295,28 +302,48 @@ namespace SecurityManagementTests
             }
         }
 
+
         [Test]
         public async Task RemovePgpKeysForEmailAddressServiceKeyProtected()
         {
             using (var storage = GetStorage())
             {
-                ISecurityManager manager = GetSecurityManager(storage);
+                using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+                ISecurityManager manager = GetSecurityManager(storage, pgpContext);
 
                 await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
                 await manager.StartAsync(Password).ConfigureAwait(true);
                 Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
 
-                // Try to remove the service key by using an EmailAddress that contains the backup service identity
-                var serviceEmail = new EmailAddress("backup@test");
+                // First, create a regular (non-service) key to verify normal removal works
+                var regularAccount = new Account { Email = new EmailAddress("regular@example.com") };
+                await manager.CreateDefaultPgpKeysAsync(regularAccount).ConfigureAwait(true);
 
-                // Should not throw exception and should not remove any keys
+                // Verify the regular key exists using the same method as working tests
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                var regularKeyExists = pgpKeys.Any(k => k.UserIdentity.Equals("regular@example.com", StringComparison.Ordinal));
+                Assert.That(regularKeyExists, Is.True, "Regular key should exist");
+
+                // Verify regular key can be removed normally
+                manager.RemovePgpKeys(new EmailAddress("regular@example.com"));
+                pgpKeys = manager.GetPublicPgpKeysInfo();
+                var regularKeyStillExists = pgpKeys.Any(k => k.UserIdentity.Equals("regular@example.com", StringComparison.Ordinal));
+                Assert.That(regularKeyStillExists, Is.False, "Regular key should be removed");
+
+                // We know service keys exist because trying to create them causes collision errors
+                // Get direct access to PGP context to verify service key exists (since GetPublicPgpKeysInfo filters it out)
+                var allKeys = pgpContext.GetPublicKeysInfo();
+                var serviceKeyExists = allKeys.Any(k => k.UserIdentity.Equals("backup@test", StringComparison.Ordinal));
+                Assert.That(serviceKeyExists, Is.True, "Service key should exist (created automatically during startup)");
+
+                // Try to remove the service key - this should be blocked by protection
+                var serviceEmail = new EmailAddress("backup@test");
                 Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceEmail));
 
-                // Verify service keys are still protected by checking they don't appear in public keys 
-                // (service keys are excluded from GetPublicPgpKeysInfo by IsServiceKey method)
-                var pgpKeys = manager.GetPublicPgpKeysInfo();
-                // We expect the same behavior as before - service keys don't show up in public keys list
-                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("backup@test", StringComparison.Ordinal)), Is.True);
+                // Verify service key still exists after removal attempt (protection worked)
+                allKeys = pgpContext.GetPublicKeysInfo();
+                var serviceKeyStillExists = allKeys.Any(k => k.UserIdentity.Equals("backup@test", StringComparison.Ordinal));
+                Assert.That(serviceKeyStillExists, Is.True, "Service key should still exist after removal attempt - protection should prevent deletion");
             }
         }
 
@@ -325,23 +352,42 @@ namespace SecurityManagementTests
         {
             using (var storage = GetStorage())
             {
-                ISecurityManager manager = GetSecurityManager(storage);
+                using var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
+                ISecurityManager manager = GetSecurityManager(storage, pgpContext);
 
                 await manager.CreateSeedPhraseAsync().ConfigureAwait(true);
                 await manager.StartAsync(Password).ConfigureAwait(true);
                 Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
 
-                // Try to remove the service key by using an Account that contains the backup service identity
-                var serviceAccount = new Account { Email = new EmailAddress("backup@test") };
+                // First, create a regular (non-service) key to verify normal removal works
+                var regularAccount = new Account { Email = new EmailAddress("regular2@example.com") };
+                await manager.CreateDefaultPgpKeysAsync(regularAccount).ConfigureAwait(true);
 
-                // Should not throw exception and should not remove any keys
+                // Verify the regular key exists using the same method as working tests
+                var pgpKeys = manager.GetPublicPgpKeysInfo();
+                var regularKeyExists = pgpKeys.Any(k => k.UserIdentity.Equals("regular2@example.com", StringComparison.Ordinal));
+                Assert.That(regularKeyExists, Is.True, "Regular key should exist");
+
+                // Verify regular key can be removed normally
+                manager.RemovePgpKeys(regularAccount);
+                pgpKeys = manager.GetPublicPgpKeysInfo();
+                var regularKeyStillExists = pgpKeys.Any(k => k.UserIdentity.Equals("regular2@example.com", StringComparison.Ordinal));
+                Assert.That(regularKeyStillExists, Is.False, "Regular key should be removed");
+
+                // We know service keys exist because trying to create them causes collision errors
+                // Get direct access to PGP context to verify service key exists (since GetPublicPgpKeysInfo filters it out)
+                var allKeys = pgpContext.GetPublicKeysInfo();
+                var serviceKeyExists = allKeys.Any(k => k.UserIdentity.Equals("backup@test", StringComparison.Ordinal));
+                Assert.That(serviceKeyExists, Is.True, "Service key should exist (created automatically during startup)");
+
+                // Try to remove the service key - this should be blocked by protection
+                var serviceAccount = new Account { Email = new EmailAddress("backup@test") };
                 Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceAccount));
 
-                // Verify service keys are still protected by checking they don't appear in public keys 
-                // (service keys are excluded from GetPublicPgpKeysInfo by IsServiceKey method)
-                var pgpKeys = manager.GetPublicPgpKeysInfo();
-                // We expect the same behavior as before - service keys don't show up in public keys list
-                Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("backup@test", StringComparison.Ordinal)), Is.True);
+                // Verify service key still exists after removal attempt (protection worked)
+                allKeys = pgpContext.GetPublicKeysInfo();
+                var serviceKeyStillExists = allKeys.Any(k => k.UserIdentity.Equals("backup@test", StringComparison.Ordinal));
+                Assert.That(serviceKeyStillExists, Is.True, "Service key should still exist after removal attempt - protection should prevent deletion");
             }
         }
 
@@ -380,7 +426,7 @@ namespace SecurityManagementTests
                 manager.RemovePgpKeys(decEmail);
 
                 pgpKeys = manager.GetPublicPgpKeysInfo();
-                
+
                 // All keys should be removed
                 Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals("test@regular.com", StringComparison.Ordinal)), Is.True);
                 Assert.That(pgpKeys.All(k => !k.UserIdentity.Equals(hybridEmail.Address, StringComparison.Ordinal)), Is.True);
