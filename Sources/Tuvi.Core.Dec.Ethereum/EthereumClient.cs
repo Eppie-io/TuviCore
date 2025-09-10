@@ -64,10 +64,10 @@ namespace Tuvi.Core.Dec.Ethereum
         public EthereumNetworkConfig Network { get; }
         private readonly HttpClient _httpClient;
 
-        public EthereumClient(EthereumNetworkConfig network, HttpClient httpClient = null)
+        public EthereumClient(EthereumNetworkConfig network, HttpClient httpClient)
         {
             Network = network ?? throw new ArgumentNullException(nameof(network));
-            _httpClient = httpClient ?? new HttpClient();
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         }
 
         public string DeriveEthereumAddress(MasterKey masterKey, int account, int index)
