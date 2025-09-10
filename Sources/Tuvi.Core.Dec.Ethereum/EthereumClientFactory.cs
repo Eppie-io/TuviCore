@@ -31,10 +31,10 @@ namespace Tuvi.Core.Dec.Ethereum
         /// Creates an <see cref="IEthereumClient"/> for a predefined <see cref="EthereumNetwork"/>.
         /// </summary>
         /// <param name="network">Known target network.</param>
-        /// <param name="httpClient">Optional HttpClient to reuse; if null, a new instance will be created.</param>
+        /// <param name="httpClient">HttpClient.</param>
         /// <returns>Instantiated <see cref="IEthereumClient"/>.</returns>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="network"/> is not supported.</exception>
-        public static IEthereumClient Create(EthereumNetwork network, HttpClient httpClient = null)
+        public static IEthereumClient Create(EthereumNetwork network, HttpClient httpClient)
         {
             EthereumNetworkConfig config;
             switch (network)
