@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>6.0-all</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1605</WarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>CA1014</NoWarn>
+    <WarningLevel>9999</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>CA1014</NoWarn>
+    <WarningLevel>9999</WarningLevel>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Nethereum.Signer" Version="5.0.0" />
+    <PackageReference Include="Nethereum.RLP" Version="5.0.0" />
+    <PackageReference Include="Nethereum.Hex" Version="5.0.0" />
+    <PackageReference Include="System.Text.Json" Version="9.0.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tuvi.Core.Logging\Tuvi.Core.Logging.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationInterface\KeyDerivation.csproj" />
+    <ProjectReference Include="..\..\gitmodules\TuviBase32EConverterLib\TuviBytesToEmailConverterLib\TuviBase32EConverterLib\TuviBase32EConverterLib.csproj" />
+  </ItemGroup>
+</Project>
