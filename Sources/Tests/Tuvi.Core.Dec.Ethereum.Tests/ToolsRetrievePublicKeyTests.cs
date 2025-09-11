@@ -31,7 +31,8 @@ namespace Tuvi.Core.Dec.Ethereum.Tests
             private readonly string _sigJson;
             public RouterHandler(string address, string sigJson)
             {
-                _address = address; _sigJson = sigJson;
+                _address = address;
+                _sigJson = sigJson;
             }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
