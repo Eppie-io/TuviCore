@@ -73,7 +73,11 @@ namespace Tuvi.Core.Dec.Ethereum.Tests
         private static byte[] Compress(byte[] xy)
         {
             var x = new byte[32]; var y = new byte[32]; Buffer.BlockCopy(xy, 0, x, 0, 32); Buffer.BlockCopy(xy, 32, y, 0, 32);
-            var prefix = (y[31] & 1) == 0 ? (byte)0x02 : (byte)0x03; var res = new byte[33]; res[0] = prefix; Buffer.BlockCopy(x, 0, res, 1, 32); return res;
+            var prefix = (y[31] & 1) == 0 ? (byte)0x02 : (byte)0x03;
+            var res = new byte[33];
+            res[0] = prefix;
+            Buffer.BlockCopy(x, 0, res, 1, 32);
+            return res;
         }
     }
 }
