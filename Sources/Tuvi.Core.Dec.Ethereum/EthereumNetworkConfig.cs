@@ -37,9 +37,9 @@ namespace Tuvi.Core.Dec.Ethereum
         public Uri ExplorerApiBaseUrl { get; }
 
         /// <summary>
-        /// Gets the EIP-155 chain id for the network (1 for mainnet, 11155111 for sepolia, etc.).
+        /// Gets the EIP-155 chain id for the network as <see cref="EthereumNetwork"/>.
         /// </summary>
-        public int ChainId { get; }
+        public EthereumNetwork ChainId { get; }
 
         /// <summary>
         /// Gets a human-readable descriptive network name.
@@ -56,11 +56,12 @@ namespace Tuvi.Core.Dec.Ethereum
         /// </summary>
         /// <param name="name">Short unique network name.</param>
         /// <param name="explorerApiBaseUrl">Base URL of Etherscan-compatible explorer API.</param>
-        /// <param name="chainId">EIP-155 chain id.</param>
+        /// <param name="chainId">EIP-155 chain id as <see cref="EthereumNetwork"/>.</param>
         /// <param name="humanName">Human-friendly name. If null, falls back to <paramref name="name"/>.</param>
-        /// <param name="apiKey">Optional explorer API key (may be empty).</param>
+        /// <param name="apiKey">Optional explorer API key (may be empty).
+        /// </param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="name"/> or <paramref name="explorerApiBaseUrl"/> is null.</exception>
-        public EthereumNetworkConfig(string name, Uri explorerApiBaseUrl, int chainId, string humanName, string apiKey = "")
+        public EthereumNetworkConfig(string name, Uri explorerApiBaseUrl, EthereumNetwork chainId, string humanName, string apiKey = "")
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             ExplorerApiBaseUrl = explorerApiBaseUrl ?? throw new ArgumentNullException(nameof(explorerApiBaseUrl));
@@ -81,16 +82,16 @@ namespace Tuvi.Core.Dec.Ethereum
         public static readonly EthereumNetworkConfig MainNet = new EthereumNetworkConfig(
             name: "mainnet",
             explorerApiBaseUrl: new Uri("https://api.etherscan.io/api", UriKind.Absolute),
-            chainId: 1,
+            chainId: EthereumNetwork.MainNet,
             humanName: "Ethereum Mainnet");
 
         /// <summary>
-        /// Predefined configuration for the Ethereum Sepolia test network.
+        /// Predefined configuration for the Ethereum Sepolia test network (chainId=11155111) using api-sepolia.etherscan.io.
         /// </summary>
         public static readonly EthereumNetworkConfig Sepolia = new EthereumNetworkConfig(
             name: "sepolia",
             explorerApiBaseUrl: new Uri("https://api-sepolia.etherscan.io/api", UriKind.Absolute),
-            chainId: 11155111,
+            chainId: EthereumNetwork.Sepolia,
             humanName: "Ethereum Sepolia Testnet");
     }
 }
