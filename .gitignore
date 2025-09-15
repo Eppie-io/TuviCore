@@ -53,3 +53,7 @@ Sources/Tests/Tuvi.Core.Dec.Bitcoin.Tests/obj/
 Sources/Tests/Tuvi.Core.Dec.Bitcoin.Tests/bin/
 Sources/Tuvi.Core.Dec.Impl/obj/
 Sources/Tuvi.Core.Dec.Impl/bin/
+Sources/Tuvi.Core.Dec.Ethereum/obj/
+Sources/Tuvi.Core.Dec.Ethereum/bin/
+Sources/Tests/Tuvi.Core.Dec.Ethereum.Tests/obj/
+Sources/Tests/Tuvi.Core.Dec.Ethereum.Tests/bin/
