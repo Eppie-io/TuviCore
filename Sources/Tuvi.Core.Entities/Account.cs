@@ -48,7 +48,8 @@ namespace Tuvi.Core.Entities
                     OutgoingMailProtocol = MailProtocol.SMTP,
                     IsBackupAccountSettingsEnabled = true,
                     IsBackupAccountMessagesEnabled = false,
-                    SynchronizationInterval = 10 // 10 minutes
+                    SynchronizationInterval = 10, // 10 minutes
+                    IsMessageFooterEnabled = true
                 };
             }
         }
@@ -140,6 +141,9 @@ namespace Tuvi.Core.Entities
         /// Gets or sets the interval, expressed in minutes, at which new messages are checked.
         /// </summary>
         public int SynchronizationInterval { get; set; } = 10; // 10 minutes
+
+        public string MessageFooter { get; set; }
+        public bool IsMessageFooterEnabled { get; set; }
 
         public override bool Equals(object obj)
         {
