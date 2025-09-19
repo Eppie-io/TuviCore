@@ -24,7 +24,7 @@ using NUnit.Framework;
 
 namespace Tuvi.Core.Dec.Web.Tests
 {
-    [Ignore("Integration tests for the WebDecStorageClient are disabled for ci.")]
+    [Explicit("Integration tests for the WebDecStorageClient are disabled for ci.")]
     public class WebDecStorageTests
     {
         private IDecStorageClient Client;

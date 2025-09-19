@@ -1,7 +1,25 @@
-﻿using Moq;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using System.Net;
+using Moq;
 using Moq.Protected;
 using NUnit.Framework;
-using System.Net;
 
 namespace Tuvi.Core.Dec.Bitcoin.Tests
 {
@@ -13,7 +31,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
         [Test]
         public async Task FetchSpentTransactionAsyncReturnsTransactionWhenJsonIsValid()
-        {            
+        {
             const string TxId = "0d1bf0c97ad2095744563f37bd58a240941cd21b1d365b4fb85ba3e8bba93ddf";
             const string TxsJson = "[{\"txid\": \"" + TxId + "\", \"vin\": [{\"prevout\": {\"scriptpubkey_address\": \"" + Address + "\"}}]}]";
             const string TxHex = "02000000014d94a59e818782bf32a86bb227006fb786c5c71ed8871d98b4706133e1348354000000006a47304402205d18b933b3d1efcd46541522f088b66171edf86cc0522db216b36aefe2202ce30220218b4f845fc70eed74f9f6919dc9970d0d05d880c71bfdb5ba62fd9e95203c49012102b4ed0e866dd6dd8042255b8c94bb32ceabf8a3adda20487e38c73fbf9378c865fdffffff011dc10000000000001976a914c6c1425cf53c51829242716c811938751f9004fa88ac67760100";
