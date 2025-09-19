@@ -270,7 +270,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                     return null;
                 }
 
-                if (transactions == null || transactions.Length == 0)
+                if (transactions is null || transactions.Length == 0)
                 {
                     return null;
                 }
@@ -279,7 +279,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                 {
                     cancellation.ThrowIfCancellationRequested();
 
-                    if (string.IsNullOrWhiteSpace(tx?.TxId) || tx.Inputs == null)
+                    if (string.IsNullOrWhiteSpace(tx?.TxId) || tx.Inputs is null)
                     {
                         Logger.LogWarning("Skipping malformed transaction entry.");
                         continue;
@@ -320,7 +320,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                 }
 
                 var last = transactions[transactions.Length - 1];
-                if (last == null || string.IsNullOrWhiteSpace(last.TxId))
+                if (last is null || string.IsNullOrWhiteSpace(last.TxId))
                 {
                     return null;
                 }
