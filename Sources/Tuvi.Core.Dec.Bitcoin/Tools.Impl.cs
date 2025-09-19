@@ -1,7 +1,21 @@
-﻿using KeyDerivation.Keys;
-using KeyDerivationLib;
-using Microsoft.Extensions.Logging;
-using NBitcoin;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -10,6 +24,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation.Keys;
+using KeyDerivationLib;
+using Microsoft.Extensions.Logging;
+using NBitcoin;
 using Tuvi.Base32EConverterLib;
 using Tuvi.Core.Logging;
 
@@ -41,7 +59,6 @@ namespace Tuvi.Core.Dec.Bitcoin
     {
         public const int BitcoinCoinType = 0; // BIP44: coin type 0 for Bitcoin
         public const int ExternalChain = 0; // BIP44: 0 for external chain (receiving addresses)
-        public const int DefaultPageSize = 20; // Page size for API pagination
         public const int DefaultMaxPages = 100; // Maximum number of pages to fetch for transactions
     }
 
@@ -167,7 +184,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                     BitcoinAddress derivedAddress = pubKey.GetAddress(config.SupportedAddressType, config.Network);
                     if (derivedAddress == bitcoinAddress)
                     {
-                        return Base32EConverter.ToEmailBase32(pubKey.ToBytes());
+                        return Base32EConverter.ToEmailBase32(pubKey.Compress().ToBytes());
                     }
                 }
             }
@@ -202,7 +219,6 @@ namespace Tuvi.Core.Dec.Bitcoin
             }
         }
 
-        
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -218,15 +234,20 @@ namespace Tuvi.Core.Dec.Bitcoin
             HttpClient httpClient,
             CancellationToken cancellation)
         {
-            const int PageSize = Constants.DefaultPageSize;
             const int MaxPages = Constants.DefaultMaxPages;
-            int offset = 0;
+            string afterTxId = null;
+            string previousLastTxId = null;
 
             for (int page = 0; page < MaxPages; page++)
             {
                 cancellation.ThrowIfCancellationRequested();
 
-                string url = $"https://mempool.space/{config.NetworkApiPrefix}api/address/{address}/txs?offset={offset}&limit={PageSize}";
+                string url = $"https://mempool.space/{config.NetworkApiPrefix}api/address/{address}/txs/chain";
+                if (!string.IsNullOrEmpty(afterTxId))
+                {
+                    url += "?after_txid=" + afterTxId;
+                }
+
                 string txsResponse;
                 try
                 {
@@ -249,7 +270,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                     return null;
                 }
 
-                if (transactions == null || transactions.Length == 0)
+                if (transactions is null || transactions.Length == 0)
                 {
                     return null;
                 }
@@ -258,7 +279,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                 {
                     cancellation.ThrowIfCancellationRequested();
 
-                    if (string.IsNullOrWhiteSpace(tx?.TxId) || tx.Inputs == null)
+                    if (string.IsNullOrWhiteSpace(tx?.TxId) || tx.Inputs is null)
                     {
                         Logger.LogWarning("Skipping malformed transaction entry.");
                         continue;
@@ -298,7 +319,20 @@ namespace Tuvi.Core.Dec.Bitcoin
                     }
                 }
 
-                offset += transactions.Length;
+                var last = transactions[transactions.Length - 1];
+                if (last is null || string.IsNullOrWhiteSpace(last.TxId))
+                {
+                    return null;
+                }
+
+                previousLastTxId = afterTxId;
+                afterTxId = last.TxId;
+
+                if (afterTxId == previousLastTxId)
+                {
+                    Logger.LogWarning("Pagination stalled (after_txid did not advance) for address: {Address}.", address);
+                    return null;
+                }
             }
 
             Logger.LogWarning("Reached max pages ({MaxPages}) without finding a spent transaction for address: {Address}.",

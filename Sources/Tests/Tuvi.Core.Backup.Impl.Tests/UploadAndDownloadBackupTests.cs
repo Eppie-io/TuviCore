@@ -11,6 +11,7 @@ using TuviPgpLibImpl;
 
 namespace BackupTests
 {
+    [Explicit("Integration tests are disabled for ci.")]
     public class UploadAndDownloadBackupTests : BaseBackupTest
     {
         const string UploadUrl = "https://testnet.eppie.io/api/UploadBackupFunction?code=1";
