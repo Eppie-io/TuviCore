@@ -134,7 +134,7 @@ namespace Tuvi.Core.Utils
         private readonly Dec.Ethereum.IEthereumClient _client;
         private static readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
 
-        public EthereumPublicKeyFetcher()
+        internal EthereumPublicKeyFetcher()
             : this(Dec.Ethereum.EthereumClientFactory.Create(Dec.Ethereum.EthereumNetwork.MainNet, _httpClient))
         {
         }
