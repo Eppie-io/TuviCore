@@ -98,7 +98,7 @@ namespace Tuvi.Core.Utils
                 throw new ArgumentNullException(nameof(email));
             }
 
-            var segment = email.DecentralizedAddress; // part before @eppie or hybrid extracted key
+            var segment = email.DecentralizedAddress;
             if (string.IsNullOrWhiteSpace(segment))
             {
                 throw new NoPublicKeyException(email, "Eppie address segment is empty.");
@@ -121,6 +121,59 @@ namespace Tuvi.Core.Utils
             }
 
             return resolved;
+        }
+    }
+
+    public interface IEthereumPublicKeyFetcher
+    {
+        Task<string> FetchAsync(string address, CancellationToken cancellationToken);
+    }
+
+    internal sealed class EthereumPublicKeyFetcher : IEthereumPublicKeyFetcher
+    {
+        private readonly Dec.Ethereum.IEthereumClient _client;
+        private static readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
+
+        public EthereumPublicKeyFetcher()
+            : this(Dec.Ethereum.EthereumClientFactory.Create(Dec.Ethereum.EthereumNetwork.MainNet, _httpClient))
+        {
+        }
+
+        public EthereumPublicKeyFetcher(Dec.Ethereum.IEthereumClient client)
+        {
+            _client = client ?? throw new ArgumentNullException(nameof(client));
+        }
+
+        public Task<string> FetchAsync(string address, CancellationToken cancellationToken)
+        {
+            return _client.RetrievePublicKeyAsync(address, cancellationToken);
+        }
+    }
+
+    internal sealed class EthereumEmailPublicKeyResolver : IEmailPublicKeyResolver
+    {
+        private readonly IEthereumPublicKeyFetcher _fetcher;
+
+        public EthereumEmailPublicKeyResolver(IEthereumPublicKeyFetcher fetcher)
+        {
+            _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
+        }
+
+        public async Task<string> ResolveAsync(EmailAddress email, CancellationToken cancellationToken)
+        {
+            if (email is null)
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+
+            var address = email.DecentralizedAddress;
+            var pubKey = await _fetcher.FetchAsync(address, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(pubKey))
+            {
+                throw new NoPublicKeyException(email, $"Public key is not found for the {address} Ethereum address");
+            }
+
+            return pubKey;
         }
     }
 

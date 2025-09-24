@@ -37,6 +37,7 @@ namespace Tuvi.Core.Utils
         string DeriveEncoded(MasterKey masterKey, string keyTag);
         Task<ECPublicKeyParameters> GetByEmailAsync(EmailAddress email, CancellationToken cancellationToken);
         Task<string> GetEncodedByEmailAsync(EmailAddress email, CancellationToken cancellationToken);
+        string DeriveNetworkAddress(MasterKey masterKey, NetworkType network, int coin, int account, int channel, int index);
     }
 
     /// <summary>
@@ -47,6 +48,7 @@ namespace Tuvi.Core.Utils
         private readonly IEcPublicKeyCodec _codec;
         private readonly IEmailPublicKeyResolver _resolver;
         private readonly IKeyDerivationPublicKeyProvider _derivation;
+        private readonly Dec.Ethereum.IEthereumClient _ethClient;
 
         internal sealed class NoOpEppieNameResolver : IEppieNameResolver
         {
@@ -58,11 +60,13 @@ namespace Tuvi.Core.Utils
 
         public static readonly IEppieNameResolver NoOpNameResolver = new NoOpEppieNameResolver();
 
-        public PublicKeyService(IEcPublicKeyCodec codec, IEmailPublicKeyResolver resolver, IKeyDerivationPublicKeyProvider derivation)
+        public PublicKeyService(IEcPublicKeyCodec codec, IEmailPublicKeyResolver resolver, IKeyDerivationPublicKeyProvider derivation, Dec.Ethereum.IEthereumClient ethClient)
         {
             _codec = codec ?? throw new ArgumentNullException(nameof(codec));
             _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
             _derivation = derivation ?? throw new ArgumentNullException(nameof(derivation));
+
+            _ethClient = ethClient;
         }
 
         public string Encode(ECPublicKeyParameters key) => _codec.Encode(key);
@@ -95,10 +99,39 @@ namespace Tuvi.Core.Utils
             return _resolver.ResolveAsync(email, cancellationToken);
         }
 
+        public string DeriveNetworkAddress(MasterKey masterKey, NetworkType network, int coin, int account, int channel, int index)
+        {
+            if (masterKey is null)
+            {
+                throw new ArgumentNullException(nameof(masterKey));
+            }
+
+            if (account < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(account));
+            }
+
+            switch (network)
+            {
+                case NetworkType.Eppie:
+                    return DeriveEncoded(masterKey, coin, account, channel, index);
+                case NetworkType.Bitcoin:
+                    return Dec.Bitcoin.TestNet4.Tools.DeriveBitcoinAddress(masterKey, account, index);
+                case NetworkType.Ethereum:
+                    if (_ethClient is null)
+                    {
+                        throw new NotSupportedException("Ethereum client is not configured.");
+                    }
+                    return _ethClient.DeriveEthereumAddress(masterKey, account, index);
+                default:
+                    throw new NotSupportedException($"Unsupported network: {network}");
+            }
+        }
+
         /// <summary>
-        /// Creates a default service wiring standard implementations.
+        /// Creates a default service wiring standard implementations (no explicit Ethereum API key provided).
         /// </summary>
-        public static PublicKeyService CreateDefault(IEppieNameResolver eppieNameResolver)
+        internal static PublicKeyService CreateDefault(IEppieNameResolver eppieNameResolver)
         {
             if (eppieNameResolver is null)
             {
@@ -110,10 +143,38 @@ namespace Tuvi.Core.Utils
             var composite = new CompositeEmailPublicKeyResolver(new Dictionary<NetworkType, IEmailPublicKeyResolver>
             {
                 { NetworkType.Bitcoin, new BitcoinEmailPublicKeyResolver(new BitcoinPublicKeyFetcher()) },
-                { NetworkType.Eppie, new EppieEmailPublicKeyResolver(codec, eppieNameResolver) }
+                { NetworkType.Eppie, new EppieEmailPublicKeyResolver(codec, eppieNameResolver) },
+                { NetworkType.Ethereum, new EthereumEmailPublicKeyResolver(new EthereumPublicKeyFetcher()) }
             });
 
-            return new PublicKeyService(codec, composite, derivation);
+            return new PublicKeyService(codec, composite, derivation, null);
+        }
+
+        /// <summary>
+        /// Creates a default service wiring standard implementations.
+        /// </summary>
+        public static PublicKeyService CreateDefault(IEppieNameResolver eppieNameResolver, string etherscanApiKey, System.Net.Http.HttpClient httpClient)
+        {
+            if (eppieNameResolver is null)
+            {
+                throw new ArgumentNullException(nameof(eppieNameResolver));
+            }
+            if (httpClient is null)
+            {
+                throw new ArgumentNullException(nameof(httpClient));
+            }
+
+            var codec = new Secp256k1CompressedBase32ECodec();
+            var derivation = new EccKeyDerivationPublicKeyProvider();
+            var ethClient = Dec.Ethereum.EthereumClientFactory.Create(Dec.Ethereum.EthereumNetwork.MainNet, httpClient, etherscanApiKey);
+            var composite = new CompositeEmailPublicKeyResolver(new Dictionary<NetworkType, IEmailPublicKeyResolver>
+            {
+                { NetworkType.Bitcoin, new BitcoinEmailPublicKeyResolver(new BitcoinPublicKeyFetcher()) },
+                { NetworkType.Eppie, new EppieEmailPublicKeyResolver(codec, eppieNameResolver) },
+                { NetworkType.Ethereum, new EthereumEmailPublicKeyResolver(new EthereumPublicKeyFetcher(ethClient)) }
+            });
+
+            return new PublicKeyService(codec, composite, derivation, ethClient);
         }
     }
 }

@@ -19,4 +19,4 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("SecurityManagement.Test")]
-[assembly: InternalsVisibleTo("SecurityManagementTests")]
+[assembly: InternalsVisibleTo("Tuvi.Core.Mail.Impl.Tests")]

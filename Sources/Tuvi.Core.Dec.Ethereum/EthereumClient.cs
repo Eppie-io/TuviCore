@@ -67,7 +67,7 @@ namespace Tuvi.Core.Dec.Ethereum
         public EthereumClient(EthereumNetworkConfig network, HttpClient httpClient)
         {
             Network = network ?? throw new ArgumentNullException(nameof(network));
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _httpClient = httpClient;
         }
 
         public string DeriveEthereumAddress(MasterKey masterKey, int account, int index)

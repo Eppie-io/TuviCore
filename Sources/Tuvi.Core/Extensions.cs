@@ -96,6 +96,7 @@ namespace Tuvi.Core
         const int EmailChannel = 10;
 
         const int BitcoinCoinType = 0;
+        const int EthereumCoinType = 60;
         const int Change = 0;
 
         const int KeyIndex = 0;
@@ -123,6 +124,8 @@ namespace Tuvi.Core
                     return BitcoinCoinType;
                 case NetworkType.Eppie:
                     return EppieCoinType;
+                case NetworkType.Ethereum:
+                    return EthereumCoinType;
                 default:
                     throw new NotSupportedException($"Unsupported network : {network}");
             }
@@ -151,6 +154,8 @@ namespace Tuvi.Core
                     return Change;
                 case NetworkType.Eppie:
                     return EmailChannel;
+                case NetworkType.Ethereum:
+                    return Change;
                 default:
                     throw new NotSupportedException($"Unsupported network : {network}");
             }

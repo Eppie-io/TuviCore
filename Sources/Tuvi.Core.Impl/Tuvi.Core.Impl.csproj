@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -20,6 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" ExcludeAssets="all"/>
     <PackageReference Include="System.Data.HashFunction.CityHash" Version="2.0.0" />
   </ItemGroup>
 
@@ -28,6 +29,7 @@
     <ProjectReference Include="..\..\gitmodules\TuviPgpLib\gitmodules\TuviKeyDerivationLib\KeyDerivationLib\KeyDerivationLib.csproj" />
     <ProjectReference Include="..\..\gitmodules\TuviPgpLib\TuviPgpLib\TuviPgpLib.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Dec.Bitcoin\Tuvi.Core.Dec.Bitcoin.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Dec.Ethereum\Tuvi.Core.Dec.Ethereum.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Dec\Tuvi.Core.Dec.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj" />

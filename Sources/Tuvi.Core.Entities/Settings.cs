@@ -4,5 +4,6 @@
     {
         public int EppieAccountCounter { get; set; }
         public int BitcoinAccountCounter { get; set; }
+        public int EthereumAccountCounter { get; set; }
     }
 }

@@ -79,6 +79,26 @@ namespace Tuvi.Core.Utils
         }
     }
 
+    internal sealed class EthereumNetworkPublicKeyRules : INetworkPublicKeyRules
+    {
+        // TODO: syntactic validation for Ethereum public key/address segment could be added here later.
+        public bool IsSyntacticallyValid(string value)
+        {
+            return !string.IsNullOrEmpty(value);
+        }
+
+        public bool IsSemanticallyValid(string value)
+        {
+            // TODO: No semantic validation implemented yet.
+            return !string.IsNullOrEmpty(value);
+        }
+
+        public bool IsValid(string value)
+        {
+            return IsSyntacticallyValid(value) && IsSemanticallyValid(value);
+        }
+    }
+
     internal static class NetworkPublicKeyRulesFactory
     {
         public static INetworkPublicKeyRules Create(NetworkType network, IEcPublicKeyCodec codec)
@@ -89,6 +109,8 @@ namespace Tuvi.Core.Utils
                     return new EppieNetworkPublicKeyRules(codec);
                 case NetworkType.Bitcoin:
                     return new BitcoinNetworkPublicKeyRules();
+                case NetworkType.Ethereum:
+                    return new EthereumNetworkPublicKeyRules();
                 default:
                     throw new NotSupportedException($"Unsupported network for public key rules: {network}");
             }

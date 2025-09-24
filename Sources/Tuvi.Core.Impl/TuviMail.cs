@@ -519,17 +519,19 @@ namespace Tuvi.Core.Impl
         {
             if (account.Type == MailBoxType.Dec)
             {
-                if (account.Email.Network == NetworkType.Eppie)
+                switch (account.Email.Network)
                 {
-                    await IncreaseEppieAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
-                }
-                else if (account.Email.Network == NetworkType.Bitcoin)
-                {
-                    await IncreaseBitcoinAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    throw new NotSupportedException($"Unsupported network type: {account.Email.Network}");
+                    case NetworkType.Eppie:
+                        await IncreaseEppieAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case NetworkType.Bitcoin:
+                        await IncreaseBitcoinAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case NetworkType.Ethereum:
+                        await IncreaseEthereumAccountIndexAsync(account, cancellationToken).ConfigureAwait(false);
+                        break;
+                    default:
+                        throw new NotSupportedException($"Unsupported network type: {account.Email.Network}");
                 }
             }
         }
@@ -563,6 +565,20 @@ namespace Tuvi.Core.Impl
             settings.BitcoinAccountCounter = index;
             await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
 
+        }
+
+        private async Task IncreaseEthereumAccountIndexAsync(Account account, CancellationToken cancellationToken)
+        {
+            var settings = await DataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            var index = settings.EthereumAccountCounter;
+
+            if (index != account.DecentralizedAccountIndex)
+            {
+                throw new InvalidOperationException($"Decentralized account index mismatch. Expected: {account.DecentralizedAccountIndex}, Actual: {index}");
+            }
+            index++;
+            settings.EthereumAccountCounter = index;
+            await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task AddAccountToStorageAsync(Account account, CancellationToken cancellationToken = default)

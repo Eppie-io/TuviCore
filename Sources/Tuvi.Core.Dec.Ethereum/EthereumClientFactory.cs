@@ -32,9 +32,10 @@ namespace Tuvi.Core.Dec.Ethereum
         /// </summary>
         /// <param name="network">Known target network.</param>
         /// <param name="httpClient">HttpClient.</param>
+        /// <param name="apiKey">Optional API key.</param>
         /// <returns>Instantiated <see cref="IEthereumClient"/>.</returns>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="network"/> is not supported.</exception>
-        public static IEthereumClient Create(EthereumNetwork network, HttpClient httpClient)
+        public static IEthereumClient Create(EthereumNetwork network, HttpClient httpClient, string apiKey = null)
         {
             EthereumNetworkConfig config;
             switch (network)
@@ -45,6 +46,10 @@ namespace Tuvi.Core.Dec.Ethereum
                     config = EthereumNetworkConfig.Sepolia; break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(network));
+            }
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                config = config.WithApiKey(apiKey);
             }
             return new EthereumClient(config, httpClient);
         }

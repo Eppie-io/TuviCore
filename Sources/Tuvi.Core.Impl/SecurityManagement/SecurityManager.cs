@@ -16,17 +16,17 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using KeyDerivation;
-using KeyDerivation.Keys;
-using KeyDerivationLib;
-using Org.BouncyCastle.Bcpg;
-using Org.BouncyCastle.Bcpg.OpenPgp;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation;
+using KeyDerivation.Keys;
+using KeyDerivationLib;
+using Org.BouncyCastle.Bcpg;
+using Org.BouncyCastle.Bcpg.OpenPgp;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Dec.Bitcoin.TestNet4;
@@ -363,52 +363,56 @@ namespace Tuvi.Core.Impl.SecurityManagement
         public async Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType network, CancellationToken cancellationToken)
         {
             var settings = await _dataStorage.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            int accountIndex;
+            switch (network)
+            {
+                case NetworkType.Eppie:
+                    accountIndex = settings.EppieAccountCounter;
+                    break;
+                case NetworkType.Bitcoin:
+                    accountIndex = settings.BitcoinAccountCounter;
+                    break;
+                case NetworkType.Ethereum:
+                    accountIndex = settings.EthereumAccountCounter;
+                    break;
+                default:
+                    throw new NotSupportedException($"Network type {network} is not supported.");
+            }
+
             using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                switch (network)
-                {
-                    case NetworkType.Eppie:
-                        {
-                            var account = settings.EppieAccountCounter;
-                            return (_publicKeyService.DeriveEncoded(masterKey, network.GetCoinType(), account, network.GetChannel(), network.GetKeyIndex()), account);
-                        }
-                    case NetworkType.Bitcoin:
-                        {
-                            var account = settings.BitcoinAccountCounter;
-                            return (GetBitcoinAddressString(masterKey, account), account);
-                        }
-                    default:
-                        throw new NotSupportedException($"Network type {network} is not supported.");
-                }
+                var address = _publicKeyService.DeriveNetworkAddress(masterKey, network, network.GetCoinType(), accountIndex, network.GetChannel(), network.GetKeyIndex());
+                return (address, accountIndex);
             }
         }
 
-        public async Task<string> GetSecretKeyWIFAsync(Account account)
+        // TODO: Remove secret key export functionality.
+        public async Task<string> GetSecretKeyWIFAsync(Account account, CancellationToken cancellationToken)
         {
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
             }
 
-            if (account.Email.Network == NetworkType.Bitcoin)
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
-                using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+                var network = account.Email.Network;
+                switch (network)
                 {
-                    return GetBitcoinSecretKeyWIF(masterKey, account.DecentralizedAccountIndex);
+                    case NetworkType.Bitcoin:
+                        {
+                            return Tools.DeriveBitcoinSecretKeyWif(masterKey, account.DecentralizedAccountIndex, network.GetKeyIndex());
+                        }
+                    case NetworkType.Ethereum:
+                        {
+                            return Dec.Ethereum.EthereumClientFactory
+                                    .Create(Dec.Ethereum.EthereumNetwork.MainNet, null)
+                                    .DeriveEthereumPrivateKeyHex(masterKey, account.DecentralizedAccountIndex, network.GetKeyIndex());
+                        }
+                    default:
+                        throw new NotSupportedException($"Network type {network} is not supported.");
                 }
             }
-
-            throw new NotSupportedException($"Network type {account.Email.Network} is not supported.");
-        }
-
-        private static string GetBitcoinAddressString(MasterKey masterKey, int account)
-        {
-            return Tools.DeriveBitcoinAddress(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
-        }
-
-        private static string GetBitcoinSecretKeyWIF(MasterKey masterKey, int account)
-        {
-            return Tools.DeriveBitcoinSecretKeyWif(masterKey, account, NetworkType.Bitcoin.GetKeyIndex());
         }
 
         public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
