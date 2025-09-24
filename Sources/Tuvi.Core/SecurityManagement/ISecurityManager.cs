@@ -1,8 +1,26 @@
-﻿using KeyDerivation;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
@@ -74,7 +92,7 @@ namespace Tuvi.Core
         /// </summary>
         /// <exception cref="DataBasePasswordException">If incorrect <paramref name="currentPassword"/> provided.</exception>
         /// <exception cref="DataBaseException"/>
-        Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken);
+        Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Initialize email account default PGP keys. Keys are deterministically derived from application master key.
@@ -150,12 +168,12 @@ namespace Tuvi.Core
         /// <summary>
         /// Get next decentralized account public key and index.
         /// </summary> 
-        Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType networkType, CancellationToken cancellationToken);
+        Task<(string, int)> GetNextDecAccountPublicKeyAsync(NetworkType networkType, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get secret key WIF.
         /// </summary> 
-        Task<string> GetSecretKeyWIFAsync(Account account);
+        Task<string> GetSecretKeyWIFAsync(Account account, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.

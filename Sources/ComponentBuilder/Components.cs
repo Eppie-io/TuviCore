@@ -77,9 +77,16 @@ namespace ComponentBuilder
                 publicKeyService);
         }
 
+        // TODO: Move to settings
+        private const string _etherscanApiKey = "";
         private static PublicKeyService GetPublicKeyService(IDecStorageClient decClient)
         {
-            return PublicKeyService.CreateDefault(new Tuvi.Core.Dec.Impl.DecClientNameResolver(decClient));
+            return PublicKeyService.CreateDefault(new Tuvi.Core.Dec.Impl.DecClientNameResolver(decClient), _etherscanApiKey, SharedHttpClient.Instance);
+        }
+
+        private static class SharedHttpClient
+        {
+            internal static readonly System.Net.Http.HttpClient Instance = new System.Net.Http.HttpClient();
         }
 
         private static IMailBoxFactory GetMailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService)

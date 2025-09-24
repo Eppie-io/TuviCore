@@ -60,6 +60,7 @@ namespace Tuvi.Core.Entities
     {
         Eppie,
         Bitcoin,
+        Ethereum,
         Unsupported,
     }
 
@@ -219,7 +220,7 @@ namespace Tuvi.Core.Entities
         {
             get
             {
-                return Network == NetworkType.Eppie || Network == NetworkType.Bitcoin || IsHybrid;
+                return Network == NetworkType.Eppie || Network == NetworkType.Bitcoin || Network == NetworkType.Ethereum || IsHybrid;
             }
         }
 
@@ -292,6 +293,7 @@ namespace Tuvi.Core.Entities
 
         private static readonly string EppieNetworkPostfix = "@eppie";
         private static readonly string BitcoinNetworkPostfix = "@bitcoin";
+        private static readonly string EthereumNetworkPostfix = "@ethereum";
 
         public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address)
         {
@@ -307,6 +309,9 @@ namespace Tuvi.Core.Entities
                     break;
                 case NetworkType.Eppie:
                     address = address + EppieNetworkPostfix;
+                    break;
+                case NetworkType.Ethereum:
+                    address = address + EthereumNetworkPostfix;
                     break;
                 default:
                     throw new ArgumentException("Unsupported network type", nameof(networkType));
@@ -333,6 +338,11 @@ namespace Tuvi.Core.Entities
                 return email.Address.Substring(0, email.Address.Length - BitcoinNetworkPostfix.Length);
             }
 
+            if (email.Address.EndsWith(EthereumNetworkPostfix, StringComparison.OrdinalIgnoreCase))
+            {
+                return email.Address.Substring(0, email.Address.Length - EthereumNetworkPostfix.Length);
+            }
+
             return string.Empty;
         }
 
@@ -346,6 +356,11 @@ namespace Tuvi.Core.Entities
             if (email.Address.EndsWith(BitcoinNetworkPostfix, StringComparison.OrdinalIgnoreCase))
             {
                 return NetworkType.Bitcoin;
+            }
+
+            if (email.Address.EndsWith(EthereumNetworkPostfix, StringComparison.OrdinalIgnoreCase))
+            {
+                return NetworkType.Ethereum;
             }
 
             if (email.IsHybrid)
