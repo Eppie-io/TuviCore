@@ -225,7 +225,7 @@ namespace SecurityManagementTests
 
                 var (keyString, accountIndex) = manager.GetNextDecAccountPublicKeyAsync(NetworkType.Eppie, default).Result;
 
-                Assert.That(accountIndex, Is.EqualTo(0));
+                Assert.That(accountIndex, Is.Zero);
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
                 Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
             }
@@ -243,7 +243,7 @@ namespace SecurityManagementTests
 
                 var (addr, accountIndex) = await manager.GetNextDecAccountPublicKeyAsync(NetworkType.Ethereum, default).ConfigureAwait(true);
 
-                Assert.That(accountIndex, Is.EqualTo(0));
+                Assert.That(accountIndex, Is.Zero);
                 Assert.That(addr, Is.Not.Null.And.Not.Empty);
                 Assert.That(addr.StartsWith("0x", StringComparison.OrdinalIgnoreCase));
                 Assert.That(addr.Length, Is.EqualTo(42)); // checksummed address length
