@@ -38,6 +38,11 @@ namespace SecurityManagementTests
     {
         private static readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
 
+        [OneTimeTearDown]
+        public void CleanupHttpClient()
+        {
+            _httpClient.Dispose();
+        }
         [SetUp]
         public void SetupTest()
         {
