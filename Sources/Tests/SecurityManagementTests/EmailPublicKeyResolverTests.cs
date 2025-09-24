@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------- //
+﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
 //   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
@@ -18,6 +18,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Tuvi.Core.Entities;
@@ -31,6 +32,17 @@ namespace SecurityManagementTests
         private sealed class MockEmptyBitcoinFetcher : IBitcoinPublicKeyFetcher
         {
             public Task<string> FetchAsync(string address) => Task.FromResult<string>(null);
+        }
+
+        private sealed class MockEthereumFetcherSuccess : IEthereumPublicKeyFetcher
+        {
+            private readonly string _value;
+            public MockEthereumFetcherSuccess(string value) { _value = value; }
+            public Task<string> FetchAsync(string address, CancellationToken cancellationToken) => Task.FromResult(_value);
+        }
+        private sealed class MockEthereumFetcherEmpty : IEthereumPublicKeyFetcher
+        {
+            public Task<string> FetchAsync(string address, CancellationToken cancellationToken) => Task.FromResult<string>(null);
         }
 
         [Test]
@@ -67,6 +79,24 @@ namespace SecurityManagementTests
             AsyncTestDelegate act = () => composite.ResolveAsync(email, default);
 
             Assert.ThrowsAsync<NotSupportedException>(act);
+        }
+
+        [Test]
+        public async Task EthereumResolverReturnsKey()
+        {
+            const string Base32 = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
+            var resolver = new EthereumEmailPublicKeyResolver(new MockEthereumFetcherSuccess(Base32));
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Ethereum, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+            var res = await resolver.ResolveAsync(email, default).ConfigureAwait(false);
+            Assert.That(res, Is.EqualTo(Base32));
+        }
+
+        [Test]
+        public void EthereumResolverMissingThrows()
+        {
+            var resolver = new EthereumEmailPublicKeyResolver(new MockEthereumFetcherEmpty());
+            var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Ethereum, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+            Assert.ThrowsAsync<NoPublicKeyException>(() => resolver.ResolveAsync(email, default));
         }
     }
 }

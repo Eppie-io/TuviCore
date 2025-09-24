@@ -36,6 +36,8 @@ namespace SecurityManagementTests
 {
     public class SecurityManagerTests : TestWithStorageBase
     {
+        private static readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
+
         [SetUp]
         public void SetupTest()
         {
@@ -53,7 +55,7 @@ namespace SecurityManagementTests
         {
             var messageProtectorMock = new Mock<IMessageProtector>();
             var backupProtectorMock = new Mock<IBackupProtector>();
-            var publicKeyService = PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver);
+            var publicKeyService = PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver, string.Empty, _httpClient);
 
             var manager = SecurityManagerCreator.GetSecurityManager(
                     storage,
@@ -221,6 +223,25 @@ namespace SecurityManagementTests
                 Assert.That(accountIndex, Is.EqualTo(0));
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
                 Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
+            }
+        }
+
+        [Test]
+        public async Task NextDecentralizedAccountEthereumAddressGenerated()
+        {
+            using (var storage = GetStorage())
+            {
+                ISecurityManager manager = GetSecurityManager(storage);
+                var testSeed = TestData.GetTestSeed();
+                await manager.RestoreSeedPhraseAsync(testSeed).ConfigureAwait(true);
+                await manager.StartAsync(Password).ConfigureAwait(true);
+
+                var (addr, accountIndex) = await manager.GetNextDecAccountPublicKeyAsync(NetworkType.Ethereum, default).ConfigureAwait(true);
+
+                Assert.That(accountIndex, Is.EqualTo(0));
+                Assert.That(addr, Is.Not.Null.And.Not.Empty);
+                Assert.That(addr.StartsWith("0x", StringComparison.OrdinalIgnoreCase));
+                Assert.That(addr.Length, Is.EqualTo(42)); // checksummed address length
             }
         }
 

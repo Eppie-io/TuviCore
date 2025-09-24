@@ -151,5 +151,15 @@ namespace SecurityManagementTests
             Assert.That(syntax, Is.False);
             Assert.That(combined, Is.False);
         }
+
+        [Test]
+        public void EthereumRulesSyntacticValid()
+        {
+            var rules = new EthereumNetworkPublicKeyRules();
+            const string addr = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+            Assert.That(rules.IsSyntacticallyValid(addr), Is.True);
+            Assert.That(rules.IsSemanticallyValid(addr), Is.True);
+            Assert.That(rules.IsValid(addr), Is.True);
+        }
     }
 }

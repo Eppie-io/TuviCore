@@ -251,6 +251,13 @@ namespace Tuvi.Core.Entities.Test
         }
 
         [Test]
+        public void IsDecentralizedEthereumReturnsTrue()
+        {
+            var email = new EmailAddress("address@ethereum");
+            Assert.That(email.IsDecentralized, Is.True);
+        }
+
+        [Test]
         public void StandardAddressHybridRemovesPubKey()
         {
             var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
@@ -302,6 +309,13 @@ namespace Tuvi.Core.Entities.Test
         }
 
         [Test]
+        public void DecentralizedAddressEthereumReturnsAddressWithoutPostfix()
+        {
+            var email = new EmailAddress("myethaddr@ethereum");
+            Assert.That(email.DecentralizedAddress, Is.EqualTo("myethaddr"));
+        }
+
+        [Test]
         public void NetworkHybridReturnsEppie()
         {
             var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com");
@@ -320,6 +334,13 @@ namespace Tuvi.Core.Entities.Test
         {
             var email = new EmailAddress("address@bitcoin");
             Assert.That(email.Network, Is.EqualTo(NetworkType.Bitcoin));
+        }
+
+        [Test]
+        public void NetworkEthereumReturnsEthereum()
+        {
+            var email = new EmailAddress("address@ethereum");
+            Assert.That(email.Network, Is.EqualTo(NetworkType.Ethereum));
         }
 
         [Test]
@@ -350,6 +371,13 @@ namespace Tuvi.Core.Entities.Test
         {
             var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "address");
             Assert.That(result.Address, Is.EqualTo("address@bitcoin"));
+        }
+
+        [Test]
+        public void CreateDecentralizedAddressEthereumAddsPostfix()
+        {
+            var result = EmailAddress.CreateDecentralizedAddress(NetworkType.Ethereum, "address");
+            Assert.That(result.Address, Is.EqualTo("address@ethereum"));
         }
 
         [Test]
