@@ -61,30 +61,82 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public async Task ConnectAsync(CancellationToken cancellationToken)
         {
-            try
+            const int connectTimeoutMilliseconds = 15000;
+            const int retryDelayMilliseconds = 2000;
+            const int maxAttempts = 3;
+
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                await Service.ConnectAsync(ServerAddress, ServerPort, MailKit.Security.SecureSocketOptions.Auto, cancellationToken).ConfigureAwait(false);
-            }
-            catch (System.Net.Sockets.SocketException exp)
-            {
-                throw new ConnectionException(exp.Message, exp);
-            }
-            catch (System.IO.IOException exp)
-            {
-                var innerCanceled = exp.InnerException as TaskCanceledException;
-                if (innerCanceled != null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                try
                 {
-                    throw innerCanceled;
+                    var connectTask = Service.ConnectAsync(ServerAddress, ServerPort, MailKit.Security.SecureSocketOptions.Auto, linkedCts.Token);
+                    var timeoutTask = Task.Delay(connectTimeoutMilliseconds, linkedCts.Token);
+                    var finished = await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false);
+
+                    if (finished == connectTask)
+                    {
+                        linkedCts.Cancel();
+                        try
+                        {
+                            await connectTask.ConfigureAwait(false);
+                        }
+                        catch (System.Net.Sockets.SocketException exp)
+                        {
+                            lastError = new ConnectionException(exp.Message, exp);
+                        }
+                        catch (System.IO.IOException exp)
+                        {
+                            var innerCanceled = exp.InnerException as TaskCanceledException;
+                            if (innerCanceled != null)
+                            {
+                                throw innerCanceled;
+                            }
+                            lastError = new ConnectionException(exp.Message, exp);
+                        }
+                        catch (MailKit.Security.SslHandshakeException exp)
+                        {
+                            lastError = new ConnectionException(exp.Message, exp);
+                        }
+                        catch (MailKit.ProtocolException exp)
+                        {
+                            lastError = new ConnectionException(exp.Message, exp);
+                        }
+
+                        if (lastError is null)
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        lastError = new ConnectionException("Connection timeout.");
+                    }
                 }
-                throw new ConnectionException(exp.Message, exp);
+                finally
+                {
+                    linkedCts.Dispose();
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    try
+                    {
+                        await Task.Delay(retryDelayMilliseconds, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                }
             }
-            catch (MailKit.Security.SslHandshakeException exp)
+
+            if (lastError != null)
             {
-                throw new ConnectionException(exp.Message, exp);
-            }
-            catch (MailKit.ProtocolException exp)
-            {
-                throw new ConnectionException(exp.Message, exp);
+                throw lastError;
             }
         }
 

@@ -301,15 +301,22 @@ namespace Tuvi.Core.DataStorage.Impl
         private void AddAccountFolders(DbConnection db, int accountId, Account account, CancellationToken cancellationToken)
         {
             var connection = db.Connection;
+
+            var prev = connection.Table<Folder>().Where(x => x.AccountId == accountId).ToList(cancellationToken);
+            prev.ForEach(x => x.AccountEmail = account.Email);
+
+            if (account.FoldersStructure is null)
+            {
+                return;
+            }
+
+            account.FoldersStructure = account.FoldersStructure
+                                            .Where(f => f != null && !string.IsNullOrWhiteSpace(f.FullName))
+                                            .ToList();
+
             account.FoldersStructure.ForEach(x =>
             {
                 x.AccountId = accountId;
-                x.AccountEmail = account.Email;
-            });
-
-            var prev = connection.Table<Folder>().Where(x => x.AccountId == accountId).ToList(cancellationToken);
-            prev.ForEach(x =>
-            {
                 x.AccountEmail = account.Email;
             });
 
@@ -337,11 +344,19 @@ namespace Tuvi.Core.DataStorage.Impl
                 // this value should be changed only in storage code, and saved in db
                 folder.LocalCount = 0;
             }
-            connection.InsertAll(toAdd);
+
+            if (toAdd.Count > 0)
+            {
+                connection.InsertAll(toAdd);
+            }
 
             if (account.DefaultInboxFolder != null)
             {
-                account.DefaultInboxFolderId = connection.Find<Folder>(x => x.AccountId == accountId && x.FullName == account.DefaultInboxFolder.FullName).Id;
+                var inbox = connection.Find<Folder>(x => x.AccountId == accountId && x.FullName == account.DefaultInboxFolder.FullName);
+                if (inbox != null)
+                {
+                    account.DefaultInboxFolderId = inbox.Id;
+                }
             }
         }
 
