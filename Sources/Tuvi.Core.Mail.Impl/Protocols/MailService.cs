@@ -61,30 +61,58 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public async Task ConnectAsync(CancellationToken cancellationToken)
         {
-            try
+            const int maxAttempts = 3;
+            const int retryDelayMs = 2000;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                await Service.ConnectAsync(ServerAddress, ServerPort, MailKit.Security.SecureSocketOptions.Auto, cancellationToken).ConfigureAwait(false);
-            }
-            catch (System.Net.Sockets.SocketException exp)
-            {
-                throw new ConnectionException(exp.Message, exp);
-            }
-            catch (System.IO.IOException exp)
-            {
-                var innerCanceled = exp.InnerException as TaskCanceledException;
-                if (innerCanceled != null)
+                cancellationToken.ThrowIfCancellationRequested();
+                try
                 {
-                    throw innerCanceled;
+                    await Service.ConnectAsync(ServerAddress, ServerPort, MailKit.Security.SecureSocketOptions.Auto, cancellationToken).ConfigureAwait(false);
+                    return;
                 }
-                throw new ConnectionException(exp.Message, exp);
-            }
-            catch (MailKit.Security.SslHandshakeException exp)
-            {
-                throw new ConnectionException(exp.Message, exp);
-            }
-            catch (MailKit.ProtocolException exp)
-            {
-                throw new ConnectionException(exp.Message, exp);
+                catch (System.Net.Sockets.SocketException exp)
+                {
+                    if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    throw new ConnectionException(exp.Message, exp);
+                }
+                catch (System.IO.IOException exp)
+                {
+                    var innerCanceled = exp.InnerException as TaskCanceledException;
+                    if (innerCanceled != null)
+                    {
+                        throw innerCanceled;
+                    }
+                    if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    throw new ConnectionException(exp.Message, exp);
+                }
+                catch (MailKit.Security.SslHandshakeException exp)
+                {
+                    if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    throw new ConnectionException(exp.Message, exp);
+                }
+                catch (MailKit.ProtocolException exp)
+                {
+                    if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    throw new ConnectionException(exp.Message, exp);
+                }
             }
         }
 
