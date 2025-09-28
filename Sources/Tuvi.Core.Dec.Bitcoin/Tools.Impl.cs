@@ -375,7 +375,7 @@ namespace Tuvi.Core.Dec.Bitcoin
                     trId = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
                     break;
                 default:
-                    throw new ArgumentException("Address {Address} is not recognized as a well-known address.", address);
+                    throw new ArgumentException($"Address {address} is not recognized as a well-known address.", address);
             }
 
             string hexUrl = $"https://mempool.space/{config.NetworkApiPrefix}api/tx/{trId}/hex";
