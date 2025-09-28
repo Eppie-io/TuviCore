@@ -79,7 +79,6 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
                     if (finished == connectTask)
                     {
-                        linkedCts.Cancel();
                         try
                         {
                             await connectTask.ConfigureAwait(false);
@@ -113,6 +112,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols
                     }
                     else
                     {
+                        linkedCts.Cancel();
                         lastError = new ConnectionException("Connection timeout.");
                     }
                 }
