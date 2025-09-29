@@ -170,6 +170,7 @@ namespace Tuvi.Core.Dec.Bitcoin
 
         private static string ExtractPublicKeyFromTransaction(Transaction transaction, BitcoinAddress bitcoinAddress, BitcoinNetworkConfig config)
         {
+            // P2PKH
             foreach (TxIn input in transaction.Inputs)
             {
                 Script scriptSig = input.ScriptSig;
@@ -185,6 +186,21 @@ namespace Tuvi.Core.Dec.Bitcoin
                     if (derivedAddress == bitcoinAddress)
                     {
                         return Base32EConverter.ToEmailBase32(pubKey.Compress().ToBytes());
+                    }
+                }
+            }
+
+            // P2PK (legacy transactions paying directly to a public key)
+            foreach (var output in transaction.Outputs)
+            {
+                var spk = output.ScriptPubKey;
+                var pk = PayToPubkeyTemplate.Instance.ExtractScriptPubKeyParameters(spk);
+                if (pk != null)
+                {
+                    var addr = pk.GetAddress(ScriptPubKeyType.Legacy, config.Network);
+                    if (addr == bitcoinAddress)
+                    {
+                        return Base32EConverter.ToEmailBase32(pk.Compress().ToBytes());
                     }
                 }
             }
@@ -234,6 +250,11 @@ namespace Tuvi.Core.Dec.Bitcoin
             HttpClient httpClient,
             CancellationToken cancellation)
         {
+            if (IsWellKnownAddress(address))
+            {
+                return await FetchWellKnownTransactionAsync(address, config, httpClient, cancellation).ConfigureAwait(false);
+            }
+
             const int MaxPages = Constants.DefaultMaxPages;
             string afterTxId = null;
             string previousLastTxId = null;
@@ -339,6 +360,53 @@ namespace Tuvi.Core.Dec.Bitcoin
                 MaxPages, address);
 
             return null;
+        }
+
+        private const string HalFinneyAddress = "1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3";
+        private const string SatoshiNakamotoAddress = "12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S";
+
+        private static async Task<Transaction> FetchWellKnownTransactionAsync(string address, BitcoinNetworkConfig config, HttpClient httpClient, CancellationToken cancellation)
+        {
+            string trId;
+            switch (address)
+            {
+                case HalFinneyAddress:
+                case SatoshiNakamotoAddress:
+                    trId = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
+                    break;
+                default:
+                    throw new ArgumentException($"Address {address} is not recognized as a well-known address.", address);
+            }
+
+            string hexUrl = $"https://mempool.space/{config.NetworkApiPrefix}api/tx/{trId}/hex";
+            string hex;
+            try
+            {
+                hex = await httpClient.GetStringAsync(hexUrl).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Failed to fetch transaction hex from {HexUrl}.", hexUrl);
+                return null;
+            }
+
+            try
+            {
+                return Transaction.Parse(hex, config.Network);
+            }
+#pragma warning disable CA1031 // Do not catch general exceptions, but handle specific ones
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                Logger.LogError(ex, "Failed to parse transaction {TxId}.", trId);
+                return null;
+            }
+        }
+
+        private static bool IsWellKnownAddress(string address)
+        {
+            return address == HalFinneyAddress
+                || address == SatoshiNakamotoAddress;
         }
 
         // DTO classes for JSON deserialization of transaction data
