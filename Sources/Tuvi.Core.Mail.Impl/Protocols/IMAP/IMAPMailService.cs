@@ -150,6 +150,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                     await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
+            else
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         public override async Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
@@ -299,17 +303,51 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             mailFolder = await ImapClient.GetFolderAsync(mailFolder.FullName, cancellationToken).ConfigureAwait(false);
             await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
-            List<Message> messages = new List<Message>();
+            var messages = new List<Message>();
+
+            var total = mailFolder.Count;
+            if (total == 0)
+            {
+                return messages;
+            }
+
+            if (startIndex < 0)
+            {
+                startIndex = 0;
+            }
+
+            if (endIndex >= total)
+            {
+                endIndex = total - 1;
+            }
+
+            if (startIndex > endIndex)
+            {
+                return messages;
+            }
 
             var messageSummaries = await mailFolder.FetchAsync(startIndex, endIndex, MessageSummaryItems.UniqueId | MessageSummaryItems.Flags, cancellationToken).ConfigureAwait(false);
             foreach (var messageSummary in messageSummaries)
             {
-                var mimeMessage = await mailFolder.GetMessageAsync(messageSummary.UniqueId, cancellationToken).ConfigureAwait(false);
-                var message = mimeMessage.ToTuviMailMessage(mailFolder.ToTuviMailFolder(), cancellationToken);
-                message.Id = messageSummary.UniqueId.Id;
-                message.IsMarkedAsRead = messageSummary.Flags.Value.HasFlag(MessageFlags.Seen);
-                message.IsFlagged = messageSummary.Flags.Value.HasFlag(MessageFlags.Flagged);
-                messages.Add(message);
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var mimeMessage = await mailFolder.GetMessageAsync(messageSummary.UniqueId, cancellationToken).ConfigureAwait(false);
+                    var message = mimeMessage.ToTuviMailMessage(mailFolder.ToTuviMailFolder(), cancellationToken);
+                    message.Id = messageSummary.UniqueId.Id;
+                    if (messageSummary.Flags.HasValue)
+                    {
+                        message.IsMarkedAsRead = messageSummary.Flags.Value.HasFlag(MessageFlags.Seen);
+                        message.IsFlagged = messageSummary.Flags.Value.HasFlag(MessageFlags.Flagged);
+                    }
+
+                    messages.Add(message);
+                }
+                catch (MessageNotFoundException)
+                {
+                    this.Log().LogDebug("IMAP skipped disappeared message {Uid} in folder {Folder}", messageSummary.UniqueId.Id, mailFolder.FullName);
+                    continue;
+                }
             }
 
             return messages;
