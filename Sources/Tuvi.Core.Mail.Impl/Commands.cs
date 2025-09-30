@@ -225,6 +225,7 @@ namespace Tuvi.Core.Mail.Impl
         private SenderService Sender;
         private Message Message;
         protected override MailService Service { get { return Sender; } }
+        protected override bool IsHighPriority { get => true; }
 
         public SendCommand(SenderService sender, Message msg)
         {
