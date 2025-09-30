@@ -221,14 +221,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
                 if (attempt < maxAttempts)
                 {
-                    try
-                    {
-                        await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
+                    await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
                 }
             }
 
