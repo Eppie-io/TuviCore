@@ -158,64 +158,79 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public override async Task<IList<Folder>> GetFoldersStructureAsync(CancellationToken cancellationToken)
         {
-            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+            const int maxAttempts = 3;
+            const int retryDelayMs = 1000;
+            Exception lastError = null;
 
-            async Task<IList<Folder>> GetFoldersAsync()
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], cancellationToken: cancellationToken).ConfigureAwait(false);
-                var result = new List<Folder>();
+                cancellationToken.ThrowIfCancellationRequested();
+                await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
 
-                foreach (var folder in folders)
+                try
                 {
-                    if (folder.Exists)
+                    var folders = await ImapClient.GetFoldersAsync(ImapClient.PersonalNamespaces[0], cancellationToken: cancellationToken).ConfigureAwait(false);
+                    var result = new List<Folder>();
+
+                    foreach (var folder in folders)
                     {
+                        if (!folder.Exists)
+                        {
+                            continue;
+                        }
+
                         try
                         {
                             await folder.StatusAsync(StatusItems.Unread | StatusItems.Count, cancellationToken).ConfigureAwait(false);
                             result.Add(folder.ToTuviMailFolder());
                         }
-                        catch (System.IO.IOException)
+                        catch (System.IO.IOException ex)
                         {
-                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                            this.Log().LogError(ex, "Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            throw;
                         }
-                        catch (MailKit.Net.Imap.ImapProtocolException)
+                        catch (MailKit.Net.Imap.ImapProtocolException ex)
                         {
-                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                            this.Log().LogError(ex, "Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            throw;
                         }
-                        catch (MailKit.Net.Imap.ImapCommandException)
+                        catch (MailKit.Net.Imap.ImapCommandException ex)
                         {
-                            this.Log().LogError("Failed to get status for folder: {FolderFullName}", folder.FullName);
-                            await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                            this.Log().LogError(ex, "Failed to get status for folder: {FolderFullName}", folder.FullName);
+                            throw;
                         }
                     }
+
+                    return result;
                 }
-                return result;
+                catch (System.IO.IOException ex)
+                {
+                    lastError = ex;
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (MailKit.Net.Imap.ImapProtocolException ex)
+                {
+                    lastError = ex;
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (MailKit.Net.Imap.ImapCommandException ex)
+                {
+                    lastError = ex;
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    await Task.Delay(retryDelayMs, cancellationToken).ConfigureAwait(false);
+                }
             }
 
-            IList<Folder> foldersStructure = null;
-            try
+            if (lastError != null)
             {
-                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
-            }
-            catch (System.IO.IOException)
-            {
-                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
-            }
-            catch (MailKit.Net.Imap.ImapProtocolException)
-            {
-                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
-            }
-            catch (MailKit.Net.Imap.ImapCommandException)
-            {
-                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
-                foldersStructure = await GetFoldersAsync().ConfigureAwait(false);
+                throw lastError;
             }
 
-            return foldersStructure;
+            throw new ConnectionException("Failed to retrieve IMAP folders structure after retries.");
         }
 
         public override Folder GetDefaultInboxFolder()
