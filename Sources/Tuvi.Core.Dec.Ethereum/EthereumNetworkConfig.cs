@@ -81,7 +81,7 @@ namespace Tuvi.Core.Dec.Ethereum
         /// </summary>
         public static readonly EthereumNetworkConfig MainNet = new EthereumNetworkConfig(
             name: "mainnet",
-            explorerApiBaseUrl: new Uri("https://api.etherscan.io/api", UriKind.Absolute),
+            explorerApiBaseUrl: new Uri("https://api.etherscan.io/v2/api?chainid=1", UriKind.Absolute),
             chainId: EthereumNetwork.MainNet,
             humanName: "Ethereum Mainnet");
 
@@ -90,7 +90,7 @@ namespace Tuvi.Core.Dec.Ethereum
         /// </summary>
         public static readonly EthereumNetworkConfig Sepolia = new EthereumNetworkConfig(
             name: "sepolia",
-            explorerApiBaseUrl: new Uri("https://api-sepolia.etherscan.io/api", UriKind.Absolute),
+            explorerApiBaseUrl: new Uri("https://api.etherscan.io/v2/api?chainid=11155111", UriKind.Absolute),
             chainId: EthereumNetwork.Sepolia,
             humanName: "Ethereum Sepolia Testnet");
     }

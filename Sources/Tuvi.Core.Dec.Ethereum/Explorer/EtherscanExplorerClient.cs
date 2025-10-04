@@ -136,7 +136,7 @@ namespace Tuvi.Core.Dec.Ethereum.Explorer
 
         private async Task<List<TxItem>> FetchPageAsync(string address, int page, int offset, CancellationToken ct)
         {
-            var url = _apiBase + $"?module={AccountModule}&action={ActionTxList}&address={address}&startblock={StartBlock}&endblock={EndBlockDefault}&page={page}&offset={offset}&sort={SortDescending}{AppendKey()}";
+            var url = _apiBase + $"&module={AccountModule}&action={ActionTxList}&address={address}&startblock={StartBlock}&endblock={EndBlockDefault}&page={page}&offset={offset}&sort={SortDescending}{AppendKey()}";
             int delayMs = InitialBackoffMs;
 
             for (int attempt = 1; attempt <= MaxAttempts; attempt++)
@@ -242,7 +242,7 @@ namespace Tuvi.Core.Dec.Ethereum.Explorer
                 return null;
             }
 
-            var proxyUrl = $"{_apiBase}?module={ProxyModule}&action={ActionEthGetTransactionByHash}&txhash={txHash}{AppendKey()}";
+            var proxyUrl = $"{_apiBase}&module={ProxyModule}&action={ActionEthGetTransactionByHash}&txhash={txHash}{AppendKey()}";
             try
             {
                 using (var resp = await _httpClient.GetAsync(proxyUrl, ct).ConfigureAwait(false))
