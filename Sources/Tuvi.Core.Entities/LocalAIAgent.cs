@@ -63,7 +63,7 @@
         /// <summary>
         /// Gets or sets the DoSample parameter.
         /// If Sampling is disabled, a greedy approach will be used and the model will select the most likely token every time. 
-        /// If enabled,tokens will be selected based on the token probability distribution. 
+        /// If enabled, tokens will be selected based on the token probability distribution. 
         /// The Top K, Top P, and Temperature parameters only apply if sampling is enabled.
         /// </summary>
         public bool DoSample { get; set; }
@@ -85,7 +85,7 @@
         /// <summary>
         /// Gets or sets the temperature parameter.
         /// The temperature parameter is a scaling factor for the probability distribution of tokens during generation. 
-        /// Values lower than 1 will produce more deterministic response while values higher than 1 will increase ramdomness.
+        /// Values lower than 1 will produce more deterministic response while values higher than 1 will increase randomness.
         /// </summary>
         public float Temperature { get; set; }
         
