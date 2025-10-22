@@ -41,6 +41,7 @@ namespace Tuvi.Proton
                                                                           string password,
                                                                           Func<CancellationToken, Task<string>> twoFactorProvider,
                                                                           Func<CancellationToken, Task<string>> mailboxPasswordProvider,
+                                                                          Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
                                                                           CancellationToken cancellationToken)
         {
             Debug.Assert(twoFactorProvider != null);
@@ -48,6 +49,7 @@ namespace Tuvi.Proton
                                                                        userName,
                                                                        password,
                                                                        twoFactorProvider,
+                                                                       humanVerifier,
                                                                        null,
                                                                        cancellationToken)
                                           .ConfigureAwait(false))
