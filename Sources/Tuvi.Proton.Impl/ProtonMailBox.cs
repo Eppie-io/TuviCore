@@ -69,6 +69,14 @@ namespace Tuvi.Proton
                 {
                     Debug.Assert(mailboxPasswordProvider != null);
                     keyPass = await mailboxPasswordProvider(cancellationToken).ConfigureAwait(false);
+
+                    // ToDo: verify that mailbox password is correct
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginActions.ts#L134
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginHelper.ts#L33
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/crypto/lib/worker/api.ts#L332 - decryptedKey = await decryptKey({ privateKey: maybeEncryptedKey, passphrase });
+
+                    // primaryKey.PrivateKey must be decrypted using salted keyPass
+                    // PgpSecretKey.ExtractPrivateKey(saltedKeyPass.ToCharArray()); -> exception if wrong password
                 }
                 var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
                 var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
