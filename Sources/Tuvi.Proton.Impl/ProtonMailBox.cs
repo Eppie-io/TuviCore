@@ -236,7 +236,7 @@ namespace Tuvi.Proton
 
         public void AddKeyPassword(long keyId, string password)
         {
-            if(!_passwords.ContainsKey(keyId))
+            if (!_passwords.ContainsKey(keyId))
             {
                 _passwords[keyId] = password;
             }
@@ -956,7 +956,7 @@ namespace Tuvi.Proton
                 {
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
-                
+
                 var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
 
@@ -1013,7 +1013,7 @@ namespace Tuvi.Proton
             var user = userTask.Result;
             var addresses = addressesTask.Result;
             var saltedKeyPass = (account.AuthData as ProtonAuthData).SaltedPassword;
-            
+
             var primaryKey = user.Keys.FirstOrDefault(x => x.Primary > 0);
             if (primaryKey.Equals(default(Key)))
             {
