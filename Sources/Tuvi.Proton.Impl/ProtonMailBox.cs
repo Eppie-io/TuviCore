@@ -41,6 +41,7 @@ namespace Tuvi.Proton
                                                                           string password,
                                                                           Func<CancellationToken, Task<string>> twoFactorProvider,
                                                                           Func<CancellationToken, Task<string>> mailboxPasswordProvider,
+                                                                          Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
                                                                           CancellationToken cancellationToken)
         {
             Debug.Assert(twoFactorProvider != null);
@@ -48,6 +49,7 @@ namespace Tuvi.Proton
                                                                        userName,
                                                                        password,
                                                                        twoFactorProvider,
+                                                                       humanVerifier,
                                                                        null,
                                                                        cancellationToken)
                                           .ConfigureAwait(false))
@@ -67,6 +69,14 @@ namespace Tuvi.Proton
                 {
                     Debug.Assert(mailboxPasswordProvider != null);
                     keyPass = await mailboxPasswordProvider(cancellationToken).ConfigureAwait(false);
+
+                    // ToDo: verify that mailbox password is correct
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginActions.ts#L134
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginHelper.ts#L33
+                    // https://github.com/ProtonMail/WebClients/blob/main/packages/crypto/lib/worker/api.ts#L332 - decryptedKey = await decryptKey({ privateKey: maybeEncryptedKey, passphrase });
+
+                    // primaryKey.PrivateKey must be decrypted using salted keyPass
+                    // PgpSecretKey.ExtractPrivateKey(saltedKeyPass.ToCharArray()); -> exception if wrong password
                 }
                 var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
                 var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
@@ -234,7 +244,7 @@ namespace Tuvi.Proton
 
         public void AddKeyPassword(long keyId, string password)
         {
-            if(!_passwords.ContainsKey(keyId))
+            if (!_passwords.ContainsKey(keyId))
             {
                 _passwords[keyId] = password;
             }
@@ -954,7 +964,7 @@ namespace Tuvi.Proton
                 {
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
-                
+
                 var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
                                               .ConfigureAwait(false);
 
@@ -1011,7 +1021,7 @@ namespace Tuvi.Proton
             var user = userTask.Result;
             var addresses = addressesTask.Result;
             var saltedKeyPass = (account.AuthData as ProtonAuthData).SaltedPassword;
-            
+
             var primaryKey = user.Keys.FirstOrDefault(x => x.Primary > 0);
             if (primaryKey.Equals(default(Key)))
             {

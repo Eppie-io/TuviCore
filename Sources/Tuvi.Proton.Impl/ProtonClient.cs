@@ -17,6 +17,7 @@ using Tuvi.Core.Entities;
 using Tuvi.Proton.Client;
 using Tuvi.Proton.Client.Exceptions;
 using Tuvi.Proton.Primitive.Headers;
+using Tuvi.Proton.Primitive.Messages.Errors;
 using Tuvi.Proton.Primitive.Messages.Payloads;
 using static Tuvi.Proton.Primitive.Messages.Payloads.CommonResponse;
 
@@ -648,7 +649,7 @@ namespace Tuvi.Proton.Impl
 
         private async Task<HttpResponseMessage> SendProtonAsync(string uriStr, HttpMethod method)
         {
-            var uri2 = new Uri("https://mail-api.proton.me" + uriStr + (_queryParams.Count > 0 ? ("?" + _queryParams.ToString()) : ""));
+            var uri2 = new Uri(Client.ProtonHost, uriStr + (_queryParams.Count > 0 ? ("?" + _queryParams.ToString()) : string.Empty));
             using (var request = new HttpRequestMessage(method, uri2))
             {
                 var sessionData = _session.GetSessionData();
@@ -679,6 +680,7 @@ namespace Tuvi.Proton.Impl
                 return await _httpClient.SendAsync(request).ConfigureAwait(false);
             }
         }
+
         private HttpContent GetMultipartFormDataContent()
         {
             var content = new MultipartFormDataContent();
@@ -719,6 +721,7 @@ namespace Tuvi.Proton.Impl
 
     internal class Client : IDisposable
     {
+        public static readonly Uri ProtonHost = new Uri("https://mail-api.proton.me");
         private const int MaxPageSize = 150;
         private readonly HttpClient _httpClient;
         private readonly Session _session;
@@ -729,23 +732,66 @@ namespace Tuvi.Proton.Impl
                                                               string userName,
                                                               string password,
                                                               Func<CancellationToken, Task<string>> twoFactorProvider,
+                                                              Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
                                                               Func<Session, CancellationToken, Task> refreshCallback,
                                                               CancellationToken cancellationToken)
         {
             try
             {
                 var client = new Client(httpClientCreator, refreshCallback);
-                await client._session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
-                if (client._session.IsTwoFactor && client._session.IsTOTP)
-                {
-                    var code = await twoFactorProvider(cancellationToken).ConfigureAwait(false);
-                    await client._session.ProvideTwoFactorCodeAsync(code, cancellationToken).ConfigureAwait(false);
-                }
+                await client.LoginAsync(userName, password, twoFactorProvider, humanVerifier, cancellationToken).ConfigureAwait(false);
+
                 return client;
             }
             catch (AuthProtonException ex)
             {
                 throw MakeException((int)ResponseCode.WrongPassword, "login", ex.Message, ex);
+            }
+        }
+
+        private async Task LoginAsync(string userName,
+                                      string password,
+                                      Func<CancellationToken, Task<string>> twoFactorProvider,
+                                      Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
+                                      CancellationToken cancellationToken)
+        {
+            try
+            {
+                await LoginAsync().ConfigureAwait(false);
+            }
+            catch (AuthUnsuccessProtonException ex) when (ex.Response.IsHumanVerificationRequired() && humanVerifier != null)
+            {
+                HumanVerificationDetails details = ex.Response.ReadDetails<HumanVerificationDetails>();
+
+                if (string.IsNullOrEmpty(details?.HumanVerificationToken))
+                {
+                    throw;
+                }
+
+                (bool completed, string type, string token) = await humanVerifier(new Uri(ProtonHost, details.HumanVerificationApiUri), cancellationToken).ConfigureAwait(false);
+
+                if (completed)
+                {
+                    _session.SetHumanVerification(type, token);
+                    await LoginAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    throw new OperationCanceledException();
+                }
+            }
+
+            // ToDo: check if we need to reset human verification after login
+            // _session.ResetHumanVerification();
+
+            async Task LoginAsync()
+            {
+                await _session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
+                if (_session.IsTwoFactor && _session.IsTOTP)
+                {
+                    var code = await twoFactorProvider(cancellationToken).ConfigureAwait(false);
+                    await _session.ProvideTwoFactorCodeAsync(code, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 
@@ -769,8 +815,7 @@ namespace Tuvi.Proton.Impl
             _refreshCallback = refreshCallback;
             _session = new Session(
                 httpClient: _httpClient,
-                host: new Uri("https://mail-api.proton.me"))
-            //host: new Uri("http://127.0.0.1:56431"))
+                host: ProtonHost)
             {
                 AppVersion = "Other",
                 RedirectUri = new Uri("https://protonmail.ch")
