@@ -69,17 +69,11 @@ namespace Tuvi.Proton
                 {
                     Debug.Assert(mailboxPasswordProvider != null);
                     keyPass = await mailboxPasswordProvider(cancellationToken).ConfigureAwait(false);
-
-                    // ToDo: verify that mailbox password is correct
-                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginActions.ts#L134
-                    // https://github.com/ProtonMail/WebClients/blob/main/packages/components/containers/login/loginHelper.ts#L33
-                    // https://github.com/ProtonMail/WebClients/blob/main/packages/crypto/lib/worker/api.ts#L332 - decryptedKey = await decryptKey({ privateKey: maybeEncryptedKey, passphrase });
-
-                    // primaryKey.PrivateKey must be decrypted using salted keyPass
-                    // PgpSecretKey.ExtractPrivateKey(saltedKeyPass.ToCharArray()); -> exception if wrong password
                 }
                 var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
                 var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
+
+                UnlockMailbox(primaryKey.PrivateKey, saltedKeyPass);
 
                 return (client.UserId, client.RefreshToken, saltedKeyPass);
             }
@@ -91,6 +85,28 @@ namespace Tuvi.Proton
             var hashed = ProtonSRPUtilities.GetMailboxPassword(keyPass, decodedSalt);
             // Cut off last 31 bytes
             return hashed.AsSpan((hashed.Length - 31), 31).ToArray();
+        }
+
+        private static void UnlockMailbox(string armoredKey, string password)
+        {
+            try
+            {
+                using (ArmoredInputStream key = new ArmoredInputStream(new MemoryStream(Encoding.ASCII.GetBytes(armoredKey))))
+                {
+                    var pgpBundle = new PgpSecretKeyRingBundle(key);
+                    foreach (var pgpKeyRing in pgpBundle.GetKeyRings())
+                    {
+                        foreach (var pgpKey in pgpKeyRing.GetSecretKeys())
+                        {
+                            pgpKey.ExtractPrivateKey(password.ToCharArray());
+                        }
+                    }
+                }
+            }
+            catch (PgpException ex)
+            {
+                throw new AuthorizationException("Proton: invalid mailbox password", ex);
+            }
         }
     }
     public static class MailBoxCreator
