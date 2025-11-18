@@ -21,7 +21,7 @@
   
   <ItemGroup>
     <PackageReference Include="sqlite-net-sqlcipher" Version="1.9.172" />
-    <PackageReference Include="System.Text.Json" Version="9.0.10" />
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
