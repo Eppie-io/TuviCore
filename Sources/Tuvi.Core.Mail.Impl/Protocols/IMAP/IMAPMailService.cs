@@ -69,6 +69,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         private async Task ForceReconnectAsync(CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("ForceReconnectAsync started");
+
             await _forceReconnectLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -131,6 +133,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         /// </summary>
         private async Task EnsureConnectionAliveAsync(CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("EnsureConnectionAliveAsync started");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (ImapClient.IsConnected && ImapClient.IsAuthenticated)
             {
                 try
@@ -703,6 +709,9 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
                 var ids = await mailFolder.SearchAsync(MailKit.Search.SearchQuery.DeliveredAfter(dateTime), cancellationToken).ConfigureAwait(false);
+
+                this.Log().LogDebug("CheckNewMessages: found {Found} messages in {Folder}", ids.Count, folder.FullName);
+
                 var messagesSymmarys = await mailFolder.FetchAsync(ids, MessageSummaryItems.Full | MessageSummaryItems.PreviewText | MessageSummaryItems.UniqueId, cancellationToken).ConfigureAwait(false);
 
                 List<Message> messages = new List<Message>();

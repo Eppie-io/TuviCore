@@ -20,7 +20,9 @@ using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Tuvi.Core.Entities;
+using Tuvi.Core.Logging;
 
 namespace Tuvi.Core.Mail.Impl.Protocols
 {
@@ -61,6 +63,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public async Task ConnectAsync(CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("ConnectAsync started");
+
             const int maxAttempts = 3;
             const int retryDelayMs = 2000;
 
@@ -118,6 +122,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public async Task AuthenticateAsync(NetworkCredential credential, CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("AuthenticateAsync (with credential) started");
+
             try
             {
                 await Service.AuthenticateAsync(credential, cancellationToken).ConfigureAwait(false);
@@ -146,6 +152,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         public async Task AuthenticateAsync(CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("AuthenticateAsync started");
+
             var userName = string.Empty;
 
             try
@@ -210,6 +218,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
 
         protected async Task RestoreConnectionAsync(CancellationToken cancellationToken)
         {
+            this.Log().LogDebug("RestoreConnectionAsync started");
+
             bool needHardReconnect = false;
             try
             {
