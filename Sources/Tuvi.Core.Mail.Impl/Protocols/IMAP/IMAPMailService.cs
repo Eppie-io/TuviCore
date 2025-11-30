@@ -61,6 +61,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
     {
         private MailKit.Net.Imap.ImapClient ImapClient { get; }
         private readonly SemaphoreSlim _forceReconnectLock = new SemaphoreSlim(1);
+        private static readonly TimeSpan NoOpTimeout = TimeSpan.FromSeconds(20);
 
         protected override Task ForceReconnectCoreAsync(CancellationToken cancellationToken)
         {
@@ -141,18 +142,30 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             {
                 try
                 {
-                    await ImapClient.NoOpAsync(cancellationToken).ConfigureAwait(false);
+                    using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                    {
+                        cts.CancelAfter(NoOpTimeout);
+                        await ImapClient.NoOpAsync(cts.Token).ConfigureAwait(false);
+                    }
                 }
-                catch (System.IO.IOException)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
+                    this.Log().LogWarning("NOOP timed out - treating connection as stale and restoring");
                     await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                 }
-                catch (MailKit.Net.Imap.ImapProtocolException)
+                catch (System.IO.IOException ex)
                 {
+                    this.Log().LogWarning(ex, "NOOP failed with IO error - restoring connection");
                     await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                 }
-                catch (MailKit.Net.Imap.ImapCommandException)
+                catch (MailKit.Net.Imap.ImapProtocolException ex)
                 {
+                    this.Log().LogWarning(ex, "NOOP failed with protocol error - restoring connection");
+                    await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (MailKit.Net.Imap.ImapCommandException ex)
+                {
+                    this.Log().LogWarning(ex, "NOOP failed with command error - restoring connection");
                     await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
