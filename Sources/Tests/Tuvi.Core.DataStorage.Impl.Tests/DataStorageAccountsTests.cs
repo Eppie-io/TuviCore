@@ -1,8 +1,26 @@
-﻿using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -265,6 +283,103 @@ namespace Tuvi.Core.DataStorage.Tests
 
                 await db.AddAccountAsync(TestData.AccountWithFolder).ConfigureAwait(true);
                 Assert.That(await db.ExistsAccountWithEmailAddressAsync(TestData.AccountWithFolder.Email).ConfigureAwait(true), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task AccountExternalContentPolicyPersistence()
+        {
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var testAccount = TestData.CreateAccount();
+                testAccount.Email = new EmailAddress("externalcontent@test.test");
+                testAccount.ExternalContentPolicy = ExternalContentPolicy.Block;
+
+                await db.AddAccountAsync(testAccount).ConfigureAwait(true);
+
+                var retrievedAccount = await db.GetAccountAsync(testAccount.Email).ConfigureAwait(true);
+
+                Assert.That(retrievedAccount.ExternalContentPolicy, Is.EqualTo(ExternalContentPolicy.Block));
+
+                await db.DeleteAccountAsync(testAccount).ConfigureAwait(true);
+            }
+        }
+
+        [Test]
+        public async Task UpdateAccountExternalContentPolicy()
+        {
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var testAccount = TestData.CreateAccount();
+                testAccount.Email = new EmailAddress("updatepolicy@test.test");
+                testAccount.ExternalContentPolicy = ExternalContentPolicy.AlwaysAllow;
+
+                await db.AddAccountAsync(testAccount).ConfigureAwait(true);
+
+                testAccount.ExternalContentPolicy = ExternalContentPolicy.AskEachTime;
+                await db.UpdateAccountAsync(testAccount).ConfigureAwait(true);
+
+                var updatedAccount = await db.GetAccountAsync(testAccount.Email).ConfigureAwait(true);
+
+                Assert.That(updatedAccount.ExternalContentPolicy, Is.EqualTo(ExternalContentPolicy.AskEachTime));
+
+                await db.DeleteAccountAsync(testAccount).ConfigureAwait(true);
+            }
+        }
+
+        [Test]
+        public async Task DefaultExternalContentPolicyValue()
+        {
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var testAccount = TestData.CreateAccount();
+                testAccount.Email = new EmailAddress("defaultpolicy@test.test");
+
+                await db.AddAccountAsync(testAccount).ConfigureAwait(true);
+
+                var retrievedAccount = await db.GetAccountAsync(testAccount.Email).ConfigureAwait(true);
+
+                Assert.That(retrievedAccount.ExternalContentPolicy, Is.EqualTo(ExternalContentPolicy.AlwaysAllow));
+
+                await db.DeleteAccountAsync(testAccount).ConfigureAwait(true);
+            }
+        }
+
+        [Test]
+        public async Task AccountExternalContentPolicyAllValues()
+        {
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var policies = new[]
+                {
+                    ExternalContentPolicy.AlwaysAllow,
+                    ExternalContentPolicy.AskEachTime,
+                    ExternalContentPolicy.Block
+                };
+
+                foreach (var policy in policies)
+                {
+                    var testAccount = TestData.CreateAccount();
+                    testAccount.Email = new EmailAddress($"policy{policy}@test.test");
+                    testAccount.ExternalContentPolicy = policy;
+
+                    await db.AddAccountAsync(testAccount).ConfigureAwait(true);
+
+                    var retrievedAccount = await db.GetAccountAsync(testAccount.Email).ConfigureAwait(true);
+
+                    Assert.That(retrievedAccount.ExternalContentPolicy, Is.EqualTo(policy),
+                        $"ExternalContentPolicy {policy} was not persisted correctly.");
+
+                    await db.DeleteAccountAsync(testAccount).ConfigureAwait(true);
+                }
             }
         }
     }

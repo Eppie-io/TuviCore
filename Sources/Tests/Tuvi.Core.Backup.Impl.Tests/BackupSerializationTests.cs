@@ -183,5 +183,31 @@ namespace BackupTests
                 Assert.That(settings.BitcoinAccountCounter, Is.EqualTo(TestData.SomeSettings.BitcoinAccountCounter));
             }
         }
+
+        [Test]
+        [Category("Backup")]
+        public async Task BackupAccountWithExternalContentPolicy()
+        {
+            using (var backup = new MemoryStream())
+            {
+                IBackupBuilder builder = BackupSerializationFactory.CreateBackupBuilder();
+
+                var accountWithPolicy = TestData.Account1;
+                accountWithPolicy.ExternalContentPolicy = Tuvi.Core.Entities.ExternalContentPolicy.Block;
+
+                await builder.SetAccountsAsync(new[] { accountWithPolicy }).ConfigureAwait(true);
+                await builder.BuildBackupAsync(backup).ConfigureAwait(true);
+
+                backup.Position = 0;
+
+                IBackupParser parser = BackupSerializationFactory.CreateBackupParser();
+                await parser.ParseBackupAsync(backup).ConfigureAwait(true);
+
+                var accounts = await parser.GetAccountsAsync().ConfigureAwait(true);
+
+                Assert.That(accounts.Count, Is.EqualTo(1));
+                Assert.That(accounts[0].ExternalContentPolicy, Is.EqualTo(Tuvi.Core.Entities.ExternalContentPolicy.Block));
+            }
+        }
     }
 }
