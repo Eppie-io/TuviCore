@@ -1,4 +1,22 @@
-﻿using System;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -31,6 +49,13 @@ namespace Tuvi.Core.Entities
         Proton
     }
 
+    public enum ExternalContentPolicy : int
+    {
+        AlwaysAllow = 0,
+        AskEachTime,
+        Block
+    }
+
     public class Account
     {
         public static Account Default
@@ -49,7 +74,8 @@ namespace Tuvi.Core.Entities
                     IsBackupAccountSettingsEnabled = true,
                     IsBackupAccountMessagesEnabled = false,
                     SynchronizationInterval = 10, // 10 minutes
-                    IsMessageFooterEnabled = true
+                    IsMessageFooterEnabled = true,
+                    ExternalContentPolicy = ExternalContentPolicy.AlwaysAllow
                 };
             }
         }
@@ -145,6 +171,11 @@ namespace Tuvi.Core.Entities
         public string MessageFooter { get; set; }
         public bool IsMessageFooterEnabled { get; set; }
 
+        /// <summary>
+        /// Gets or sets the policy for handling external content in email messages.
+        /// </summary>
+        public ExternalContentPolicy ExternalContentPolicy { get; set; } = ExternalContentPolicy.AlwaysAllow;
+
         public override bool Equals(object obj)
         {
             return obj is Account other &&
@@ -160,6 +191,7 @@ namespace Tuvi.Core.Entities
                    IsBackupAccountSettingsEnabled == other.IsBackupAccountSettingsEnabled &&
                    IsBackupAccountMessagesEnabled == other.IsBackupAccountMessagesEnabled &&
                    SynchronizationInterval == other.SynchronizationInterval &&
+                   ExternalContentPolicy == other.ExternalContentPolicy &&
                    (DefaultInboxFolder?.Equals(other.DefaultInboxFolder) ?? other.DefaultInboxFolder == null) &&
                    (FoldersStructure?.SequenceEqual(other.FoldersStructure) ?? other.FoldersStructure == null);
         }
