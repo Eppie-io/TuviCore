@@ -422,30 +422,16 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new ArgumentNullException(nameof(email));
             }
 
-            // For Eppie addresses with claimed names, resolve via PublicKeyService
-            // For addresses without names, the address itself is already the public key
-            if (email.Network == NetworkType.Eppie)
-            {
-                if (!string.IsNullOrEmpty(email.Name))
-                {
-                    // Name is claimed, need to resolve it to public key
-                    return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    // No name claimed, the address IS the public key
-                    return email.DecentralizedAddress;
-                }
-            }
-            else if (email.Network == NetworkType.Bitcoin || email.Network == NetworkType.Ethereum)
+            if (email.IsDecentralized)
             {
                 return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
             }
-
-            // For other addresses, derive the public key from master key
-            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+            else
             {
-                return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                }
             }
         }
     }
