@@ -178,8 +178,10 @@ namespace Tuvi.Core
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.
         /// For Eppie addresses:
-        /// - If name is claimed: resolves the name to public key via name service
+        /// - If name is claimed: resolves the name to public key via PublicKeyService
         /// - If no name: returns the address itself (which IS the public key)
+        /// For Bitcoin and Ethereum addresses: 
+        /// - Resolves the address to public key via PublicKeyService
         /// For other networks: derives the public key from master key.
         /// </summary>
         Task<string> GetEmailPublicKeyStringAsync(EmailAddress email, CancellationToken cancellationToken = default);

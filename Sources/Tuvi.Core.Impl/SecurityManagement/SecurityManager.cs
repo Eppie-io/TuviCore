@@ -437,6 +437,10 @@ namespace Tuvi.Core.Impl.SecurityManagement
                     return email.DecentralizedAddress;
                 }
             }
+            else if (email.Network == NetworkType.Bitcoin || email.Network == NetworkType.Ethereum)
+            {
+                return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
+            }
 
             // For other addresses, derive the public key from master key
             using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
