@@ -731,8 +731,8 @@ namespace Tuvi.Proton.Impl
         public static async Task<Client> CreateWithLoginAsync(Func<HttpClient> httpClientCreator,
                                                               string userName,
                                                               string password,
-                                                              Func<CancellationToken, Task<string>> twoFactorProvider,
-                                                              Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
+                                                              TwoFactorCodeProvider twoFactorProvider,
+                                                              HumanVerifier humanVerifier,
                                                               Func<Session, CancellationToken, Task> refreshCallback,
                                                               CancellationToken cancellationToken)
         {
@@ -751,29 +751,47 @@ namespace Tuvi.Proton.Impl
 
         private async Task LoginAsync(string userName,
                                       string password,
-                                      Func<CancellationToken, Task<string>> twoFactorProvider,
-                                      Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
+                                      TwoFactorCodeProvider twoFactorProvider,
+                                      HumanVerifier humanVerifier,
                                       CancellationToken cancellationToken)
         {
-            try
+
+            await VerifyCredentialsAsync().ConfigureAwait(false);
+
+            if (_session.IsTwoFactor && _session.IsTOTP)
             {
-                await LoginAsync().ConfigureAwait(false);
+                await ProvideTwoFactorCodeAsync().ConfigureAwait(false);
             }
-            catch (AuthUnsuccessProtonException ex) when (ex.Response.IsHumanVerificationRequired() && humanVerifier != null)
+
+            async Task VerifyCredentialsAsync(bool firstAttempt = true)
             {
-                HumanVerificationDetails details = ex.Response.ReadDetails<HumanVerificationDetails>();
-
-                if (string.IsNullOrEmpty(details?.HumanVerificationToken))
+                try
                 {
-                    throw;
+                    await _session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
+
+                    // ToDo: check if we need to reset human verification after successful login
+                    // _session.ResetHumanVerification();
                 }
+                catch (AuthUnsuccessProtonException ex) when (ex.Response.IsHumanVerificationRequired() && humanVerifier != null)
+                {
+                    HumanVerificationDetails details = ex.Response.ReadDetails<HumanVerificationDetails>();
 
-                (bool completed, string type, string token) = await humanVerifier(new Uri(ProtonHost, details.HumanVerificationApiUri), cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrEmpty(details?.HumanVerificationToken))
+                    {
+                        throw;
+                    }
 
+                    await VerifyHumanAsync(details, firstAttempt ? null : ex).ConfigureAwait(false);
+                }
+            }
+
+            async Task VerifyHumanAsync(HumanVerificationDetails details, Exception previousAttemptException)
+            {
+                (bool completed, string type, string token) = await humanVerifier(new Uri(ProtonHost, details.HumanVerificationApiUri), previousAttemptException, cancellationToken).ConfigureAwait(false);
                 if (completed)
                 {
                     _session.SetHumanVerification(type, token);
-                    await LoginAsync().ConfigureAwait(false);
+                    await VerifyCredentialsAsync(false).ConfigureAwait(false);
                 }
                 else
                 {
@@ -781,16 +799,24 @@ namespace Tuvi.Proton.Impl
                 }
             }
 
-            // ToDo: check if we need to reset human verification after login
-            // _session.ResetHumanVerification();
-
-            async Task LoginAsync()
+            async Task ProvideTwoFactorCodeAsync(Exception previousAttemptException = null)
             {
-                await _session.LoginAsync(userName, password, cancellationToken).ConfigureAwait(false);
-                if (_session.IsTwoFactor && _session.IsTOTP)
+                try
                 {
-                    var code = await twoFactorProvider(cancellationToken).ConfigureAwait(false);
-                    await _session.ProvideTwoFactorCodeAsync(code, cancellationToken).ConfigureAwait(false);
+                    (bool completed, string code) = await twoFactorProvider(previousAttemptException, cancellationToken).ConfigureAwait(false);
+
+                    if (completed)
+                    {
+                        await _session.ProvideTwoFactorCodeAsync(code, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        throw new OperationCanceledException();
+                    }
+                }
+                catch (ProtonSessionRequestException ex)
+                {
+                    await ProvideTwoFactorCodeAsync(ex).ConfigureAwait(false);
                 }
             }
         }

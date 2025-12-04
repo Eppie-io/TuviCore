@@ -35,20 +35,26 @@ using TuviSRPLib;
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Impl.Tests")]
 namespace Tuvi.Proton
 {
+    public delegate Task<(bool completed, string code)> TwoFactorCodeProvider(Exception previousAttemptException, CancellationToken cancellationToken);
+    public delegate Task<(bool completed, string password)> MailboxPasswordProvider(Exception previousAttemptException, CancellationToken cancellationToken);
+    public delegate Task<(bool completed, string verificationType, string token)> HumanVerifier(Uri verifierUrl, Exception previousAttemptException, CancellationToken cancellationToken);
+
     public static class ClientAuth
     {
         public static async Task<(string, string, string)> LoginFullAsync(string userName,
                                                                           string password,
-                                                                          Func<CancellationToken, Task<string>> twoFactorProvider,
-                                                                          Func<CancellationToken, Task<string>> mailboxPasswordProvider,
-                                                                          Func<Uri, CancellationToken, Task<(bool, string, string)>> humanVerifier,
+                                                                          TwoFactorCodeProvider twoFactorCodeProvider,
+                                                                          MailboxPasswordProvider mailboxPasswordProvider,
+                                                                          HumanVerifier humanVerifier,
                                                                           CancellationToken cancellationToken)
         {
-            Debug.Assert(twoFactorProvider != null);
+            Debug.Assert(twoFactorCodeProvider != null);
+            Debug.Assert(mailboxPasswordProvider != null);
+
             using (var client = await Impl.Client.CreateWithLoginAsync(() => new HttpClient(),
                                                                        userName,
                                                                        password,
-                                                                       twoFactorProvider,
+                                                                       twoFactorCodeProvider,
                                                                        humanVerifier,
                                                                        null,
                                                                        cancellationToken)
@@ -64,18 +70,39 @@ namespace Tuvi.Proton
                 var primaryKey = user.Keys.Where(x => x.Primary > 0).First();
                 var salt = salts.FirstOrDefault(x => x.ID == primaryKey.ID);
 
-                var keyPass = password;
-                if (client.IsTwoPasswordMode)
+                string saltedKeyPassword = await UnlockAsync().ConfigureAwait(false);
+
+                return (client.UserId, client.RefreshToken, saltedKeyPassword);
+
+                async Task<string> UnlockAsync(Exception previousAttemptException = null)
                 {
-                    Debug.Assert(mailboxPasswordProvider != null);
-                    keyPass = await mailboxPasswordProvider(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        string mailboxPassword = password;
+
+                        if (client.IsTwoPasswordMode)
+                        {
+                            (bool completed, string mailboxPass) = await mailboxPasswordProvider(previousAttemptException, cancellationToken).ConfigureAwait(false);
+                            mailboxPassword = mailboxPass;
+
+                            if (completed == false)
+                            {
+                                throw new OperationCanceledException();
+                            }
+                        }
+
+                        byte[] saltedMailboxPassword = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(mailboxPassword));
+                        string saltedKeyPass = Encoding.ASCII.GetString(saltedMailboxPassword);
+
+                        UnlockMailbox(primaryKey.PrivateKey, saltedKeyPass);
+
+                        return saltedKeyPass;
+                    }
+                    catch (AuthorizationException ex) when (client.IsTwoPasswordMode)
+                    {
+                        return await UnlockAsync(ex).ConfigureAwait(false);
+                    }
                 }
-                var saltedPass = SaltForKey(salt.KeySalt ?? string.Empty, Encoding.ASCII.GetBytes(keyPass));
-                var saltedKeyPass = Encoding.ASCII.GetString(saltedPass);
-
-                UnlockMailbox(primaryKey.PrivateKey, saltedKeyPass);
-
-                return (client.UserId, client.RefreshToken, saltedKeyPass);
             }
         }
 
@@ -109,6 +136,7 @@ namespace Tuvi.Proton
             }
         }
     }
+
     public static class MailBoxCreator
     {
         public static IMailBox Create(Account account, ICredentialsProvider credentialsProvider, IStorage storage)
