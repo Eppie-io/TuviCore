@@ -737,7 +737,7 @@ namespace Tuvi.Core.Impl
 
             var email = account.Email;
 
-            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email).ConfigureAwait(false);
+            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email, cancellationToken).ConfigureAwait(false);
             var hybridAddress = email.MakeHybrid(deckey);
 
             var decAccountService = GetAccountService(hybridAddress);

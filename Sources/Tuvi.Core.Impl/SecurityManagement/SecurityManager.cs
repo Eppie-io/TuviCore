@@ -415,9 +415,31 @@ namespace Tuvi.Core.Impl.SecurityManagement
             }
         }
 
-        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
+        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email, CancellationToken cancellationToken = default)
         {
-            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            if (email is null)
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+
+            // For Eppie addresses with claimed names, resolve via PublicKeyService
+            // For addresses without names, the address itself is already the public key
+            if (email.Network == NetworkType.Eppie)
+            {
+                if (!string.IsNullOrEmpty(email.Name))
+                {
+                    // Name is claimed, need to resolve it to public key
+                    return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    // No name claimed, the address IS the public key
+                    return email.DecentralizedAddress;
+                }
+            }
+
+            // For other addresses, derive the public key from master key
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
                 return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
             }
