@@ -1239,9 +1239,10 @@ namespace Tuvi.Core.Impl
                 throw new NotSupportedException($"Unsupported network type: {address.Network}");
             }
 
-            var response = await DecStorageClient.ClaimNameAsync(name, address.DecentralizedAddress, cancellationToken).ConfigureAwait(false);
+            var publicKey = await GetSecurityManager().GetEmailPublicKeyStringAsync(address, cancellationToken).ConfigureAwait(false);
+            var response = await DecStorageClient.ClaimNameAsync(name, publicKey, cancellationToken).ConfigureAwait(false);
 
-            return response.Equals(address.DecentralizedAddress, StringComparison.OrdinalIgnoreCase);
+            return response.Equals(publicKey, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
