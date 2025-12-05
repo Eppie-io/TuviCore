@@ -177,7 +177,9 @@ namespace Tuvi.Core
 
         /// <summary>
         /// Get email public key string for <paramref name="email"/>.
+        /// For decentralized addresses: resolves to public key via PublicKeyService
+        /// For other addresses: derives the public key from master key.
         /// </summary>
-        Task<string> GetEmailPublicKeyStringAsync(EmailAddress email);
+        Task<string> GetEmailPublicKeyStringAsync(EmailAddress email, CancellationToken cancellationToken = default);
     }
 }

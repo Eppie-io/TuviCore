@@ -737,7 +737,7 @@ namespace Tuvi.Core.Impl
 
             var email = account.Email;
 
-            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email).ConfigureAwait(false);
+            var deckey = await SecurityManager.GetEmailPublicKeyStringAsync(email, cancellationToken).ConfigureAwait(false);
             var hybridAddress = email.MakeHybrid(deckey);
 
             var decAccountService = GetAccountService(hybridAddress);
@@ -1239,9 +1239,10 @@ namespace Tuvi.Core.Impl
                 throw new NotSupportedException($"Unsupported network type: {address.Network}");
             }
 
-            var response = await DecStorageClient.ClaimNameAsync(name, address.DecentralizedAddress, cancellationToken).ConfigureAwait(false);
+            var publicKey = await GetSecurityManager().GetEmailPublicKeyStringAsync(address, cancellationToken).ConfigureAwait(false);
+            var response = await DecStorageClient.ClaimNameAsync(name, publicKey, cancellationToken).ConfigureAwait(false);
 
-            return response.Equals(address.DecentralizedAddress, StringComparison.OrdinalIgnoreCase);
+            return response.Equals(publicKey, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

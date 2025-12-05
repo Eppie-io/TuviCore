@@ -415,11 +415,23 @@ namespace Tuvi.Core.Impl.SecurityManagement
             }
         }
 
-        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email)
+        public async Task<string> GetEmailPublicKeyStringAsync(EmailAddress email, CancellationToken cancellationToken = default)
         {
-            using (var masterKey = await GetMasterKeyAsync().ConfigureAwait(false))
+            if (email is null)
             {
-                return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                throw new ArgumentNullException(nameof(email));
+            }
+
+            if (email.IsDecentralized)
+            {
+                return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                }
             }
         }
     }
