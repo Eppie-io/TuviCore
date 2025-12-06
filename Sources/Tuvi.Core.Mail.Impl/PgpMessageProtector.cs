@@ -340,7 +340,7 @@ namespace Tuvi.Core.Mail.Impl
                 var publicKey = await publicKeyService.GetEncodedByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
                 return EmailAddress.CreateDecentralizedAddress(emailAddress.Network, publicKey);
             }
-            catch (Exception ex) when (ex is PublicKeyNotFoundException || ex is NoPublicKeyException || ex is NotSupportedException)
+            catch (Exception ex) when (ex is NoPublicKeyException || ex is NotSupportedException)
             {
                 return null;
             }
