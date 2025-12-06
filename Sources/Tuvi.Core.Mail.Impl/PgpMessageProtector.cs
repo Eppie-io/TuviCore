@@ -18,7 +18,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -291,13 +290,27 @@ namespace Tuvi.Core.Mail.Impl
     {
         public static async Task TryToAddDecPublicKeysAsync(this OpenPgpContext context, IEnumerable<EmailAddress> emails, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
         {
-            Contract.Requires(context != null);
-            Contract.Requires(emails != null);
-            Contract.Requires(publicKeyService != null);
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (emails is null)
+            {
+                throw new ArgumentNullException(nameof(emails));
+            }
+
+            if (publicKeyService is null)
+            {
+                throw new ArgumentNullException(nameof(publicKeyService));
+            }
 
             foreach (var emailAddress in emails)
             {
-                Contract.Requires(emailAddress != null);
+                if (emailAddress is null)
+                {
+                    throw new ArgumentException("Email address in collection cannot be null.", nameof(emails));
+                }
 
                 if (!emailAddress.IsDecentralized)
                 {

@@ -20,9 +20,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MimeKit;
 using MimeKit.Cryptography;
+using Moq;
 using NUnit.Framework;
 using SecurityManagementTests;
 using Tuvi.Core.Entities;
@@ -208,6 +210,166 @@ namespace Tuvi.Core.Mail.Impl.Tests
                     EncryptionTestsData.Attachment,
                     Is.EqualTo(message.Attachments.FirstOrDefault()),
                     "Message attachment was corrupted.");
+            }
+        }
+    }
+    public class MessageProtectorExtensionsTests
+    {
+        private static TuviPgpContext InitializePgpContext()
+        {
+            var keyStorage = new MockPgpKeyStorage().Get();
+            var context = new TuviPgpContext(keyStorage);
+            context.LoadContextAsync().Wait();
+            return context;
+        }
+
+        [Test]
+        public async Task AddDecentralizedAddressWithKeyLoaded()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var decentralizedEmail = AccountInfo.GetAccount2().Email;
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
+
+                var emails = new List<EmailAddress> { decentralizedEmail };
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+                publicKeyServiceMock.Verify(x => x.GetByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task SkipNonDecentralizedAddresses()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var standardEmail = new EmailAddress("standard@example.com", "Standard User");
+                var emails = new List<EmailAddress> { standardEmail };
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+                publicKeyServiceMock.Verify(x => x.GetByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public void EmptyEmailListDoesNotThrow()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var emails = new List<EmailAddress>();
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                Assert.DoesNotThrowAsync(async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+
+                publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task HandleNoPublicKeyException()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var decentralizedEmail = AccountInfo.GetAccount2().Email;
+                var emails = new List<EmailAddress> { decentralizedEmail };
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                publicKeyServiceMock
+                    .Setup(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new NoPublicKeyException(decentralizedEmail, (Exception)null));
+
+                publicKeyServiceMock
+                    .Setup(x => x.GetByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new NoPublicKeyException(decentralizedEmail, (Exception)null));
+
+                await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                publicKeyServiceMock.Verify(x => x.GetByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task HandleNotSupportedException()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var decentralizedEmail = AccountInfo.GetAccount2().Email;
+                var emails = new List<EmailAddress> { decentralizedEmail };
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                publicKeyServiceMock
+                    .Setup(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new NotSupportedException("Not supported"));
+
+                await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                publicKeyServiceMock.Verify(x => x.GetByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task MultipleAddressesProcessedCorrectly()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var decentralizedEmail1 = AccountInfo.GetAccount().Email;
+                var decentralizedEmail2 = AccountInfo.GetAccount2().Email;
+                var standardEmail = new EmailAddress("standard@example.com", "Standard User");
+
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.SenderMasterKey, AccountInfo.GetAccount().GetPgpUserIdentity(), AccountInfo.GetAccount().GetKeyTag());
+                pgpContext.GeneratePgpKeysByTagOld(EncryptionTestsData.ReceiverMasterKey, AccountInfo.GetAccount2().GetPgpUserIdentity(), AccountInfo.GetAccount2().GetKeyTag());
+
+                var emails = new List<EmailAddress> { decentralizedEmail1, standardEmail, decentralizedEmail2 };
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        [Test]
+        public void NullContextThrowsArgumentNullException()
+        {
+            OpenPgpContext nullContext = null;
+            var emails = new List<EmailAddress>();
+            var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+            // When null context is passed, ArgumentNullException should be thrown
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await nullContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void NullEmailsThrowsArgumentNullException()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var publicKeyServiceMock = new Mock<IPublicKeyService>();
+
+                // When null emails are passed, ArgumentNullException should be thrown
+                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(null, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+            }
+        }
+
+        [Test]
+        public void NullPublicKeyServiceThrowsArgumentNullException()
+        {
+            using (var pgpContext = InitializePgpContext())
+            {
+                var emails = new List<EmailAddress>();
+
+                // When null publicKeyService is passed, ArgumentNullException should be thrown
+                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(emails, null, default).ConfigureAwait(false));
             }
         }
     }
