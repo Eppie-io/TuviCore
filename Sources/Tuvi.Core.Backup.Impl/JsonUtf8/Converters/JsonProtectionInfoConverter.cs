@@ -70,7 +70,8 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                         DeserializeSignatureCollection(ref reader, protectionInfo.SignaturesInfo, options);
                         break;
                     default:
-                        reader.Skip();
+                        // Safely skip unknown property value even when reader works on partial buffers
+                        _ = JsonSerializer.Deserialize<JsonElement>(ref reader, options);
                         break;
                 }
             }

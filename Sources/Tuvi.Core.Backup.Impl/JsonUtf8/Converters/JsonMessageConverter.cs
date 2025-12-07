@@ -113,7 +113,8 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
                         message.Protection = JsonSerializer.Deserialize<ProtectionInfo>(ref reader, options);
                         break;
                     default:
-                        reader.Skip();
+                        // Safely skip unknown property value even when reader works on partial buffers
+                        _ = JsonSerializer.Deserialize<JsonElement>(ref reader, options);
                         break;
                 }
             }
