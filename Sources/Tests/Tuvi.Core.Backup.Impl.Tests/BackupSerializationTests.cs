@@ -1,6 +1,24 @@
-﻿using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System.IO;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Tuvi.Core.Backup;
 using Tuvi.Core.Backup.Impl;
 using Tuvi.Core.Entities.Exceptions;
@@ -68,7 +86,7 @@ namespace BackupTests
                     await BackupDataProtector.LockDataAsync(unprotectedData, protectedData).ConfigureAwait(false);
                     await BackupDataProtector.CreateDetachedSignatureDataAsync(protectedData, deatachedSignatureData, publicKeyData).ConfigureAwait(false);
                 }
-                                
+
                 using (var unprotectedData = new MemoryStream())
                 {
                     protectedData.Position = 0;
@@ -78,25 +96,25 @@ namespace BackupTests
                     Assert.That(signed, Is.True);
 
                     protectedData.Position = 0;
-                    await BackupDataProtector.UnlockDataAsync(protectedData, unprotectedData).ConfigureAwait(false);                   
+                    await BackupDataProtector.UnlockDataAsync(protectedData, unprotectedData).ConfigureAwait(false);
 
                     Assert.That(TestData.DataToProtect, Is.EqualTo(unprotectedData.ToArray()));
                 }
             }
         }
 
-        [Test]        
+        [Test]
         [Category("Backup")]
         public async Task BuildThenParseBackupAsync()
         {
             using (var backup = await BuildBackupAsync().ConfigureAwait(true))
             {
                 await ParseBackupAsync(backup).ConfigureAwait(true);
-            }            
+            }
         }
 
 
-        [Test]        
+        [Test]
         [Category("Backup")]
         public async Task BackupParseIfNoObjectAsync()
         {
@@ -145,7 +163,7 @@ namespace BackupTests
             }
         }
 
-        [Test]        
+        [Test]
         [Category("Backup")]
         public async Task ParseUnsupportedBackupAsync()
         {
