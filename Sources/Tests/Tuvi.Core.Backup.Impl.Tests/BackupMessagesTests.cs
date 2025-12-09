@@ -231,7 +231,7 @@ namespace BackupTests
 
             // Assert
             Assert.That(restoredMessages, Is.Not.Null);
-            Assert.That(restoredMessages[0].Folders[0].Messages.Count, Is.EqualTo(0));
+            Assert.That(restoredMessages[0].Folders[0].Messages, Is.Empty);
         }
 
         [Test]
