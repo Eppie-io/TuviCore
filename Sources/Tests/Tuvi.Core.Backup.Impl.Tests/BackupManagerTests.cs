@@ -239,8 +239,8 @@ namespace BackupTests
                 CancellationToken.None).ConfigureAwait(true);
 
             // Assert
-            Assert.That(detachedSignatureData.Length, Is.GreaterThan(0));
-            Assert.That(publicKeyData.Length, Is.GreaterThan(0));
+            Assert.That(detachedSignatureData.Length, Is.Positive);
+            Assert.That(publicKeyData.Length, Is.Positive);
 
             dataToSign.Position = 0;
             detachedSignatureData.Position = 0;
