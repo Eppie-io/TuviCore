@@ -367,7 +367,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
             await pgpContext.TryToAddDecPublicKeysAsync(new[] { aliasEmail }, svc, default).ConfigureAwait(true);
             Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Positive);
-            Assert.That(resolver.CallCount, Is.EqualTo(1));
+            Assert.That(resolver.CallCount, Is.EqualTo(2));
         }
     }
 }

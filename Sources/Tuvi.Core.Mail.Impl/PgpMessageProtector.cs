@@ -18,7 +18,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -291,35 +290,81 @@ namespace Tuvi.Core.Mail.Impl
     {
         public static async Task TryToAddDecPublicKeysAsync(this OpenPgpContext context, IEnumerable<EmailAddress> emails, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
         {
-            Contract.Requires(context != null);
-            Contract.Requires(emails != null);
-            Contract.Requires(publicKeyService != null);
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (emails is null)
+            {
+                throw new ArgumentNullException(nameof(emails));
+            }
+
+            if (publicKeyService is null)
+            {
+                throw new ArgumentNullException(nameof(publicKeyService));
+            }
 
             foreach (var emailAddress in emails)
             {
-                Contract.Requires(emailAddress != null);
-
-                if (emailAddress.IsDecentralized)
+                if (emailAddress is null)
                 {
-                    try
-                    {
-                        var keys = context.GetPublicKeys(new List<MailboxAddress>() { emailAddress.ToMailboxAddress() }, cancellationToken).ToList();
-                        var existingPublicKey = keys.FirstOrDefault();
-                        if (existingPublicKey != null)
-                        {
-                            continue;
-                        }
-                    }
-                    catch (PublicKeyNotFoundException)
-                    {
-                    }
-
-                    ECPublicKeyParameters reconvertedPublicKey = await publicKeyService.GetByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
-                    PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
-
-                    context.Import(keyRing, cancellationToken);
+                    throw new ArgumentException("Email address in collection cannot be null.", nameof(emails));
                 }
+
+                if (!emailAddress.IsDecentralized)
+                {
+                    continue;
+                }
+
+                if (HasPublicKey(context, emailAddress, cancellationToken))
+                {
+                    continue;
+                }
+
+                var resolvedAddress = await TryResolveAddressAsync(emailAddress, publicKeyService, cancellationToken).ConfigureAwait(false);
+                if (resolvedAddress != null && HasPublicKey(context, resolvedAddress, cancellationToken))
+                {
+                    continue;
+                }
+
+                await ImportPublicKeyAsync(context, emailAddress, publicKeyService, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        private static bool HasPublicKey(OpenPgpContext context, EmailAddress emailAddress, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var mailboxAddress = emailAddress.ToMailboxAddress();
+                var keys = context.GetPublicKeys(new List<MailboxAddress> { mailboxAddress }, cancellationToken);
+                return keys.Any();
+            }
+            catch (PublicKeyNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        private static async Task<EmailAddress> TryResolveAddressAsync(EmailAddress emailAddress, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var publicKey = await publicKeyService.GetEncodedByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
+                return EmailAddress.CreateDecentralizedAddress(emailAddress.Network, publicKey);
+            }
+            catch (Exception ex) when (ex is NoPublicKeyException || ex is NotSupportedException)
+            {
+                return null;
+            }
+        }
+
+        private static async Task ImportPublicKeyAsync(OpenPgpContext context, EmailAddress emailAddress, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
+        {
+            ECPublicKeyParameters reconvertedPublicKey = await publicKeyService.GetByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
+            PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
+
+            context.Import(keyRing, cancellationToken);
         }
     }
 }
