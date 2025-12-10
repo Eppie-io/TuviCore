@@ -8,6 +8,7 @@ using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
 using TuviPgpLib.Entities;
+using Tuvi.Core.Entities.Exceptions;
 
 namespace Tuvi.Core.Impl.BackupManagement
 {
@@ -159,6 +160,10 @@ namespace Tuvi.Core.Impl.BackupManagement
                 var settings = await backup.GetSettingsAsync(cancellationToken).ConfigureAwait(false);
 
                 await DataStorage.SetSettingsAsync(settings, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                throw new BackupVersionMismatchException($"Expected backup version {BackupVersion}, but got {version}.");
             }
         }
 
