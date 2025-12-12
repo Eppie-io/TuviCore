@@ -106,4 +106,19 @@ namespace Tuvi.Core.Entities.Exceptions
         {
         }
     }
+
+    public class BackupVersionMismatchException : BackupException
+    {
+        public BackupVersionMismatchException()
+        {
+        }
+
+        public BackupVersionMismatchException(string message) : base(message)
+        {
+        }
+
+        public BackupVersionMismatchException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
 }

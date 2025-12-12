@@ -61,7 +61,10 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
     {
         private MailKit.Net.Imap.ImapClient ImapClient { get; }
         private readonly SemaphoreSlim _forceReconnectLock = new SemaphoreSlim(1);
-        private static readonly TimeSpan NoOpTimeout = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan NoOpTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan NoOpThrottleInterval = TimeSpan.FromSeconds(30);
+        private DateTime _lastNoOpUtc = DateTime.MinValue;
+        private readonly object _noOpTimeLock = new object();
 
         protected override Task ForceReconnectCoreAsync(CancellationToken cancellationToken)
         {
@@ -134,12 +137,20 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
         /// </summary>
         private async Task EnsureConnectionAliveAsync(CancellationToken cancellationToken)
         {
-            this.Log().LogDebug("EnsureConnectionAliveAsync started");
-
             cancellationToken.ThrowIfCancellationRequested();
 
             if (ImapClient.IsConnected && ImapClient.IsAuthenticated)
             {
+                lock (_noOpTimeLock)
+                {
+                    if ((DateTime.UtcNow - _lastNoOpUtc) < NoOpThrottleInterval)
+                    {
+                        return;
+                    }
+                }
+
+                this.Log().LogDebug("EnsureConnectionAliveAsync: NOOP check starting");
+
                 try
                 {
                     using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
@@ -147,6 +158,13 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                         cts.CancelAfter(NoOpTimeout);
                         await ImapClient.NoOpAsync(cts.Token).ConfigureAwait(false);
                     }
+
+                    lock (_noOpTimeLock)
+                    {
+                        _lastNoOpUtc = DateTime.UtcNow;
+                    }
+
+                    this.Log().LogDebug("EnsureConnectionAliveAsync: NOOP check succeeded");
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
@@ -171,6 +189,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             }
             else
             {
+                this.Log().LogDebug("EnsureConnectionAliveAsync: Connection not alive, restoring");
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
             }
         }
