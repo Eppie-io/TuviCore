@@ -317,18 +317,24 @@ namespace Tuvi.Core.Mail.Impl
                     continue;
                 }
 
+                // Key already exists for this exact address - skip
                 if (HasPublicKey(context, emailAddress, cancellationToken))
                 {
                     continue;
                 }
 
+                // Resolve alias to public key address
                 var resolvedAddress = await TryResolveAddressAsync(emailAddress, publicKeyService, cancellationToken).ConfigureAwait(false);
-                if (resolvedAddress != null && HasPublicKey(context, resolvedAddress, cancellationToken))
+                if (resolvedAddress is null)
                 {
                     continue;
                 }
 
-                await ImportPublicKeyAsync(context, emailAddress, publicKeyService, cancellationToken).ConfigureAwait(false);
+                // Import key with emailAddress as UserID
+                // ImportOrMerge handles both cases:
+                // - Key doesn't exist yet: adds new key
+                // - Key exists (under resolved or alias address): adds emailAddress as new UserID
+                await ImportOrMergePublicKeyAsync(context, emailAddress, resolvedAddress, publicKeyService, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -359,12 +365,19 @@ namespace Tuvi.Core.Mail.Impl
             }
         }
 
-        private static async Task ImportPublicKeyAsync(OpenPgpContext context, EmailAddress emailAddress, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
+        private static async Task ImportOrMergePublicKeyAsync(OpenPgpContext context, EmailAddress emailAddress, EmailAddress resolvedAddress, IPublicKeyService publicKeyService, CancellationToken cancellationToken)
         {
-            ECPublicKeyParameters reconvertedPublicKey = await publicKeyService.GetByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
-            PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(reconvertedPublicKey, reconvertedPublicKey, emailAddress.Address);
+            ECPublicKeyParameters publicKey = await publicKeyService.GetByEmailAsync(resolvedAddress, cancellationToken).ConfigureAwait(false);
+            PgpPublicKeyRing keyRing = TuviPgpContext.CreatePgpPublicKeyRing(publicKey, publicKey, emailAddress.Address);
 
-            context.Import(keyRing, cancellationToken);
+            if (context is ExternalStorageBasedPgpContext externalContext)
+            {
+                externalContext.ImportOrMerge(keyRing, cancellationToken);
+            }
+            else
+            {
+                context.Import(keyRing, cancellationToken);
+            }
         }
     }
 }
