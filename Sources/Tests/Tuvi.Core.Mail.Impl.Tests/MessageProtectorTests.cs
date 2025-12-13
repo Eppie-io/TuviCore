@@ -448,7 +448,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using (var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storageMock.Object).ConfigureAwait(false))
             {
                 // Initial state - no public keys
-                Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero, "Initial context should have no keys");
+                Assert.That(pgpContext.GetPublicKeysInfo(), Is.Empty, "Initial context should have no keys");
 
                 // Add first address
                 var emails1 = new List<EmailAddress> { decentralizedEmail1 };
@@ -499,15 +499,14 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using (var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storageMock.Object).ConfigureAwait(false))
             {
                 // Initial state - no public keys
-                Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero, "Initial context should have no keys");
+                Assert.That(pgpContext.GetPublicKeysInfo(), Is.Empty, "Initial context should have no keys");
 
                 // Add first address
                 var emails1 = new List<EmailAddress> { decentralizedEmail1 };
                 await pgpContext.TryToAddDecPublicKeysAsync(emails1, publicKeyService, default).ConfigureAwait(false);
 
                 // Verify first key was added and can be retrieved by first address
-                var keysAfterFirst = pgpContext.GetPublicKeysInfo().Count;
-                Assert.That(keysAfterFirst, Is.Positive, "First key should be added to context");
+                Assert.That(pgpContext.GetPublicKeysInfo(), Is.Not.Empty, "First key should be added to context");
                 Assert.That(HasPublicKeyForAddress(pgpContext, decentralizedEmail1), Is.True, "Should be able to get key for first address");
 
                 // Add second address (same key, different alias)
@@ -524,7 +523,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public async Task AddResolvedAddressThenAlias()
         {
-            // Scenario: First add <pub_key>@eppie, then add alias alice@eppie
+            // Scenario: First add <pub_key>@eppie, then add alias <name>@eppie
             var (storageMock, masterKey) = CreateKeyStorageMockWithMasterKey();
 
             var pubKey = DerivePubKey(masterKey, 1);
@@ -545,7 +544,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using (var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storageMock.Object).ConfigureAwait(false))
             {
                 // Initial state - no public keys
-                Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero, "Initial context should have no keys");
+                Assert.That(pgpContext.GetPublicKeysInfo(), Is.Empty, "Initial context should have no keys");
 
                 // Step 1: Add resolved address (<pub_key>@eppie)
                 await pgpContext.TryToAddDecPublicKeysAsync(new[] { resolvedEmail }, publicKeyService, default).ConfigureAwait(false);
@@ -554,7 +553,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 Assert.That(keysAfterResolved, Is.EqualTo(1), "One key should be added");
                 Assert.That(HasPublicKeyForAddress(pgpContext, resolvedEmail), Is.True, "Should be able to get key for resolved address");
 
-                // Step 2: Add alias (alice@eppie) - should merge UserID into existing key
+                // Step 2: Add alias (<name>@eppie) - should merge UserID into existing key
                 await pgpContext.TryToAddDecPublicKeysAsync(new[] { aliasEmail }, publicKeyService, default).ConfigureAwait(false);
 
                 var keysAfterAlias = pgpContext.GetPublicKeysInfo().Count;
@@ -567,7 +566,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public async Task AddAliasThenResolvedAddress()
         {
-            // Scenario: First add alias alice@eppie, then add <pub_key>@eppie
+            // Scenario: First add alias <name>@eppie, then add <pub_key>@eppie
             var (storageMock, masterKey) = CreateKeyStorageMockWithMasterKey();
 
             var pubKey = DerivePubKey(masterKey, 1);
@@ -588,9 +587,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
             using (var pgpContext = await TemporalKeyStorage.GetTemporalContextAsync(storageMock.Object).ConfigureAwait(false))
             {
                 // Initial state - no public keys
-                Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero, "Initial context should have no keys");
+                Assert.That(pgpContext.GetPublicKeysInfo(), Is.Empty, "Initial context should have no keys");
 
-                // Step 1: Add alias (alice@eppie)
+                // Step 1: Add alias (<name>@eppie)
                 await pgpContext.TryToAddDecPublicKeysAsync(new[] { aliasEmail }, publicKeyService, default).ConfigureAwait(false);
 
                 var keysAfterAlias = pgpContext.GetPublicKeysInfo().Count;
