@@ -781,6 +781,14 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             async Task AppendMessageAsync()
             {
                 var sentFolder = GetSentFolder();
+
+                if (sentFolder is null)
+                {
+                    // TODO: Need to create Sent folder?
+                    this.Log().LogWarning("Sent folder not found, skipping appending sent message");
+                    return;
+                }
+
                 try
                 {
                     await sentFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
