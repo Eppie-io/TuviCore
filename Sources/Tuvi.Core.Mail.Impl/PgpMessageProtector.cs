@@ -357,7 +357,8 @@ namespace Tuvi.Core.Mail.Impl
             try
             {
                 var publicKey = await publicKeyService.GetEncodedByEmailAsync(emailAddress, cancellationToken).ConfigureAwait(false);
-                return EmailAddress.CreateDecentralizedAddress(emailAddress.Network, publicKey);
+                // Create the appropriate Eppie address
+                return EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, publicKey);
             }
             catch (Exception ex) when (ex is NoPublicKeyException || ex is NotSupportedException)
             {
