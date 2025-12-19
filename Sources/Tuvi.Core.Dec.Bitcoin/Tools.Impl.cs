@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -409,6 +410,372 @@ namespace Tuvi.Core.Dec.Bitcoin
                 || address == SatoshiNakamotoAddress;
         }
 
+        internal static async Task ActivateBitcoinAddressAsync(
+            BitcoinNetworkConfig config,
+            MasterKey masterKey,
+            int account,
+            int index,
+            HttpClient httpClient,
+            CancellationToken cancellation = default)
+        {
+            ValidateConfigAndDerivationInputs(config, masterKey, account, index);
+
+            if (httpClient is null)
+            {
+                Logger.LogError("HttpClient is null.");
+                throw new ArgumentNullException(nameof(httpClient));
+            }
+
+            string address = DeriveBitcoinAddress(config, masterKey, account, index);
+            string wif = DeriveBitcoinSecretKeyWif(config, masterKey, account, index);
+
+            string txHex = await BuildAndSignSpendAllToSameAddressTransactionAsync(config, address, wif, httpClient, cancellation: cancellation).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(txHex))
+            {
+                throw new InvalidOperationException("Failed to build and sign activation transaction.");
+            }
+
+            string txid = await BroadcastTransactionAsync(config, txHex, httpClient, cancellation).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(txid))
+            {
+                throw new InvalidOperationException("Failed to broadcast activation transaction.");
+            }
+
+            Logger.LogInformation("Activation transaction broadcasted for address {Address}. TxId: {TxId}.", address, txid);
+        }
+
+        internal static async Task<string> BuildAndSignSpendAllToSameAddressTransactionAsync(
+            BitcoinNetworkConfig config,
+            string address,
+            string wif,
+            HttpClient httpClient,
+            int feeRateSatsPerVByte = 1,
+            CancellationToken cancellation = default)
+        {
+            if (config is null)
+            {
+                Logger.LogError("Configuration is null.");
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                Logger.LogError("Address is null or empty.");
+                throw new ArgumentNullException(nameof(address));
+            }
+
+            if (string.IsNullOrWhiteSpace(wif))
+            {
+                Logger.LogError("WIF is null or empty.");
+                throw new ArgumentNullException(nameof(wif));
+            }
+
+            if (httpClient is null)
+            {
+                Logger.LogError("HttpClient is null.");
+                throw new ArgumentNullException(nameof(httpClient));
+            }
+
+            BitcoinAddress bitcoinAddress;
+            try
+            {
+                bitcoinAddress = BitcoinAddress.Create(address, config.Network);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Invalid Bitcoin address for the specified network: {Address}.", address);
+                throw new ArgumentException("Invalid Bitcoin address for the specified network.", nameof(address), ex);
+            }
+
+            string utxoUrl = $"https://mempool.space/{config.NetworkApiPrefix}api/address/{address}/utxo";
+            string json = await FetchUtxoJsonAsync(utxoUrl, httpClient, address, cancellation).ConfigureAwait(false);
+            if (json is null)
+            {
+                return null;
+            }
+
+            var utxoList = ParseUtxoList(json, address);
+            if (utxoList is null || utxoList.Count == 0)
+            {
+                Logger.LogInformation("No UTXOs found or failed to parse UTXOs for address {Address}.", address);
+                return null;
+            }
+
+            long totalSatoshis = 0;
+            foreach (var t in utxoList)
+            {
+                totalSatoshis += t.Item3;
+            }
+
+            if (totalSatoshis <= 0)
+            {
+                Logger.LogInformation("Address {Address} has zero balance.", address);
+                return null;
+            }
+
+            var secret = ParseSecret(wif, config.Network, address);
+            if (secret is null)
+            {
+                return null;
+            }
+
+            var coins = CreateCoinsFromUtxos(utxoList, bitcoinAddress, address);
+            if (coins.Count == 0)
+            {
+                return null;
+            }
+
+            long feeSatoshis = EstimateFeeSatoshis(utxoList.Count, 1, feeRateSatsPerVByte);
+            if (totalSatoshis <= feeSatoshis)
+            {
+                Logger.LogWarning("Insufficient funds for address {Address}. Total: {Total}, Fee: {Fee}.", address, totalSatoshis, feeSatoshis);
+                return null;
+            }
+
+            var hex = BuildAndSignTransactionHex(coins, secret, bitcoinAddress, feeSatoshis, config.Network, address);
+            if (hex != null)
+            {
+                Logger.LogInformation("Built and signed transaction for address {Address}. Total sats: {Total}, Fee sats: {Fee}.", address, totalSatoshis, feeSatoshis);
+            }
+
+            return hex;
+        }
+
+        internal static async Task<string> BroadcastTransactionAsync(
+            BitcoinNetworkConfig config,
+            string txHex,
+            HttpClient httpClient,
+            CancellationToken cancellation = default)
+        {
+            if (config is null)
+            {
+                Logger.LogError("Configuration is null.");
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (string.IsNullOrWhiteSpace(txHex))
+            {
+                Logger.LogError("Transaction hex is null or empty.");
+                throw new ArgumentNullException(nameof(txHex));
+            }
+
+            if (httpClient is null)
+            {
+                Logger.LogError("HttpClient is null.");
+                throw new ArgumentNullException(nameof(httpClient));
+            }
+
+            var pushUrl = $"https://mempool.space/{config.NetworkApiPrefix}api/tx";
+
+            try
+            {
+                using (var req = new HttpRequestMessage(HttpMethod.Post, pushUrl))
+                {
+                    req.Content = new StringContent(txHex, Encoding.UTF8, "text/plain");
+
+                    using (HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellation).ConfigureAwait(false))
+                    {
+                        resp.EnsureSuccessStatusCode();
+                        var txid = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        Logger.LogInformation("Broadcasted transaction. Returned txid: {TxId}.", txid);
+                        return txid?.Trim();
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Failed to broadcast transaction to {Url}.", pushUrl);
+                return null;
+            }
+            catch (OperationCanceledException ex) when (cancellation.IsCancellationRequested)
+            {
+                Logger.LogInformation(ex, "Broadcast cancelled.");
+                return null;
+            }
+        }
+
+        internal static async Task<string> FetchUtxoJsonAsync(string utxoUrl, HttpClient httpClient, string address, CancellationToken cancellationToken)
+        {
+            try
+            {
+                using (var req = new HttpRequestMessage(HttpMethod.Get, utxoUrl))
+                using (HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false))
+                {
+                    resp.EnsureSuccessStatusCode();
+                    return await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.LogError(ex, "Failed to fetch UTXOs from {Url}.", utxoUrl);
+                return null;
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                Logger.LogInformation(ex, "UTXO fetch cancelled for address {Address}.", address);
+                return null;
+            }
+        }
+
+        internal static List<Tuple<string, int, long>> ParseUtxoList(string json, string address)
+        {
+            try
+            {
+                var entries = JsonSerializer.Deserialize<Dto.UtxoEntry[]>(json, JsonOptions);
+                if (entries is null || entries.Length == 0)
+                {
+                    Logger.LogWarning("UTXO response deserialized to empty for address {Address}.", address);
+                    return null;
+                }
+
+                var utxoList = new List<Tuple<string, int, long>>(entries.Length);
+                foreach (var e in entries)
+                {
+                    if (e is null)
+                    {
+                        Logger.LogWarning("Encountered null UTXO entry for address {Address}.", address);
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(e.TxId))
+                    {
+                        Logger.LogWarning("Empty txid in UTXO entry for address {Address}.", address);
+                        continue;
+                    }
+
+                    if (e.Vout < 0)
+                    {
+                        Logger.LogWarning("Negative vout in UTXO entry for address {Address}: {Vout}.", address, e.Vout);
+                        continue;
+                    }
+
+                    if (e.Value < 0)
+                    {
+                        Logger.LogWarning("Negative value in UTXO entry for address {Address}: {Value}.", address, e.Value);
+                        continue;
+                    }
+
+                    utxoList.Add(Tuple.Create(e.TxId, e.Vout, e.Value));
+                }
+
+                return utxoList;
+            }
+            catch (JsonException ex)
+            {
+                Logger.LogWarning(ex, "Failed to deserialize UTXO JSON for address {Address}.", address);
+                return null;
+            }
+            catch (FormatException ex)
+            {
+                Logger.LogWarning(ex, "Invalid data format in UTXO JSON for address {Address}.", address);
+                return null;
+            }
+            catch (OverflowException ex)
+            {
+                Logger.LogWarning(ex, "Numeric overflow in UTXO JSON for address {Address}.", address);
+                return null;
+            }
+        }
+
+        internal static List<Coin> CreateCoinsFromUtxos(List<Tuple<string, int, long>> utxoList, BitcoinAddress bitcoinAddress, string address)
+        {
+            var coins = new List<Coin>();
+            try
+            {
+                foreach (var t in utxoList)
+                {
+                    var outpoint = new OutPoint(uint256.Parse(t.Item1), t.Item2);
+                    var txOut = new TxOut(Money.Satoshis(t.Item3), bitcoinAddress.ScriptPubKey);
+                    coins.Add(new Coin(outpoint, txOut));
+                }
+            }
+            catch (FormatException ex)
+            {
+                Logger.LogError(ex, "Invalid txid format in UTXO list for address {Address}.", address);
+                return new List<Coin>();
+            }
+            catch (OverflowException ex)
+            {
+                Logger.LogError(ex, "Numeric overflow in UTXO list for address {Address}.", address);
+                return new List<Coin>();
+            }
+
+            return coins;
+        }
+
+        private static BitcoinSecret ParseSecret(string wif, Network network, string address)
+        {
+            try
+            {
+                return new BitcoinSecret(wif, network);
+            }
+            catch (FormatException ex)
+            {
+                Logger.LogError(ex, "Invalid WIF format provided for address {Address}.", address);
+                return null;
+            }
+            catch (ArgumentException ex)
+            {
+                Logger.LogError(ex, "Invalid WIF/network combination for address {Address}.", address);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Estimates the transaction fee in satoshis using a simplified heuristic.
+        /// </summary>
+        /// <param name="inputCount">Number of inputs (UTXOs) included in the transaction.</param>
+        /// <param name="outputCount">Number of outputs in the transaction.</param>
+        /// <param name="feeRateSatsPerVByte">Fee rate in satoshis per virtual byte (sats/vByte). A minimum of 1 is enforced.</param>
+        /// <returns>
+        /// Estimated fee in satoshis, calculated as estimated_vsize * feeRateSatsPerVByte.
+        /// </returns>
+        /// <remarks>
+        /// The virtual size is approximated as: vsize ≈ 10 + 148 * inputs + 34 * outputs.
+        /// This approximation fits legacy P2PKH transactions. For SegWit (P2WPKH), P2SH, Taproot or
+        /// other non-legacy output/input types the estimate may be inaccurate. For precise fee
+        /// calculation consider computing the actual transaction weight including witness data
+        /// or using the real signed transaction size from a transaction builder.
+        /// </remarks>
+        private static long EstimateFeeSatoshis(int inputCount, int outputCount, int feeRateSatsPerVByte)
+        {
+            int estimatedVSize = 10 + inputCount * 148 + outputCount * 34;
+            return (long)Math.Max(1, feeRateSatsPerVByte) * estimatedVSize;
+        }
+
+        private static string BuildAndSignTransactionHex(List<Coin> coins, BitcoinSecret secret, BitcoinAddress destAddress, long feeSatoshis, Network network, string address)
+        {
+            try
+            {
+                var builder = network.CreateTransactionBuilder();
+                builder.AddCoins(coins);
+                builder.AddKeys(secret);
+                builder.SendAll(destAddress);
+                builder.SendFees(Money.Satoshis(feeSatoshis));
+
+                var tx = builder.BuildTransaction(sign: true);
+
+                var verified = builder.Verify(tx);
+                if (!verified)
+                {
+                    Logger.LogWarning("Built transaction failed verification for address {Address}.", address);
+                    return null;
+                }
+
+                return tx.ToHex();
+            }
+            catch (InvalidOperationException ex)
+            {
+                Logger.LogError(ex, "Failed to build/sign transaction for address {Address}: invalid operation.", address);
+                return null;
+            }
+            catch (ArgumentException ex)
+            {
+                Logger.LogError(ex, "Failed to build/sign transaction for address {Address}: invalid argument.", address);
+                return null;
+            }
+        }
+
         // DTO classes for JSON deserialization of transaction data
         private static class Dto
         {
@@ -433,6 +800,18 @@ namespace Tuvi.Core.Dec.Bitcoin
             {
                 [JsonPropertyName("scriptpubkey_address")]
                 public string ScriptPubKeyAddress { get; set; }
+            }
+
+            internal sealed class UtxoEntry
+            {
+                [JsonPropertyName("txid")]
+                public string TxId { get; set; }
+
+                [JsonPropertyName("vout")]
+                public int Vout { get; set; }
+
+                [JsonPropertyName("value")]
+                public long Value { get; set; }
             }
 #pragma warning restore CA1812
         }

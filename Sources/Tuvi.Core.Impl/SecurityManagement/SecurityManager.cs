@@ -434,5 +434,28 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 }
             }
         }
+
+        public async Task ActivateAddressAsync(Account account, CancellationToken cancellationToken = default)
+        {
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            if (!account.Email.IsDecentralized || account.Email.Network != NetworkType.Bitcoin)
+            {
+                throw new NotSupportedException($"The provided account ({account.Email}) is not a Bitcoin decentralized account.");
+            }
+
+            if (account.DecentralizedAccountIndex < 0)
+            {
+                throw new InvalidOperationException("Account decentralized index is not initialized.");
+            }
+
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                await Tools.ActivateBitcoinAddressAsync(masterKey, account.DecentralizedAccountIndex, account.Email.Network.GetKeyIndex(), cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 }

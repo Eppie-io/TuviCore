@@ -1,7 +1,25 @@
-﻿using KeyDerivation.Keys;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation.Keys;
 
 namespace Tuvi.Core.Dec.Bitcoin.TestNet4
 {
@@ -61,6 +79,24 @@ namespace Tuvi.Core.Dec.Bitcoin.TestNet4
         public static Task<string> RetrievePublicKeyAsync(string address, CancellationToken cancellationToken = default)
         {
             return BitcoinToolsImpl.RetrievePublicKeyAsync(NetworkConfig, address, HttpClient, cancellationToken);
+        }
+
+        /// <summary>
+        /// Activates a Bitcoin address derived from the given master key/account/index by building,
+        /// signing and broadcasting a spend-all transaction that sends funds back to the same address.
+        /// </summary>
+        /// <param name="masterKey">The master key to derive the address and WIF from.</param>
+        /// <param name="account">The account index (must be between 0 and 2^31-1).</param>
+        /// <param name="index">The address index (must be between 0 and 2^31-1).</param>
+        /// <param name="cancellationToken">Cancellation token for async operations.</param>
+        /// <returns>A task that completes when the activation transaction has been broadcast.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="masterKey"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="account"/> or <paramref name="index"/> is out of range.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if derivation, building or broadcasting fails.</exception>
+        /// <exception cref="HttpRequestException">Thrown if the API request fails.</exception>
+        public static Task ActivateBitcoinAddressAsync(MasterKey masterKey, int account, int index, CancellationToken cancellationToken = default)
+        {
+            return BitcoinToolsImpl.ActivateBitcoinAddressAsync(NetworkConfig, masterKey, account, index, HttpClient, cancellationToken);
         }
     }
 }
