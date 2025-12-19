@@ -181,5 +181,11 @@ namespace Tuvi.Core
         /// For other addresses: derives the public key from master key.
         /// </summary>
         Task<string> GetEmailPublicKeyStringAsync(EmailAddress email, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Activate a decentralized address by building and broadcasting an activation transaction.
+        /// The method derives keys from master key and performs activation. For Bitcoin network only for now.
+        /// </summary>
+        Task ActivateAddressAsync(Account account, CancellationToken cancellationToken = default);
     }
 }
