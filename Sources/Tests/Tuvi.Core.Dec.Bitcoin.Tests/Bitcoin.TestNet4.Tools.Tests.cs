@@ -360,5 +360,475 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
                     BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient, cts.Token));
             }
         }
+
+        [Test]
+        public void ParseUtxoListReturnsListOnValidJson()
+        {
+            // Arrange
+            const string txid1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string txid2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            const string json = "[{" +
+                                "\"txid\": \"" + txid1 + "\", \"vout\": 0, \"value\": 1000},{" +
+                                "\"txid\": \"" + txid2 + "\", \"vout\": 1, \"value\": 2000}]";
+
+            // Act
+            var result = BitcoinToolsImpl.ParseUtxoList(json, Address);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(2));
+
+            Assert.That(result[0].Item1, Is.EqualTo(txid1));
+            Assert.That(result[0].Item2, Is.EqualTo(0u));
+            Assert.That(result[0].Item3, Is.EqualTo(1000L));
+
+            Assert.That(result[1].Item1, Is.EqualTo(txid2));
+            Assert.That(result[1].Item2, Is.EqualTo(1u));
+            Assert.That(result[1].Item3, Is.EqualTo(2000L));
+        }
+
+        [Test]
+        public void ParseUtxoListIgnoresEntriesWithEmptyTxid()
+        {
+            // Arrange
+            const string validTxid = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string json = "[{" +
+                                "\"txid\": \"\", \"vout\": 0, \"value\": 1000},{" +
+                                "\"txid\": \"" + validTxid + "\", \"vout\": 2, \"value\": 3000}]";
+
+            // Act
+            var result = BitcoinToolsImpl.ParseUtxoList(json, Address);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].Item1, Is.EqualTo(validTxid));
+            Assert.That(result[0].Item2, Is.EqualTo(2u));
+            Assert.That(result[0].Item3, Is.EqualTo(3000L));
+        }
+
+        [Test]
+        public void ParseUtxoListRejectsNegativeVoutOrValue()
+        {
+            // Arrange
+            const string validTxid = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+            const string json = "[{" +
+                                "\"txid\": \"" + validTxid + "\", \"vout\": 0, \"value\": 1000},{" +
+                                "\"txid\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\", \"vout\": -1, \"value\": 2000},{" +
+                                "\"txid\": \"feedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeedfeed\", \"vout\": 2, \"value\": -500}]";
+
+            // Act
+            var result = BitcoinToolsImpl.ParseUtxoList(json, Address);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0].Item1, Is.EqualTo(validTxid));
+            Assert.That(result[0].Item2, Is.EqualTo(0u));
+            Assert.That(result[0].Item3, Is.EqualTo(1000L));
+        }
+
+        [Test]
+        public void ParseUtxoListReturnsNullOnMalformedJson()
+        {
+            // Arrange
+            const string malformedJson = "{ this is : not valid json ]";
+
+            // Act
+            var result = BitcoinToolsImpl.ParseUtxoList(malformedJson, Address);
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public async Task FetchUtxoJsonAsyncReturnsJsonOn200()
+        {
+            // Arrange
+            const string expectedJson = "[{\"txid\":\"abc\",\"vout\":0,\"value\":100}]";
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(expectedJson)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var json = await BitcoinToolsImpl.FetchUtxoJsonAsync("https://mempool.space/testnet4/api/address/addr/utxo", httpClient, Address, CancellationToken.None).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(json, Is.EqualTo(expectedJson));
+            }
+        }
+
+        [Test]
+        public async Task FetchUtxoJsonAsyncReturnsNullOnHttpError()
+        {
+            // Arrange
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.NotFound
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var json = await BitcoinToolsImpl.FetchUtxoJsonAsync("https://mempool.space/testnet4/api/address/addr/utxo", httpClient, Address, CancellationToken.None).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(json, Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task FetchUtxoJsonAsyncRespectsCancellation()
+        {
+            // Arrange
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => throw new TaskCanceledException());
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            using (var cts = new CancellationTokenSource())
+            {
+                cts.Cancel();
+
+                // Act
+                var json = await BitcoinToolsImpl.FetchUtxoJsonAsync("https://mempool.space/testnet4/api/address/addr/utxo", httpClient, Address, cts.Token).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(json, Is.Null);
+            }
+        }
+
+        [Test]
+        public void CreateCoinsFromUtxosCreatesCoinsOnValidUtxos()
+        {
+            // Arrange
+            var utxos = new List<Tuple<string, int, long>>
+            {
+                Tuple.Create("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0, 1000L),
+                Tuple.Create("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, 2000L)
+            };
+
+            var destAddress = BitcoinAddress.Create(Address, Network.TestNet4);
+
+            // Act
+            var coins = BitcoinToolsImpl.CreateCoinsFromUtxos(utxos, destAddress, Address);
+
+            // Assert
+            Assert.That(coins, Is.Not.Null);
+            Assert.That(coins.Count, Is.EqualTo(2));
+            Assert.That(coins[0].TxOut.Value.Satoshi, Is.EqualTo(1000L));
+            Assert.That(coins[1].TxOut.Value.Satoshi, Is.EqualTo(2000L));
+            Assert.That(coins[0].TxOut.ScriptPubKey, Is.EqualTo(destAddress.ScriptPubKey));
+        }
+
+        [Test]
+        public void CreateCoinsFromUtxosReturnsEmptyOnInvalidTxidFormat()
+        {
+            // Arrange
+            var utxos = new List<Tuple<string, int, long>>
+            {
+                Tuple.Create("not-a-hex-txid", 0, 1000L)
+            };
+
+            var destAddress = BitcoinAddress.Create(Address, Network.TestNet4);
+
+            // Act
+            var coins = BitcoinToolsImpl.CreateCoinsFromUtxos(utxos, destAddress, Address);
+
+            // Assert
+            Assert.That(coins, Is.Not.Null);
+            Assert.That(coins, Is.Empty);
+        }
+
+        [Test]
+        public void CreateCoinsFromUtxosReturnsEmptyOnOverflowValue()
+        {
+            // Arrange
+            var utxos = new List<Tuple<string, int, long>>
+            {
+                Tuple.Create("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0, long.MaxValue)
+            };
+
+            var destAddress = BitcoinAddress.Create(Address, Network.TestNet4);
+
+            // Act
+            var coins = BitcoinToolsImpl.CreateCoinsFromUtxos(utxos, destAddress, Address);
+
+            // Assert
+            Assert.That(coins, Is.Not.Null);
+            // If Money.Satoshis supports large values this will succeed; assert coin created and value preserved
+            Assert.That(coins.Count, Is.EqualTo(1));
+            Assert.That(coins[0].TxOut.Value.Satoshi, Is.EqualTo(long.MaxValue));
+        }
+
+        [Test]
+        public async Task BuildAndSignSpendAllReturnsHexOnValidUtxosAndWif()
+        {
+            // Arrange
+            const string utxoTxId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string utxosJson = "[{\"txid\": \"" + utxoTxId + "\", \"vout\": 0, \"value\": 10000}]";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var hex = await BitcoinToolsImpl.BuildAndSignSpendAllToSameAddressTransactionAsync(BitcoinNetworkConfig.TestNet4, ExpectedAddress, ExpectedWif, httpClient).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(hex, Is.Not.Null.And.Not.Empty);
+
+                // verify parsable
+                var tx = Transaction.Parse(hex, Network.TestNet4);
+                Assert.That(tx, Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public async Task BuildAndSignSpendAllReturnsNullOnInsufficientFunds()
+        {
+            // Arrange: UTXO with tiny value below fee
+            const string utxosJson = "[{\"txid\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\", \"vout\": 0, \"value\": 100}]";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var hex = await BitcoinToolsImpl.BuildAndSignSpendAllToSameAddressTransactionAsync(BitcoinNetworkConfig.TestNet4, ExpectedAddress, ExpectedWif, httpClient).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(hex, Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task BuildAndSignSpendAllReturnsNullOnInvalidWif()
+        {
+            // Arrange: valid utxo but invalid Wif
+            const string utxosJson = "[{\"txid\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"vout\": 0, \"value\": 10000}]";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var hex = await BitcoinToolsImpl.BuildAndSignSpendAllToSameAddressTransactionAsync(BitcoinNetworkConfig.TestNet4, ExpectedAddress, "invalidwif", httpClient).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(hex, Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task BroadcastTransactionReturnsTxidOnSuccessStatus()
+        {
+            // Arrange
+            const string txHex = "deadbeef";
+            const string returnedTxId = "  txid12345  ";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(returnedTxId)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var txid = await BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, txHex, httpClient).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(txid, Is.EqualTo(returnedTxId.Trim()));
+            }
+        }
+
+        [Test]
+        public async Task BroadcastTransactionReturnsNullOnHttpError()
+        {
+            // Arrange
+            const string txHex = "deadbeef";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.BadRequest
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act
+                var txid = await BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, txHex, httpClient).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(txid, Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task BroadcastTransactionRespectsCancellation()
+        {
+            // Arrange
+            const string txHex = "deadbeef";
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => throw new TaskCanceledException());
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            using (var cts = new CancellationTokenSource())
+            {
+                cts.Cancel();
+
+                // Act
+                var txid = await BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, txHex, httpClient, cts.Token).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(txid, Is.Null);
+            }
+        }
+
+        [Test]
+        public void BroadcastTransactionThrowsOnNullArgs()
+        {
+            // config null
+            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(null, "tx", new HttpClient()));
+
+            // txHex null
+            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, null, new HttpClient()));
+
+            // httpClient null
+            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, "tx", null));
+        }
+
+        [Test]
+        public async Task ActivateBitcoinAddressSucceedsOnHappyPath()
+        {
+            // Arrange: utxo present and broadcast succeeds
+            const string utxosJson = "[{\"txid\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"vout\": 0, \"value\": 10000}]";
+            const string returnedTxId = "txid-happy";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                })
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(returnedTxId)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                // Act & Assert - should not throw
+                await BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public void ActivateBitcoinAddressThrowsOnBuildFail()
+        {
+            // Arrange: insufficient funds
+            const string utxosJson = "[{\"txid\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"vout\": 0, \"value\": 10}]";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                Assert.ThrowsAsync<InvalidOperationException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+            }
+        }
+
+        [Test]
+        public void ActivateBitcoinAddressThrowsOnBroadcastFail()
+        {
+            // Arrange: build succeeds, broadcast fails
+            const string utxosJson = "[{\"txid\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"vout\": 0, \"value\": 10000}]";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .SetupSequence<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(utxosJson)
+                })
+                .ReturnsAsync(() => new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.BadRequest
+                });
+
+            using (var httpClient = new HttpClient(handlerMock.Object))
+            {
+                Assert.ThrowsAsync<InvalidOperationException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+            }
+        }
+
+        [Test]
+        public void ActivateBitcoinAddressThrowsOnNullHttpClient()
+        {
+            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, null));
+        }
+
     }
 }

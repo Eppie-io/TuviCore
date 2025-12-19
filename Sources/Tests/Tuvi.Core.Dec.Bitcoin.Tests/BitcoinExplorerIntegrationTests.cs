@@ -16,13 +16,9 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
+using System.Text;
 using NUnit.Framework;
 using Tuvi.Base32EConverterLib;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Tuvi.Core.Dec.Bitcoin.Tests
 {
@@ -41,6 +37,9 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             "12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S", // Satoshi Nakamoto
             //"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", // Satoshi Nakamoto (Coinbase Genesis)
         };
+
+        private const string addressTestnet4 = "myzVrn9mTEmfprDx8BmqFiZRLzkxWhLCF4";
+        private const string addressTestnet4wif = "cW7LPrwViphKRyRKfY3symdZKGxkAd7Xd2gHSRVsXzUssVDv5Cvo";
 
         [Test]
         public async Task RetrievePublicKeyFromMainNetAddress()
@@ -79,6 +78,45 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             }
 
             Assert.Pass("All addresses succeeded. " + string.Join(", ", successes));
+        }
+
+        [Test]
+        public async Task RetrievePublicKeyFromTestNet4Address()
+        {
+            var address = addressTestnet4;
+
+            string base32 = await BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, address, _http, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(base32, Is.Not.Null, "Public key should not be null or empty.");
+
+            var pubKey = Base32EConverter.FromEmailBase32(base32);
+            Assert.That(pubKey.Length, Is.EqualTo(33), "Public key length should be 33 bytes.");
+        }
+
+        [Test]
+        public async Task BuildAndSignAndSendSpendAllTransaction()
+        {
+            const string address = addressTestnet4;
+
+            // Build and sign transaction
+            string txHex = await BitcoinToolsImpl.BuildAndSignSpendAllToSameAddressTransactionAsync(BitcoinNetworkConfig.TestNet4, address, addressTestnet4wif, _http, cancellation: CancellationToken.None).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(txHex))
+            {
+                Assert.Fail("Failed to build and sign transaction (tx hex is null or empty).");
+                return;
+            }
+
+            TestContext.WriteLine($"Built transaction hex: {txHex}");
+
+            // Broadcast
+            string txid = await BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, txHex, _http, CancellationToken.None).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(txid))
+            {
+                Assert.Fail("Failed to broadcast transaction (no txid returned).");
+                return;
+            }
+
+            TestContext.WriteLine($"Transaction broadcasted. Returned txid: {txid}");
+            Assert.Pass($"Transaction built, signed and broadcasted. TxId: {txid}");
         }
     }
 }
