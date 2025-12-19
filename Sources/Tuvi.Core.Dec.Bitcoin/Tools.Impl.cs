@@ -569,17 +569,17 @@ namespace Tuvi.Core.Dec.Bitcoin
 
             try
             {
-                var req = new HttpRequestMessage(HttpMethod.Post, pushUrl);
-                req.Content = new StringContent(txHex, Encoding.UTF8, "text/plain");
-
-                HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellation).ConfigureAwait(false);
-                using (req)
-                using (resp)
+                using (var req = new HttpRequestMessage(HttpMethod.Post, pushUrl))
                 {
-                    resp.EnsureSuccessStatusCode();
-                    var txid = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    Logger.LogInformation("Broadcasted transaction. Returned txid: {TxId}.", txid);
-                    return txid?.Trim();
+                    req.Content = new StringContent(txHex, Encoding.UTF8, "text/plain");
+
+                    using (HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellation).ConfigureAwait(false))
+                    {
+                        resp.EnsureSuccessStatusCode();
+                        var txid = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        Logger.LogInformation("Broadcasted transaction. Returned txid: {TxId}.", txid);
+                        return txid?.Trim();
+                    }
                 }
             }
             catch (HttpRequestException ex)
@@ -598,10 +598,8 @@ namespace Tuvi.Core.Dec.Bitcoin
         {
             try
             {
-                var req = new HttpRequestMessage(HttpMethod.Get, utxoUrl);
-                HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
-                using (req)
-                using (resp)
+                using (var req = new HttpRequestMessage(HttpMethod.Get, utxoUrl))
+                using (HttpResponseMessage resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false))
                 {
                     resp.EnsureSuccessStatusCode();
                     return await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
