@@ -16,6 +16,7 @@ using Tuvi.Auth.Proton.Messages.Payloads;
 using Tuvi.Core.Entities;
 using Tuvi.Proton.Client;
 using Tuvi.Proton.Client.Exceptions;
+using Tuvi.Proton.Primitive.Exceptions;
 using Tuvi.Proton.Primitive.Headers;
 using Tuvi.Proton.Primitive.Messages.Errors;
 using Tuvi.Proton.Primitive.Messages.Payloads;
@@ -814,7 +815,7 @@ namespace Tuvi.Proton.Impl
                         throw new OperationCanceledException();
                     }
                 }
-                catch (ProtonSessionRequestException ex)
+                catch (ProtonException ex) when (ex is AuthProtonArgumentException || ex is ProtonSessionRequestException)
                 {
                     await ProvideTwoFactorCodeAsync(ex).ConfigureAwait(false);
                 }
