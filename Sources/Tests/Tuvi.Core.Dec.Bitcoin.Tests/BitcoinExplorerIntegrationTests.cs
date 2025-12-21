@@ -99,21 +99,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             // Build and sign transaction
             string txHex = await BitcoinToolsImpl.BuildAndSignSpendAllToSameAddressTransactionAsync(BitcoinNetworkConfig.TestNet4, address, addressTestnet4wif, _http, cancellation: CancellationToken.None).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(txHex))
-            {
-                Assert.Fail("Failed to build and sign transaction (tx hex is null or empty).");
-                return;
-            }
+            Assert.That(txHex, Is.Not.Null.And.Not.WhiteSpace, "Failed to build and sign transaction (tx hex is null or empty).");
 
             TestContext.WriteLine($"Built transaction hex: {txHex}");
 
             // Broadcast
             string txid = await BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, txHex, _http, CancellationToken.None).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(txid))
-            {
-                Assert.Fail("Failed to broadcast transaction (no txid returned).");
-                return;
-            }
+            Assert.That(txid, Is.Not.Null.And.Not.WhiteSpace, "Failed to broadcast transaction (no txid returned).");
 
             TestContext.WriteLine($"Transaction broadcasted. Returned txid: {txid}");
             Assert.Pass($"Transaction built, signed and broadcasted. TxId: {txid}");
