@@ -422,16 +422,23 @@ namespace Tuvi.Core.Impl.SecurityManagement
                 throw new ArgumentNullException(nameof(email));
             }
 
-            if (email.IsDecentralized)
+            try
             {
-                return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+                if (email.IsDecentralized)
                 {
-                    return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                    return await _publicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
                 }
+                else
+                {
+                    using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return _publicKeyService.DeriveEncoded(masterKey, email.GetKeyTag());
+                    }
+                }
+            }
+            catch (NoPublicKeyException)
+            {
+                return null;
             }
         }
 
