@@ -81,7 +81,7 @@ namespace Tuvi.Core.Entities
             Name = name;
         }
 
-        private int _hashValue = 0;
+        private int _hashValue;
         public string Address { get; }
 
         public string Name { get; }
@@ -203,7 +203,7 @@ namespace Tuvi.Core.Entities
             {
                 return 1; // greater
             }
-            return Address.CompareTo(other.Address);
+            return string.Compare(Address, other.Address, StringComparison.Ordinal);
         }
 
         [JsonIgnore]
@@ -369,6 +369,42 @@ namespace Tuvi.Core.Entities
             }
 
             return NetworkType.Unsupported;
+        }
+
+        public static bool operator <(EmailAddress left, EmailAddress right)
+        {
+            if (left is null)
+            {
+                return right != null;
+            }
+            return left.CompareTo(right) < 0;
+        }
+
+        public static bool operator >(EmailAddress left, EmailAddress right)
+        {
+            if (right is null)
+            {
+                return left != null;
+            }
+            return left.CompareTo(right) > 0;
+        }
+
+        public static bool operator <=(EmailAddress left, EmailAddress right)
+        {
+            if (left is null)
+            {
+                return true;
+            }
+            return left.CompareTo(right) <= 0;
+        }
+
+        public static bool operator >=(EmailAddress left, EmailAddress right)
+        {
+            if (right is null)
+            {
+                return true;
+            }
+            return left.CompareTo(right) >= 0;
         }
     }
 
