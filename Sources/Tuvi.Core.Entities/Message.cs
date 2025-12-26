@@ -149,7 +149,7 @@ namespace Tuvi.Core.Entities
             if (_hashValue == 0)
             {
                 // Although email address is case sensitive by standard, most mail apps and services treat them as case-insensitive
-                _hashValue = Address.ToLowerInvariant().GetHashCode();
+                _hashValue = Address.ToUpperInvariant().GetHashCode();
             }
             return _hashValue;
         }
@@ -291,9 +291,9 @@ namespace Tuvi.Core.Entities
             }
         }
 
-        private static readonly string EppieNetworkPostfix = "@eppie";
-        private static readonly string BitcoinNetworkPostfix = "@bitcoin";
-        private static readonly string EthereumNetworkPostfix = "@ethereum";
+        private const string EppieNetworkPostfix = "@eppie";
+        private const string BitcoinNetworkPostfix = "@bitcoin";
+        private const string EthereumNetworkPostfix = "@ethereum";
 
         public static EmailAddress CreateDecentralizedAddress(NetworkType networkType, string address)
         {
@@ -382,9 +382,14 @@ namespace Tuvi.Core.Entities
 
         public static bool operator >(EmailAddress left, EmailAddress right)
         {
+            if (left is null)
+            {
+                return false;
+            }
+
             if (right is null)
             {
-                return left != null;
+                return true;
             }
             return left.CompareTo(right) > 0;
         }
@@ -400,6 +405,11 @@ namespace Tuvi.Core.Entities
 
         public static bool operator >=(EmailAddress left, EmailAddress right)
         {
+            if (left is null)
+            {
+                return right is null;
+            }
+
             if (right is null)
             {
                 return true;
@@ -561,6 +571,11 @@ namespace Tuvi.Core.Entities
         /// <returns>true if message has been updated</returns>
         public bool TryToUpdate(Message other)
         {
+            if (other is null)
+            {
+                throw new ArgumentNullException(nameof(other));
+            }
+
             // updated only this field for a while
             if (IsFlagged == other.IsFlagged &&
                 IsMarkedAsRead == other.IsMarkedAsRead)
