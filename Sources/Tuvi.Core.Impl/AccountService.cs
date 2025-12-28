@@ -435,9 +435,16 @@ namespace Tuvi.Core.Impl
                 throw new ArgumentNullException(nameof(message));
             }
 
-            message.Folder = Account.DraftFolder;
+            var draftsFolder = Account.DraftFolder;
+            if (draftsFolder is null)
+            {
+                this.Log().LogWarning("Drafts folder was not found, skipping the creation of a draft message.");
+                return message;
+            }
+
+            message.Folder = draftsFolder;
             message = await MailBox.AppendDraftMessageAsync(message, cancellationToken).ConfigureAwait(false);
-            message.Folder = Account.DraftFolder; // could be reset
+            message.Folder = draftsFolder; // could be reset
             await DataStorage.AddMessageAsync(Account.Email, message, updateUnreadAndTotal: true, cancellationToken).ConfigureAwait(false);
 
             return message;
