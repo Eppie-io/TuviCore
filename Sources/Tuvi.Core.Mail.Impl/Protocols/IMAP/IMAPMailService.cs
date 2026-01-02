@@ -785,7 +785,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 if (sentFolder is null)
                 {
                     // TODO: Need to create Sent folder?
-                    this.Log().LogWarning("Sent folder not found, skipping appending sent message");
+                    this.Log().LogWarning("Sent folder was not found, skipping appending the sent message.");
                     return;
                 }
 
@@ -927,6 +927,14 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             async Task<Message> DoReplaceDraftMessageAsync()
             {
                 var draftsFolder = GetDraftsFolder();
+
+                if (draftsFolder is null)
+                {
+                    // TODO: Need to create Drafts folder?
+                    this.Log().LogWarning("Drafts folder was not found, skipping the draft message update.");
+                    return message;
+                }
+
                 await draftsFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
 
                 using (var mimeMessage = message.ToMimeMessage())
