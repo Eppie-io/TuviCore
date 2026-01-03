@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -28,6 +28,7 @@ using BackupServiceClientLibrary;
 using Microsoft.Extensions.Logging;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Dec;
+using Tuvi.Core.Dec.Names;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
@@ -1221,7 +1222,7 @@ namespace Tuvi.Core.Impl
             return DataStorage.UpdateMessageProcessingResultAsync(message, result, cancellationToken);
         }
 
-        public async Task<bool> ClaimDecentralizedNameAsync(string name, EmailAddress address, CancellationToken cancellationToken = default)
+        public async Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default)
         {
             CheckDisposed();
             if (string.IsNullOrWhiteSpace(name))
@@ -1229,20 +1230,28 @@ namespace Tuvi.Core.Impl
                 throw new ArgumentException("Name is empty", nameof(name));
             }
 
-            if (address is null)
+            if (account is null)
             {
-                throw new ArgumentNullException(nameof(address));
+                throw new ArgumentNullException(nameof(account));
             }
 
+            var address = account.Email;
             if (address.Network != NetworkType.Eppie)
             {
                 throw new NotSupportedException($"Unsupported network type: {address.Network}");
             }
 
+            var canonicalName = NameClaim.CanonicalizeName(name);
             var publicKey = await GetSecurityManager().GetEmailPublicKeyStringAsync(address, cancellationToken).ConfigureAwait(false);
-            var response = await DecStorageClient.ClaimNameAsync(name, publicKey, cancellationToken).ConfigureAwait(false);
+            var signature = await GetSecurityManager().SignNameClaimAsync(canonicalName, account, cancellationToken).ConfigureAwait(false);
+            var response = await DecStorageClient.ClaimNameAsync(canonicalName, publicKey, signature, cancellationToken).ConfigureAwait(false);
 
-            return response.Equals(publicKey, StringComparison.OrdinalIgnoreCase);
+            if (response.Equals(publicKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return canonicalName;
+            }
+
+            return null;
         }
     }
 }

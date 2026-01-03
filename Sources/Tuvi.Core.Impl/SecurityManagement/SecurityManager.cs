@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -20,16 +20,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using KeyDerivation;
 using KeyDerivation.Keys;
 using KeyDerivationLib;
+using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Bcpg;
 using Org.BouncyCastle.Bcpg.OpenPgp;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Security;
 using Tuvi.Core.Backup;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Dec.Bitcoin.TestNet4;
+using Tuvi.Core.Dec.Names;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
@@ -462,6 +469,101 @@ namespace Tuvi.Core.Impl.SecurityManagement
             using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
             {
                 await Tools.ActivateBitcoinAddressAsync(masterKey, account.DecentralizedAccountIndex, account.Email.Network.GetKeyIndex(), cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async Task<string> SignNameClaimAsync(string name, Account account, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Name is empty.", nameof(name));
+            }
+
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            var email = account.Email;
+            if (!email.IsDecentralized || email.Network != NetworkType.Eppie)
+            {
+                throw new NotSupportedException("Only Eppie decentralized accounts are supported for name claim signing.");
+            }
+
+            if (account.DecentralizedAccountIndex < 0)
+            {
+                throw new InvalidOperationException("Decentralized account index is not initialized.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using (var masterKey = await GetMasterKeyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                int coin = email.Network.GetCoinType();
+                int accountIndex = account.DecentralizedAccountIndex;
+                int channel = account.GetChannel();
+                int keyIndex = account.GetKeyIndex();
+
+                var publicKey = _publicKeyService.DeriveEncoded(masterKey, coin, accountIndex, channel, keyIndex);
+
+                if (string.IsNullOrWhiteSpace(publicKey))
+                {
+                    throw new InvalidOperationException("Unable to resolve public key for provided account.");
+                }
+
+                var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
+                var payloadUtf8 = Encoding.UTF8.GetBytes(payload);
+                var hash = DigestUtilities.CalculateDigest("SHA-256", payloadUtf8);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                using (var derivationKey = DerivationKeyFactory.CreatePrivateDerivationKeyBip44(masterKey, coin, accountIndex, channel, keyIndex))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    byte[] scalar = null;
+                    try
+                    {
+                        scalar = derivationKey.Scalar.ToArray();
+
+                        BigInteger[] sig;
+                        {
+                            var priv = new ECPrivateKeyParameters(new BigInteger(1, scalar), Secp256k1.DomainParams);
+                            var signer = new ECDsaSigner(new HMacDsaKCalculator(new Org.BouncyCastle.Crypto.Digests.Sha256Digest()));
+                            signer.Init(true, priv);
+                            sig = signer.GenerateSignature(hash);
+                        }
+
+                        if (sig == null || sig.Length != 2)
+                        {
+                            throw new InvalidOperationException("Failed to generate ECDSA signature.");
+                        }
+
+                        BigInteger r = sig[0];
+                        BigInteger s = sig[1];
+                        BigInteger n = Secp256k1.DomainParams.N;
+                        BigInteger halfCurveOrder = n.ShiftRight(1);
+                        if (s.CompareTo(halfCurveOrder) > 0)
+                        {
+                            s = n.Subtract(s);
+                        }
+
+                        var seq = new DerSequence(
+                            new DerInteger(r),
+                            new DerInteger(s));
+
+                        return Convert.ToBase64String(seq.GetDerEncoded());
+                    }
+                    finally
+                    {
+                        if (scalar != null)
+                        {
+                            Array.Clear(scalar, 0, scalar.Length);
+                        }
+                    }
+                }
             }
         }
     }

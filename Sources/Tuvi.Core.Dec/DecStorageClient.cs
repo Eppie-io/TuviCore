@@ -62,13 +62,16 @@ namespace Tuvi.Core.Dec
         Task<string> PutAsync(byte[] data, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Claims a human-readable name for a specific address (public key / base32 identifier).
+        /// Claims a human-readable name for a specific public key using claim-v1.
+        /// The method returns the public key currently bound to the name: the newly claimed key on success,
+        /// or the existing key if the name is already taken.
         /// </summary>
-        /// <param name="name">The desired human-readable name.</param>
-        /// <param name="address">The underlying address (e.g. base32 key) to bind to the name.</param>
+        /// <param name="name">Name to claim.</param>
+        /// <param name="publicKey">Public key (Base32E) to bind to the name.</param>
+        /// <param name="signature">Signature over the claim-v1 payload.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>Service response (claimed address) or error text.</returns>
-        Task<string> ClaimNameAsync(string name, string address, CancellationToken cancellationToken = default);
+        /// <returns>The public key currently bound to the name.</returns>
+        Task<string> ClaimNameAsync(string name, string publicKey, string signature, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Resolves a human-readable name to its bound address.

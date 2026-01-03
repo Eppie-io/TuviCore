@@ -19,9 +19,11 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Tuvi.Core.Dec.Names;
 
 [assembly: InternalsVisibleTo("Tuvi.Dec.Web.Impl.Tests")]
 
@@ -32,6 +34,13 @@ namespace Tuvi.Core.Dec.Web.Impl
         private readonly string Url;
         private readonly HttpClient _httpClient;
         private bool _disposedValue;
+
+        private sealed class ClaimRequest
+        {
+            public string NameCanonical { get; set; }
+            public string PublicKey { get; set; }
+            public string Signature { get; set; }
+        }
 
         public WebDecStorageClient(string url)
         {
@@ -93,20 +102,37 @@ namespace Tuvi.Core.Dec.Web.Impl
             }
         }
 
-        public async Task<string> ClaimNameAsync(string name, string address, CancellationToken cancellationToken)
+        public async Task<string> ClaimNameAsync(string name, string publicKey, string signature, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(name))
             {
                 throw new System.ArgumentException("Name is empty.", nameof(name));
             }
 
-            if (string.IsNullOrEmpty(address))
+            if (string.IsNullOrEmpty(publicKey))
             {
-                throw new System.ArgumentException("Address is empty.", nameof(address));
+                throw new System.ArgumentException("Public key is empty.", nameof(publicKey));
             }
 
-            var url = $"{Url}/claim?name={Escape(name)}&address={Escape(address)}&code=testnet";
-            return await GetStringWithCancellationAsync(url, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(signature))
+            {
+                throw new System.ArgumentException("Signature is empty.", nameof(signature));
+            }
+
+            var req = new ClaimRequest
+            {
+                NameCanonical = NameClaim.CanonicalizeName(name),
+                PublicKey = publicKey,
+                Signature = signature
+            };
+
+            var json = JsonSerializer.Serialize(req);
+            using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (var response = await _httpClient.PostAsync($"{Url}/claim?code=testnet", content, cancellationToken).ConfigureAwait(false))
+            {
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
         }
 
         public async Task<string> GetAddressByNameAsync(string name, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -187,5 +187,13 @@ namespace Tuvi.Core
         /// The method derives keys from master key and performs activation. For Bitcoin network only for now.
         /// </summary>
         Task ActivateAddressAsync(Account account, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Signs a claim-v1 payload to bind a name to the public key of the specified account.
+        /// </summary>
+        /// <param name="name">Name to claim.</param>
+        /// <param name="account">Account whose public key is being bound.</param>
+        /// <returns>Base64-encoded signature.</returns>
+        Task<string> SignNameClaimAsync(string name, Account account, CancellationToken cancellationToken = default);
     }
 }

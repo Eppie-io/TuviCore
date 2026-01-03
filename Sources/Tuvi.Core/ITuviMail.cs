@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -131,6 +131,6 @@ namespace Tuvi.Core
         Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken = default);
         Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default);
 
-        Task<bool> ClaimDecentralizedNameAsync(string name, EmailAddress address, CancellationToken cancellationToken = default);
+        Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default);
     }
 }
