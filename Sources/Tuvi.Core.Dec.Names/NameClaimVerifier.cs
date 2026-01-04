@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2026 Eppie (https://eppie.io)                                    //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -82,17 +82,23 @@ namespace Tuvi.Core.Dec.Names
                 r = ((DerInteger)seq[0]).PositiveValue;
                 s = ((DerInteger)seq[1]).PositiveValue;
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is InvalidCastException)
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidCastException || ex is System.IO.EndOfStreamException)
+            {
+                return false;
+            }
+
+            if (r.SignValue <= 0 || s.SignValue <= 0)
             {
                 return false;
             }
 
             ECPublicKeyParameters pub;
+            X9ECParameters curveParams;
             try
             {
                 // Public key is provided as a Base32E-encoded compressed EC point on secp256k1.
                 var curveOid = ECNamedCurveTable.GetOid("secp256k1");
-                var curveParams = ECNamedCurveTable.GetByOid(curveOid);
+                curveParams = ECNamedCurveTable.GetByOid(curveOid);
 
                 var compressed = Base32EConverter.FromEmailBase32(publicKeyBase32E);
                 var q = curveParams.Curve.DecodePoint(compressed);
@@ -100,6 +106,12 @@ namespace Tuvi.Core.Dec.Names
                 pub = new ECPublicKeyParameters(q, domain);
             }
             catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
+            {
+                return false;
+            }
+
+            var halfCurveOrder = curveParams.N.ShiftRight(1);
+            if (s.CompareTo(halfCurveOrder) > 0)
             {
                 return false;
             }
