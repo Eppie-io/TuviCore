@@ -34,8 +34,8 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         private readonly byte[] ByteData = new byte[] { 0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1F, 0x20, 0x21, 0x22, 0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1F, 0x20, 0x21, 0x22 };
         private const string Address = "3C805EA90F9D0D54EC907B040B47DD";
         private const string DataHash = "A81F9D5B6713C805EA90F9D0D54EC907B040B47DD482A47222EB9B9D1A7D32AA";
-        private Uri Url = new Uri("http://localhost:7243/api");
-        //private Uri Url = new Uri("https://testnet2.eppie.io/api");
+        //private Uri Url = new Uri("http://localhost:7243/api");
+        private Uri Url = new Uri("https://testnet2.eppie.io/api");
 
         [SetUp]
         public void Setup()
