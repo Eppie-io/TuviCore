@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -17,8 +17,8 @@
 // ---------------------------------------------------------------------------- //
 
 using Tuvi.Core.DataStorage;
-using Tuvi.Core.Mail;
 using Tuvi.Core.Dec;
+using Tuvi.Core.Mail;
 
 namespace Tuvi.Core.Impl
 {

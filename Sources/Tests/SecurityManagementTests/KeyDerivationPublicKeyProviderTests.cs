@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -17,9 +17,9 @@
 // ---------------------------------------------------------------------------- //
 
 using System;
+using KeyDerivation.Keys;
 using NUnit.Framework;
 using Tuvi.Core.Utils;
-using KeyDerivation.Keys;
 
 namespace SecurityManagementTests
 {
@@ -39,14 +39,14 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveByIndexSucceeds()
         {
-            var key = _provider.Derive(_masterKey, 0,0,0,3);
+            var key = _provider.Derive(_masterKey, 0, 0, 0, 3);
             Assert.That(key, Is.Not.Null);
         }
 
         [Test]
         public void DeriveByIndexNullMasterThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => _provider.Derive(null,0,0,0,0));
+            Assert.Throws<ArgumentNullException>(() => _provider.Derive(null, 0, 0, 0, 0));
         }
 
         [Test]
