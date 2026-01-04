@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2026 Eppie (https://eppie.io)                                    //
+//   Copyright 2025 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -513,10 +513,6 @@ namespace Tuvi.Core.Impl.SecurityManagement
                     throw new InvalidOperationException("Unable to resolve public key for provided account.");
                 }
 
-                var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
-                var payloadUtf8 = Encoding.UTF8.GetBytes(payload);
-                var hash = DigestUtilities.CalculateDigest("SHA-256", payloadUtf8);
-
                 cancellationToken.ThrowIfCancellationRequested();
 
                 using (var derivationKey = DerivationKeyFactory.CreatePrivateDerivationKeyBip44(masterKey, coin, accountIndex, channel, keyIndex))
@@ -528,33 +524,8 @@ namespace Tuvi.Core.Impl.SecurityManagement
                     {
                         scalar = derivationKey.Scalar.ToArray();
 
-                        BigInteger[] sig;
-                        {
-                            var priv = new ECPrivateKeyParameters(new BigInteger(1, scalar), Secp256k1.DomainParams);
-                            var signer = new ECDsaSigner(new HMacDsaKCalculator(new Org.BouncyCastle.Crypto.Digests.Sha256Digest()));
-                            signer.Init(true, priv);
-                            sig = signer.GenerateSignature(hash);
-                        }
-
-                        if (sig == null || sig.Length != 2)
-                        {
-                            throw new InvalidOperationException("Failed to generate ECDSA signature.");
-                        }
-
-                        BigInteger r = sig[0];
-                        BigInteger s = sig[1];
-                        BigInteger n = Secp256k1.DomainParams.N;
-                        BigInteger halfCurveOrder = n.ShiftRight(1);
-                        if (s.CompareTo(halfCurveOrder) > 0)
-                        {
-                            s = n.Subtract(s);
-                        }
-
-                        var seq = new DerSequence(
-                            new DerInteger(r),
-                            new DerInteger(s));
-
-                        return Convert.ToBase64String(seq.GetDerEncoded());
+                        var priv = new ECPrivateKeyParameters(new BigInteger(1, scalar), Secp256k1.DomainParams);
+                        return NameClaimSigner.SignClaimV1(name, publicKey, priv);
                     }
                     finally
                     {
