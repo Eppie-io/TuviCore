@@ -1251,7 +1251,7 @@ namespace Tuvi.Core.Impl
                 return canonicalName;
             }
 
-            return null;
+            return string.Empty;
         }
     }
 }
