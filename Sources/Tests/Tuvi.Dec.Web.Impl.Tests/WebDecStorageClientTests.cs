@@ -17,19 +17,26 @@
 // ---------------------------------------------------------------------------- //
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Tuvi.Core.Dec.Web.Impl;
-using System.Diagnostics.CodeAnalysis;
+using Tuvi.Core.Dec.Names;
 
 namespace Tuvi.Core.Dec.Web.Impl.Tests
 {
     public class WebDecStorageClientTests
     {
         private readonly CancellationToken _ct = CancellationToken.None;
+
+        private static (string PublicKeyBase32E, string SignatureBase64) CreateValidSignature(string name)
+        {
+            return ClaimV1TestKeys.CreateSignature(name);
+        }
+
         private sealed class FakeHandler : HttpMessageHandler
         {
             public Func<HttpRequestMessage, HttpResponseMessage> OnSend { get; set; }
@@ -37,7 +44,10 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 if (OnSend != null)
+                {
                     return Task.FromResult(OnSend(request));
+                }
+
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
             }
         }
@@ -51,15 +61,37 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         [Test]
         public async Task ClaimNameAsyncReturnsExpectedResult()
         {
-            var expectedAddress = "ADDRESS123";
-            using var client = CreateClient(req => new HttpResponseMessage(HttpStatusCode.OK)
+            var name = "testname";
+            var (expectedPublicKey, signature) = CreateValidSignature(name);
+
+            using var client = CreateClient(req =>
             {
-                Content = new StringContent(expectedAddress)
+                Assert.That(req.Method, Is.EqualTo(HttpMethod.Post));
+                Assert.That(req.RequestUri.AbsolutePath, Does.Contain("/claim"));
+
+                var json = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+                Assert.That(json, Does.Contain("\"NameCanonical\""));
+                Assert.That(json, Does.Contain(NameClaim.CanonicalizeName(name)));
+
+                Assert.That(json, Does.Contain("\"PublicKey\""));
+                Assert.That(json, Does.Contain(expectedPublicKey));
+
+                Assert.That(json, Does.Contain("\"Signature\""));
+
+                using var doc = JsonDocument.Parse(json);
+                var sigInJson = doc.RootElement.GetProperty("Signature").GetString();
+                Assert.That(sigInJson, Is.EqualTo(signature));
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(expectedPublicKey)
+                };
             });
 
-            var result = await client.ClaimNameAsync("testname", expectedAddress, _ct).ConfigureAwait(false);
+            var result = await client.ClaimNameAsync(name, expectedPublicKey, signature, _ct).ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo(expectedAddress));
+            Assert.That(result, Is.EqualTo(expectedPublicKey));
         }
 
         [Test]
@@ -81,7 +113,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("", "ADDR", _ct).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false));
         }
 
         [Test]
@@ -89,7 +121,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("name", "", _ct).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false));
         }
 
         [Test]
@@ -104,6 +136,9 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         public async Task ClaimNameAsyncDuplicateReturnsEmptyString()
         {
             bool first = true;
+            var name = "dupname";
+            var (publicKey, signature) = CreateValidSignature(name);
+
             using var client = CreateClient(req =>
             {
                 if (req.RequestUri.AbsolutePath.Contains("/claim", StringComparison.Ordinal) && first)
@@ -111,7 +146,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
                     first = false;
                     return new HttpResponseMessage(HttpStatusCode.OK)
                     {
-                        Content = new StringContent("ADDRXYZ")
+                        Content = new StringContent(publicKey)
                     };
                 }
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -120,10 +155,10 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
                 };
             });
 
-            var firstResult = await client.ClaimNameAsync("dupname", "ADDRXYZ", _ct).ConfigureAwait(false);
-            var secondResult = await client.ClaimNameAsync("dupname", "ADDRXYZ", _ct).ConfigureAwait(false);
+            var firstResult = await client.ClaimNameAsync(name, publicKey, signature, _ct).ConfigureAwait(false);
+            var secondResult = await client.ClaimNameAsync(name, publicKey, signature, _ct).ConfigureAwait(false);
 
-            Assert.That(firstResult, Is.EqualTo("ADDRXYZ"));
+            Assert.That(firstResult, Is.EqualTo(publicKey));
             Assert.That(secondResult, Is.EqualTo(string.Empty));
         }
 
@@ -141,30 +176,33 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         [Test]
         public async Task ClaimNameAsyncAcceptsSingleCharName()
         {
-            var expectedAddress = "ADDR1";
+            var name = "a";
+            var (expectedPublicKey, signature) = CreateValidSignature(name);
+
             using var client = CreateClient(req => new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(expectedAddress)
+                Content = new StringContent(expectedPublicKey)
             });
 
-            var result = await client.ClaimNameAsync("a", expectedAddress, _ct).ConfigureAwait(false);
+            var result = await client.ClaimNameAsync(name, expectedPublicKey, signature, _ct).ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo(expectedAddress));
+            Assert.That(result, Is.EqualTo(expectedPublicKey));
         }
 
         [Test]
         public async Task ClaimNameAsyncAcceptsMaxLengthName()
         {
             var name = new string('x', 48);
-            var expectedAddress = "ADDRMAX";
+            var (expectedPublicKey, signature) = CreateValidSignature(name);
+
             using var client = CreateClient(req => new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(expectedAddress)
+                Content = new StringContent(expectedPublicKey)
             });
 
-            var result = await client.ClaimNameAsync(name, expectedAddress, _ct).ConfigureAwait(false);
+            var result = await client.ClaimNameAsync(name, expectedPublicKey, signature, _ct).ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo(expectedAddress));
+            Assert.That(result, Is.EqualTo(expectedPublicKey));
         }
     }
 }
