@@ -194,6 +194,7 @@ namespace Tuvi.Core
         /// <param name="name">Name to claim.</param>
         /// <param name="account">Account whose public key is being bound.</param>
         /// <returns>Base64-encoded signature.</returns>
+        /// <param name="cancellationToken">Cancellation token to observe while waiting for the operation to complete.</param>
         Task<string> SignNameClaimAsync(string name, Account account, CancellationToken cancellationToken = default);
     }
 }
