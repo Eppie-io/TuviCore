@@ -20,10 +20,10 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Tuvi.Core.Dec.Web.Impl;
 using Tuvi.Core.Dec.Names;
 
 namespace Tuvi.Core.Dec.Web.Impl.Tests
