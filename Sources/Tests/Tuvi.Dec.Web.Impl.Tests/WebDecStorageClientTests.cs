@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -17,13 +17,13 @@
 // ---------------------------------------------------------------------------- //
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Tuvi.Core.Dec.Web.Impl;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Tuvi.Core.Dec.Web.Impl.Tests
 {

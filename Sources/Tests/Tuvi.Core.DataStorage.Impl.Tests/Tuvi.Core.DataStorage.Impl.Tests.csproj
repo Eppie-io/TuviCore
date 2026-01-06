@@ -2,11 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-
     <IsPackable>false</IsPackable>
-
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <AnalysisLevel>6.0-all</AnalysisLevel>
-
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
