@@ -23,6 +23,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\Tuvi.Core.Dec.Names\Tuvi.Core.Dec.Names.csproj" />
 	  <ProjectReference Include="..\Tuvi.Core.Dec\Tuvi.Core.Dec.csproj" />
 	</ItemGroup>
 
