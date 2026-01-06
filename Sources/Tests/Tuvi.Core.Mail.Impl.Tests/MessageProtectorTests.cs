@@ -1,6 +1,6 @@
 ﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
-//   Copyright 2025 Eppie (https://eppie.io)                                    //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
 //   Licensed under the Apache License, Version 2.0 (the "License"),            //
 //   you may not use this file except in compliance with the License.           //
@@ -22,20 +22,20 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KeyDerivation.Keys;
 using MimeKit;
 using MimeKit.Cryptography;
 using Moq;
 using NUnit.Framework;
 using SecurityManagementTests;
+using Tuvi.Core.Dec;
+using Tuvi.Core.Dec.Impl;
 using Tuvi.Core.Entities;
 using Tuvi.Core.Mail.Impl.Protocols;
 using Tuvi.Core.Utils;
+using TuviPgpLib;
 using TuviPgpLib.Entities;
 using TuviPgpLibImpl;
-using Tuvi.Core.Dec;
-using Tuvi.Core.Dec.Impl;
-using KeyDerivation.Keys;
-using TuviPgpLib;
 
 namespace Tuvi.Core.Mail.Impl.Tests
 {

@@ -1,4 +1,21 @@
-﻿using NUnit.Framework;
+﻿// ---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.DataStorage.Impl;
 using Tuvi.Core.Entities;
@@ -13,7 +31,7 @@ using Tuvi.Core.Entities;
 namespace Tuvi.Core.Tests
 {
     public class MessagesTests
-    {        
+    {
         IDataStorage _storage;
         Account _account1;
         Account _account2;
@@ -44,7 +62,7 @@ namespace Tuvi.Core.Tests
             else
             {
                 message.Folder = new Folder(folder, FolderAttributes.None);
-            }            
+            }
             message.Date = date;
 
             return message;
@@ -131,7 +149,7 @@ namespace Tuvi.Core.Tests
         {
             _storage.Dispose();
             File.Delete(_dbPath);
-        }       
+        }
 
         [Test]
         public async Task GetAllEarlierMessagesTest()
@@ -204,7 +222,7 @@ namespace Tuvi.Core.Tests
             var messages = await _storage.GetEarlierMessagesInFoldersAsync(new[] { _account1.FoldersStructure[0] }, 0, null, CancellationToken.None).ConfigureAwait(true);
             Assert.That(messages.Count, Is.EqualTo(0));
 
-            messages = await _storage.GetEarlierMessagesInFoldersAsync(new [] { _account1.FoldersStructure[0] }, 5, null, CancellationToken.None).ConfigureAwait(true);
+            messages = await _storage.GetEarlierMessagesInFoldersAsync(new[] { _account1.FoldersStructure[0] }, 5, null, CancellationToken.None).ConfigureAwait(true);
             Assert.That(messages.Count, Is.EqualTo(4));
             EnsureTimestampOrder(messages);
             Assert.That(messages.All(x => x.Folder.IsInbox), Is.True);
