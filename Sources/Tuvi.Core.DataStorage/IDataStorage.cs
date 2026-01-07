@@ -272,6 +272,17 @@ namespace Tuvi.Core.DataStorage
         Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken);
 
         /// <summary>
+        /// Get paged list of contacts in address book.
+        /// </summary>
+        /// <param name="count">Maximum number of contacts to return</param>
+        /// <param name="lastContact">The last contact from previous page, or null for first page</param>
+        /// <param name="sortOrder">The sort order for contacts</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>List of contacts</returns>
+        /// <exception cref="DataBaseException"/>
+        Task<IReadOnlyList<Contact>> GetContactsAsync(int count, Contact lastContact, ContactsSortOrder sortOrder, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Gets contact with <paramref name="contactEmail"/>
         /// </summary>
         /// <returns>Contact with <paramref name="contactEmail"/> if exists, otherwise null</returns>
