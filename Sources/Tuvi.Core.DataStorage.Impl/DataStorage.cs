@@ -551,6 +551,18 @@ namespace Tuvi.Core.DataStorage.Impl
                     contact.LastMessageData = CreateLastMessageData(messages[0].Folder.AccountEmail, messages[0]);
                     UpdateContact(db, contact);
                 }
+                else
+                {
+                    if (contact.LastMessageDataId > 0)
+                    {
+                        connection.Delete<LastMessageData>(contact.LastMessageDataId);
+
+                        contact.LastMessageDataId = 0;
+                        contact.LastMessageData = null;
+
+                        UpdateContact(db, contact);
+                    }
+                }
             }
 
             connection.Table<MessageContact>().Delete(x => x.MessageId == message.Pk);
@@ -619,7 +631,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 Debug.Assert(folder.UnreadCount <= folder.TotalCount);
             }
             folder.LocalCount += delta;
-            Debug.Assert(!updateUnreadAndTotal || updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount);
+            Debug.Assert(!updateUnreadAndTotal || (updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount));
 
             connection.Update(folder);
         }
@@ -1628,16 +1640,38 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             contact.EmailId = InsertOrUpdateEmailAddress(connection, contact.Email);
             if (!contact.AvatarInfo.IsEmpty)
             {
-                connection.Insert(contact.AvatarInfo);
-                contact.AvatarInfoId = GetLastRowId(connection);
+                if (contact.AvatarInfo.Id == 0)
+                {
+                    int oldAvatarId = contact.AvatarInfoId;
+
+                    connection.Insert(contact.AvatarInfo);
+                    contact.AvatarInfoId = GetLastRowId(connection);
+
+                    if (oldAvatarId > 0 && oldAvatarId != contact.AvatarInfoId)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
+                }
+                else
+                {
+                    contact.AvatarInfoId = contact.AvatarInfo.Id;
+                }
             }
 
             if (contact.LastMessageData != null)
             {
+                int oldLastMessageDataId = contact.LastMessageDataId;
+
                 var account = FindAccountStrict(connection, contact.LastMessageData.AccountEmail);
                 contact.LastMessageData.AccountId = account.Id;
+
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);
+
+                if (oldLastMessageDataId > 0 && oldLastMessageDataId != contact.LastMessageDataId)
+                {
+                    connection.Delete<LastMessageData>(oldLastMessageDataId);
+                }
             }
         }
 
@@ -1734,10 +1768,17 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
                 if (item != null)
                 {
+                    int oldAvatarId = item.AvatarInfoId;
+
                     connection.Insert(new ImageInfo(avatarWidth, avatarHeight, avatarBytes));
                     item.AvatarInfoId = GetLastRowId(connection);
 
                     connection.Update(item);
+
+                    if (oldAvatarId > 0)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
                 }
             }, cancellationToken);
         }
