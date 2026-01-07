@@ -1,22 +1,21 @@
 ﻿// ---------------------------------------------------------------------------- //
-//                                                                             //
-//  Copyright 2025 Eppie (https://eppie.io)                                    //
-//                                                                             //
-//  Licensed under the Apache License, Version 2.0 (the "License"),            //
-//  you may not use this file except in compliance with the License.           //
-//  You may obtain a copy of the License at                                    //
-//                                                                             //
-//      http://www.apache.org/licenses/LICENSE-2.0                             //
-//                                                                             //
-//  Unless required by applicable law or agreed to in writing, software        //
-//  distributed under the License is distributed on an "AS IS" BASIS,          //
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
-//  See the License for the specific language governing permissions and        //
-//  limitations under the License.                                             //
-//                                                                             //
-//---------------------------------------------------------------------------- //
+//                                                                              //
+//   Copyright 2026 Eppie (https://eppie.io)                                    //
+//                                                                              //
+//   Licensed under the Apache License, Version 2.0 (the "License"),            //
+//   you may not use this file except in compliance with the License.           //
+//   You may obtain a copy of the License at                                    //
+//                                                                              //
+//       http://www.apache.org/licenses/LICENSE-2.0                             //
+//                                                                              //
+//   Unless required by applicable law or agreed to in writing, software        //
+//   distributed under the License is distributed on an "AS IS" BASIS,          //
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   //
+//   See the License for the specific language governing permissions and        //
+//   limitations under the License.                                             //
+//                                                                              //
+// ---------------------------------------------------------------------------- //
 
-using System;
 using NUnit.Framework;
 
 namespace Tuvi.Core.Dec.Names.Tests
@@ -251,7 +250,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
 
             // Assert
-            Assert.That(payload, Is.EqualTo("claim-v1\nname=alice.test\npublicKey=abc+/=123"));
+            Assert.That(payload, Is.EqualTo("claim-v1\nname=alice.test\npublicKey=abc+/123"));
         }
 
         [Test]
@@ -304,7 +303,29 @@ namespace Tuvi.Core.Dec.Names.Tests
             var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
 
             // Assert
-            Assert.That(payload, Is.EqualTo("claim-v1\nname=alice.test\npublicKey=line1\nline2"));
+            Assert.That(payload, Is.EqualTo("claim-v1\nname=alice.test\npublicKey=line1line2"));
+        }
+
+        [Test]
+        public void BuildClaimV1PayloadWithWrongName()
+        {
+            const string name = "alice\npublicKey=INJECTED";
+            const string publicKey = "PUB";
+
+            var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
+
+            Assert.That(payload, Is.EqualTo("claim-v1\nname=alicepublickeyinjected.test\npublicKey=PUB"));
+        }
+
+        [Test]
+        public void BuildClaimV1PayloadWithWrongKey()
+        {
+            const string name = "Alice";
+            const string publicKey = "PUB\nname=hijack";
+
+            var payload = NameClaim.BuildClaimV1Payload(name, publicKey);
+
+            Assert.That(payload, Is.EqualTo("claim-v1\nname=alice.test\npublicKey=PUBnamehijack"));
         }
     }
 }
