@@ -998,5 +998,256 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(page2[0].Email.Address, Is.EqualTo(readContact.Email.Address));
             Assert.That(page2[0].UnreadCount, Is.EqualTo(0));
         }
+
+        [Test]
+        public async Task GetContactsSortedByNamePagingMatchesSingleQueryForSpecialCharacters()
+        {
+            // Arrange
+            using var db = await OpenDataStorageAsync().ConfigureAwait(false);
+
+            var names = new[]
+            {
+                "_ S",
+                "'X",
+                "\"A",
+                "°【",
+                "🎮A",
+                "04-",
+                "0x",
+                "A",
+                "B",
+                "X",
+                "Y",
+            };
+
+            var contacts = names
+                .Select((n, i) => new Contact(n, new EmailAddress($"c{i}@ex.io")))
+                .ToList();
+
+            foreach (var c in contacts)
+            {
+                await db.AddContactAsync(c, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            // Act
+            var allAtOnce = await db.GetContactsAsync(
+                    count: 100,
+                    lastContact: null,
+                    sortOrder: ContactsSortOrder.ByName,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var paged = new List<Contact>();
+            Contact cursor = null;
+            while (true)
+            {
+                var page = await db.GetContactsAsync(
+                        count: 1,
+                        lastContact: cursor,
+                        sortOrder: ContactsSortOrder.ByName,
+                        cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                if (page.Count == 0)
+                {
+                    break;
+                }
+
+                paged.Add(page[0]);
+                cursor = page[0];
+            }
+
+            // Assert
+            Assert.That(allAtOnce.Count, Is.EqualTo(names.Length));
+            Assert.That(paged.Count, Is.EqualTo(names.Length));
+
+            var allNames = allAtOnce.Select(x => x.FullName).ToList();
+            var pagedNames = paged.Select(x => x.FullName).ToList();
+
+            Assert.That(pagedNames, Is.EqualTo(allNames));
+        }
+
+        [Test]
+        public async Task GetContactsSortedByNamePagingMatchesSingleQueryForWhitespaceAndInvisibleNames()
+        {
+            // Arrange
+            using var db = await OpenDataStorageAsync().ConfigureAwait(false);
+
+            var contacts = new List<Contact>
+            {
+                new Contact("Alice", new EmailAddress("alice@ex.io")),
+                new Contact(" ", new EmailAddress("space@ex.io")),
+                new Contact("\t", new EmailAddress("tab@ex.io")),
+                new Contact("\u00A0", new EmailAddress("nbsp@ex.io")), // NBSP
+                new Contact("\u200B", new EmailAddress("zwsp@ex.io")), // zero-width space
+                new Contact("Bob", new EmailAddress("bob@ex.io")),
+            };
+
+            foreach (var c in contacts)
+            {
+                await db.AddContactAsync(c, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            // Act
+            var allAtOnce = await db.GetContactsAsync(
+                    count: 100,
+                    lastContact: null,
+                    sortOrder: ContactsSortOrder.ByName,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var paged = new List<Contact>();
+            Contact cursor = null;
+            while (true)
+            {
+                var page = await db.GetContactsAsync(
+                        count: 1,
+                        lastContact: cursor,
+                        sortOrder: ContactsSortOrder.ByName,
+                        cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                if (page.Count == 0)
+                {
+                    break;
+                }
+
+                paged.Add(page[0]);
+                cursor = page[0];
+            }
+
+            // Assert
+            Assert.That(allAtOnce.Count, Is.EqualTo(contacts.Count));
+            Assert.That(paged.Count, Is.EqualTo(contacts.Count));
+
+            var allKeys = allAtOnce.Select(x => (x.FullName, x.Email.Address)).ToList();
+            var pagedKeys = paged.Select(x => (x.FullName, x.Email.Address)).ToList();
+
+            Assert.That(pagedKeys, Is.EqualTo(allKeys));
+        }
+
+        [Test]
+        public async Task GetContactsSortedByNamePagingMatchesSingleQueryForUnicodeNormalizationVariants()
+        {
+            // Arrange
+            using var db = await OpenDataStorageAsync().ConfigureAwait(false);
+
+            const string nfc = "Caf\u00E9";      // Café
+            const string nfd = "Cafe\u0301";     // Cafe + combining acute
+
+            var contacts = new List<Contact>
+            {
+                new Contact(nfc, new EmailAddress("cafe.nfc@ex.io")),
+                new Contact(nfd, new EmailAddress("cafe.nfd@ex.io")),
+                new Contact("Cafe", new EmailAddress("cafe@ex.io")),
+                new Contact("Caff", new EmailAddress("caff@ex.io")),
+            };
+
+            foreach (var c in contacts)
+            {
+                await db.AddContactAsync(c, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            // Act
+            var allAtOnce = await db.GetContactsAsync(
+                    count: 100,
+                    lastContact: null,
+                    sortOrder: ContactsSortOrder.ByName,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var paged = new List<Contact>();
+            Contact cursor = null;
+            while (true)
+            {
+                var page = await db.GetContactsAsync(
+                        count: 1,
+                        lastContact: cursor,
+                        sortOrder: ContactsSortOrder.ByName,
+                        cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                if (page.Count == 0)
+                {
+                    break;
+                }
+
+                paged.Add(page[0]);
+                cursor = page[0];
+            }
+
+            // Assert
+            Assert.That(allAtOnce.Count, Is.EqualTo(contacts.Count));
+            Assert.That(paged.Count, Is.EqualTo(contacts.Count));
+
+            var allKeys = allAtOnce.Select(x => (x.FullName, x.Email.Address)).ToList();
+            var pagedKeys = paged.Select(x => (x.FullName, x.Email.Address)).ToList();
+
+            Assert.That(pagedKeys, Is.EqualTo(allKeys));
+        }
+
+        [Test]
+        public async Task GetContactsSortedByNamePagingMatchesSingleQueryWhenContactsCreatedFromMessages()
+        {
+            // Arrange
+            using var db = await OpenDataStorageAsync().ConfigureAwait(false);
+            await db.AddAccountAsync(TestData.AccountWithFolder).ConfigureAwait(false);
+
+            var accountEmail = TestData.AccountWithFolder.Email;
+
+            var fromAddresses = new[]
+            {
+                new EmailAddress("m0@ex.io", "_ S"),
+                new EmailAddress("m1@ex.io", "\"R"),
+                new EmailAddress("m2@ex.io", "0x"),
+                new EmailAddress("m3@ex.io", "🎮A"),
+                new EmailAddress("m4@ex.io", "A"),
+            };
+
+            var t0 = DateTimeOffset.UtcNow;
+            for (int i = 0; i < fromAddresses.Length; i++)
+            {
+                var msg = CreateCleanUnreadMessageFrom(fromAddresses[i], t0.AddMinutes(i));
+                await db.AddMessageListAsync(accountEmail, TestData.Folder, new List<Message> { msg }, updateUnreadAndTotal: false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            // Act
+            var allAtOnce = await db.GetContactsAsync(
+                    count: 100,
+                    lastContact: null,
+                    sortOrder: ContactsSortOrder.ByName,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var paged = new List<Contact>();
+            Contact cursor = null;
+            while (true)
+            {
+                var page = await db.GetContactsAsync(
+                        count: 1,
+                        lastContact: cursor,
+                        sortOrder: ContactsSortOrder.ByName,
+                        cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                if (page.Count == 0)
+                {
+                    break;
+                }
+
+                paged.Add(page[0]);
+                cursor = page[0];
+            }
+
+            // Assert
+            Assert.That(allAtOnce.Count, Is.EqualTo(fromAddresses.Length));
+            Assert.That(paged.Count, Is.EqualTo(fromAddresses.Length));
+
+            var allKeys = allAtOnce.Select(x => (x.FullName, x.Email.Address, x.Email.Name)).ToList();
+            var pagedKeys = paged.Select(x => (x.FullName, x.Email.Address, x.Email.Name)).ToList();
+
+            Assert.That(pagedKeys, Is.EqualTo(allKeys));
+        }
     }
 }
