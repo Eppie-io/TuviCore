@@ -2353,6 +2353,22 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
             return ReadDatabaseAsync((connection, ct) =>
             {
+                if (lastContact != null)
+                {
+                    var freshContact = connection.Find<Contact>(lastContact.Id);
+
+                    if (freshContact is null && lastContact.Email != null)
+                    {
+                        freshContact = FindContactByEmail(connection, lastContact.Email);
+                    }
+
+                    if (freshContact != null)
+                    {
+                        BuildContact(connection, freshContact, ct);
+                        lastContact = freshContact;
+                    }
+                }
+
                 List<Contact> items;
 
                 switch (sortOrder)
@@ -2459,7 +2475,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     SELECT Contact.* FROM Contact 
                     INNER JOIN EmailAddressData ON Contact.EmailId = EmailAddressData.Id 
                     WHERE (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE > ?1)
-                       OR (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE = ?1 
+                       OR (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE = ?1
                            AND EmailAddressData.Address COLLATE NOCASE > ?2)
                     ORDER BY COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE ASC, 
                              EmailAddressData.Address COLLATE NOCASE ASC 
