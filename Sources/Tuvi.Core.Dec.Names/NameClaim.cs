@@ -88,13 +88,24 @@ namespace Tuvi.Core.Dec.Names
         /// </remarks>
         public static string BuildClaimV1Payload(string name, string publicKey)
         {
-            var nameCanonical = CanonicalizeName(name);
+            var nameCanonical = Sanitize(CanonicalizeName(name));
+            var pk = Sanitize(publicKey ?? string.Empty);
 
             var sb = new StringBuilder();
             sb.Append("claim-v1\n");
             sb.Append("name=").Append(nameCanonical).Append('\n');
-            sb.Append("publicKey=").Append(publicKey);
+            sb.Append("publicKey=").Append(pk);
             return sb.ToString();
+        }
+
+        private static string Sanitize(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            return value.Replace("\r", string.Empty).Replace("\n", string.Empty).Replace("=", string.Empty);
         }
     }
 }
