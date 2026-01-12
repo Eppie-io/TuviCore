@@ -861,6 +861,12 @@ namespace Tuvi.Core.Impl
             return DataStorage.GetContactsAsync(cancellationToken);
         }
 
+        public Task<IReadOnlyList<Contact>> GetContactsAsync(int count, Contact lastContact, ContactsSortOrder sortOrder, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+            return DataStorage.GetContactsAsync(count, lastContact, sortOrder, cancellationToken);
+        }
+
         public async Task SetContactNameAsync(EmailAddress contactEmail, string newName, CancellationToken cancellationToken = default)
         {
             CheckDisposed();

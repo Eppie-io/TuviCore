@@ -228,6 +228,8 @@ namespace Tuvi.Core.DataStorage.Impl
 
     internal class DataStorage : KeyStorage, IDataStorage, Proton.IStorage
     {
+        const long NullDateTicks = -1;
+
         private static readonly ILogger Logger = LoggingExtension.Log<DataStorage>();
 
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
@@ -549,6 +551,18 @@ namespace Tuvi.Core.DataStorage.Impl
                     contact.LastMessageData = CreateLastMessageData(messages[0].Folder.AccountEmail, messages[0]);
                     UpdateContact(db, contact);
                 }
+                else
+                {
+                    if (contact.LastMessageDataId > 0)
+                    {
+                        connection.Delete<LastMessageData>(contact.LastMessageDataId);
+
+                        contact.LastMessageDataId = 0;
+                        contact.LastMessageData = null;
+
+                        UpdateContact(db, contact);
+                    }
+                }
             }
 
             connection.Table<MessageContact>().Delete(x => x.MessageId == message.Pk);
@@ -617,7 +631,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 Debug.Assert(folder.UnreadCount <= folder.TotalCount);
             }
             folder.LocalCount += delta;
-            Debug.Assert(!updateUnreadAndTotal || updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount);
+            Debug.Assert(!updateUnreadAndTotal || (updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount));
 
             connection.Update(folder);
         }
@@ -1606,20 +1620,6 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             contact.Email = GetEmailAddressData(connection, contact.EmailId).ToEmailAddress();
         }
 
-        public Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken)
-        {
-            return ReadDatabaseAsync((connection, ct) =>
-            {
-                var items = connection.Table<Contact>().ToList(ct);
-
-                foreach (var item in items)
-                {
-                    BuildContact(connection, item, ct);
-                }
-
-                return items.AsEnumerable<Contact>();
-            }, cancellationToken);
-        }
 
         public Task<Contact> GetContactAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
         {
@@ -1640,16 +1640,38 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             contact.EmailId = InsertOrUpdateEmailAddress(connection, contact.Email);
             if (!contact.AvatarInfo.IsEmpty)
             {
-                connection.Insert(contact.AvatarInfo);
-                contact.AvatarInfoId = GetLastRowId(connection);
+                if (contact.AvatarInfo.Id == 0)
+                {
+                    int oldAvatarId = contact.AvatarInfoId;
+
+                    connection.Insert(contact.AvatarInfo);
+                    contact.AvatarInfoId = GetLastRowId(connection);
+
+                    if (oldAvatarId > 0 && oldAvatarId != contact.AvatarInfoId)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
+                }
+                else
+                {
+                    contact.AvatarInfoId = contact.AvatarInfo.Id;
+                }
             }
 
             if (contact.LastMessageData != null)
             {
+                int oldLastMessageDataId = contact.LastMessageDataId;
+
                 var account = FindAccountStrict(connection, contact.LastMessageData.AccountEmail);
                 contact.LastMessageData.AccountId = account.Id;
+
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);
+
+                if (oldLastMessageDataId > 0 && oldLastMessageDataId != contact.LastMessageDataId)
+                {
+                    connection.Delete<LastMessageData>(oldLastMessageDataId);
+                }
             }
         }
 
@@ -1746,10 +1768,17 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
                 if (item != null)
                 {
+                    int oldAvatarId = item.AvatarInfoId;
+
                     connection.Insert(new ImageInfo(avatarWidth, avatarHeight, avatarBytes));
                     item.AvatarInfoId = GetLastRowId(connection);
 
                     connection.Update(item);
+
+                    if (oldAvatarId > 0)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
                 }
             }, cancellationToken);
         }
@@ -2298,6 +2327,208 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 item.TextBodyProcessed = result;
                 connection.Update(item);
             }, cancellationToken);
+        }
+
+        public Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync((connection, ct) =>
+            {
+                var items = connection.Table<Contact>().ToList(ct);
+
+                foreach (var item in items)
+                {
+                    BuildContact(connection, item, ct);
+                }
+
+                return items.AsEnumerable<Contact>();
+            }, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<Contact>> GetContactsAsync(int count, Contact lastContact, ContactsSortOrder sortOrder, CancellationToken cancellationToken)
+        {
+            if (count <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be greater than zero");
+            }
+
+            return ReadDatabaseAsync((connection, ct) =>
+            {
+                if (lastContact != null)
+                {
+                    var freshContact = connection.Find<Contact>(lastContact.Id);
+
+                    if (freshContact is null && lastContact.Email != null)
+                    {
+                        freshContact = FindContactByEmail(connection, lastContact.Email);
+                    }
+
+                    if (freshContact != null)
+                    {
+                        BuildContact(connection, freshContact, ct);
+                        lastContact = freshContact;
+                    }
+                }
+
+                List<Contact> items;
+
+                switch (sortOrder)
+                {
+                    case ContactsSortOrder.ByName:
+                        items = GetContactsSortedByName(connection, count, lastContact, ct);
+                        break;
+                    case ContactsSortOrder.ByUnread:
+                        items = GetContactsSortedByUnread(connection, count, lastContact, ct);
+                        break;
+                    case ContactsSortOrder.ByTime:
+                    default:
+                        items = GetContactsSortedByTime(connection, count, lastContact, ct);
+                        break;
+                }
+
+                foreach (var item in items)
+                {
+                    BuildContact(connection, item, ct);
+                }
+
+                return (IReadOnlyList<Contact>)items;
+            }, cancellationToken);
+        }
+
+        private static List<Contact> GetContactsSortedByTime(SQLiteConnection connection, int count, Contact lastContact, CancellationToken ct)
+        {
+            if (lastContact is null)
+            {
+                // Contacts list ordered by "last activity" (LastMessageData.Date).
+                // LEFT JOIN keeps contacts without messages.
+                // COALESCE(LMD.Date, NullDateTicks) treats "no last message" as the oldest possible date,
+                // so such contacts go to the end.
+                // Secondary sort by C.Id makes ordering stable for pagination.
+                const string query = @"
+                    SELECT C.* 
+                    FROM Contact C
+                    LEFT JOIN LastMessageData LMD ON C.LastMessageDataId = LMD.Id
+                    ORDER BY COALESCE(LMD.Date, ?1) DESC, C.Id ASC
+                    LIMIT ?2";
+
+                return connection.DeferredQuery<Contact>(query, NullDateTicks, count).ToList(ct);
+            }
+            else
+            {
+                var lastDateTicks = lastContact.LastMessageData?.Date.Ticks ?? NullDateTicks;
+                var lastId = lastContact.Id;
+
+                // Next page for "last activity" ordering.
+                // We return rows strictly after the cursor (lastContact):
+                // - earlier activity date
+                // - or the same activity date but higher Contact.Id (because Id ASC is the tiebreaker).
+                // ORDER BY is identical to the first-page query to keep paging consistent.
+                const string query = @"
+                    SELECT C.* 
+                    FROM Contact C
+                    LEFT JOIN LastMessageData LMD ON C.LastMessageDataId = LMD.Id
+                    WHERE (COALESCE(LMD.Date, ?1) < ?2)
+                       OR (COALESCE(LMD.Date, ?1) = ?2 AND C.Id > ?3)
+                    ORDER BY COALESCE(LMD.Date, ?1) DESC, C.Id ASC
+                    LIMIT ?4";
+
+                return connection.DeferredQuery<Contact>(query, NullDateTicks, lastDateTicks, lastId, count).ToList(ct);
+            }
+        }
+
+        private List<Contact> GetContactsSortedByName(SQLiteConnection connection, int count, Contact lastContact, CancellationToken ct)
+        {
+            if (lastContact is null)
+            {
+                // Contacts list ordered by display name.
+                // We join EmailAddressData to use the email address as a fallback when FullName is empty.
+                // Sort key: COALESCE(NULLIF(FullName,''), Address) - i.e. "name if present, otherwise address".
+                // COLLATE NOCASE makes sorting case-insensitive.
+                // Address is added as a second key to make ordering stable when many contacts share the same name.
+                const string query = @"
+                    SELECT Contact.* FROM Contact 
+                    INNER JOIN EmailAddressData ON Contact.EmailId = EmailAddressData.Id 
+                    ORDER BY COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE ASC, 
+                             EmailAddressData.Address COLLATE NOCASE ASC 
+                    LIMIT ?1";
+                return connection.DeferredQuery<Contact>(query, count).ToList(ct);
+            }
+            else
+            {
+                var lastEmailData = GetEmailAddressData(connection, lastContact.EmailId);
+                var lastSortKey = string.IsNullOrEmpty(lastContact.FullName)
+                    ? (lastEmailData?.Address ?? lastContact.Email?.Address)
+                    : lastContact.FullName;
+                var lastAddress = lastEmailData?.Address ?? lastContact.Email?.Address;
+
+                if (string.IsNullOrEmpty(lastSortKey) || string.IsNullOrEmpty(lastAddress))
+                {
+                    throw new ArgumentException("lastContact must have valid email data");
+                }
+
+                // Next page for name ordering.
+                // Cursor consists of (sortKey, address).
+                // We advance by selecting rows with:
+                // - a strictly larger sortKey
+                // - or the same sortKey but a strictly larger address.
+                // ORDER BY matches the first-page query for deterministic paging.
+                const string query = @"
+                    SELECT Contact.* FROM Contact 
+                    INNER JOIN EmailAddressData ON Contact.EmailId = EmailAddressData.Id 
+                    WHERE (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE > ?1)
+                       OR (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE = ?1
+                           AND EmailAddressData.Address COLLATE NOCASE > ?2)
+                    ORDER BY COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE ASC, 
+                             EmailAddressData.Address COLLATE NOCASE ASC 
+                    LIMIT ?3";
+                return connection.DeferredQuery<Contact>(query, lastSortKey, lastAddress, count).ToList(ct);
+            }
+        }
+
+        private static List<Contact> GetContactsSortedByUnread(SQLiteConnection connection, int count, Contact lastContact, CancellationToken ct)
+        {
+            if (lastContact is null)
+            {
+                // Contacts list ordered by "unread first".
+                // Group key: 0 for contacts with UnreadCount > 0, 1 otherwise.
+                // Within each group we sort by last activity (LastMessageData.Date) desc, then by Contact.Id asc.
+                // LEFT JOIN keeps contacts without messages; COALESCE falls back to NullDateTicks.
+                const string query = @"
+                    SELECT C.* 
+                    FROM Contact C
+                    LEFT JOIN LastMessageData LMD ON C.LastMessageDataId = LMD.Id
+                    ORDER BY CASE WHEN C.UnreadCount > 0 THEN 0 ELSE 1 END ASC, 
+                             COALESCE(LMD.Date, ?1) DESC,
+                             C.Id ASC 
+                    LIMIT ?2";
+                return connection.DeferredQuery<Contact>(query, NullDateTicks, count).ToList(ct);
+            }
+            else
+            {
+                int lastGroup = lastContact.UnreadCount > 0 ? 0 : 1;
+                var lastDateTicks = lastContact.LastMessageData?.Date.Ticks ?? NullDateTicks;
+                var lastId = lastContact.Id;
+
+                // Next page for "unread first" ordering.
+                // Cursor consists of (group, lastDate, id) where group is computed from UnreadCount.
+                // "After" the cursor means:
+                // - group is larger (i.e. move from unread->read groups)
+                // - or same group but earlier last activity date
+                // - or same group and same date but higher Contact.Id (Id ASC tiebreaker).
+                // ORDER BY matches the first-page query.
+                const string query = @"
+                    SELECT C.* 
+                    FROM Contact C
+                    LEFT JOIN LastMessageData LMD ON C.LastMessageDataId = LMD.Id
+                    WHERE (CASE WHEN C.UnreadCount > 0 THEN 0 ELSE 1 END > ?2)
+                       OR (CASE WHEN C.UnreadCount > 0 THEN 0 ELSE 1 END = ?2 AND COALESCE(LMD.Date, ?1) < ?3)
+                       OR (CASE WHEN C.UnreadCount > 0 THEN 0 ELSE 1 END = ?2 AND COALESCE(LMD.Date, ?1) = ?3 AND C.Id > ?4)
+                    ORDER BY CASE WHEN C.UnreadCount > 0 THEN 0 ELSE 1 END ASC, 
+                             COALESCE(LMD.Date, ?1) DESC, 
+                             C.Id ASC
+                    LIMIT ?5";
+
+                return connection.DeferredQuery<Contact>(query, NullDateTicks, lastGroup, lastDateTicks, lastId, count).ToList(ct);
+            }
         }
     }
 }
