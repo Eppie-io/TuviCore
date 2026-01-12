@@ -551,6 +551,18 @@ namespace Tuvi.Core.DataStorage.Impl
                     contact.LastMessageData = CreateLastMessageData(messages[0].Folder.AccountEmail, messages[0]);
                     UpdateContact(db, contact);
                 }
+                else
+                {
+                    if (contact.LastMessageDataId > 0)
+                    {
+                        connection.Delete<LastMessageData>(contact.LastMessageDataId);
+
+                        contact.LastMessageDataId = 0;
+                        contact.LastMessageData = null;
+
+                        UpdateContact(db, contact);
+                    }
+                }
             }
 
             connection.Table<MessageContact>().Delete(x => x.MessageId == message.Pk);
@@ -619,7 +631,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 Debug.Assert(folder.UnreadCount <= folder.TotalCount);
             }
             folder.LocalCount += delta;
-            Debug.Assert(!updateUnreadAndTotal || updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount);
+            Debug.Assert(!updateUnreadAndTotal || (updateUnreadAndTotal && folder.LocalCount <= folder.TotalCount));
 
             connection.Update(folder);
         }
@@ -1628,16 +1640,38 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             contact.EmailId = InsertOrUpdateEmailAddress(connection, contact.Email);
             if (!contact.AvatarInfo.IsEmpty)
             {
-                connection.Insert(contact.AvatarInfo);
-                contact.AvatarInfoId = GetLastRowId(connection);
+                if (contact.AvatarInfo.Id == 0)
+                {
+                    int oldAvatarId = contact.AvatarInfoId;
+
+                    connection.Insert(contact.AvatarInfo);
+                    contact.AvatarInfoId = GetLastRowId(connection);
+
+                    if (oldAvatarId > 0 && oldAvatarId != contact.AvatarInfoId)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
+                }
+                else
+                {
+                    contact.AvatarInfoId = contact.AvatarInfo.Id;
+                }
             }
 
             if (contact.LastMessageData != null)
             {
+                int oldLastMessageDataId = contact.LastMessageDataId;
+
                 var account = FindAccountStrict(connection, contact.LastMessageData.AccountEmail);
                 contact.LastMessageData.AccountId = account.Id;
+
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);
+
+                if (oldLastMessageDataId > 0 && oldLastMessageDataId != contact.LastMessageDataId)
+                {
+                    connection.Delete<LastMessageData>(oldLastMessageDataId);
+                }
             }
         }
 
@@ -1734,10 +1768,17 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
                 if (item != null)
                 {
+                    int oldAvatarId = item.AvatarInfoId;
+
                     connection.Insert(new ImageInfo(avatarWidth, avatarHeight, avatarBytes));
                     item.AvatarInfoId = GetLastRowId(connection);
 
                     connection.Update(item);
+
+                    if (oldAvatarId > 0)
+                    {
+                        connection.Delete<ImageInfo>(oldAvatarId);
+                    }
                 }
             }, cancellationToken);
         }
@@ -2312,6 +2353,22 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
             return ReadDatabaseAsync((connection, ct) =>
             {
+                if (lastContact != null)
+                {
+                    var freshContact = connection.Find<Contact>(lastContact.Id);
+
+                    if (freshContact is null && lastContact.Email != null)
+                    {
+                        freshContact = FindContactByEmail(connection, lastContact.Email);
+                    }
+
+                    if (freshContact != null)
+                    {
+                        BuildContact(connection, freshContact, ct);
+                        lastContact = freshContact;
+                    }
+                }
+
                 List<Contact> items;
 
                 switch (sortOrder)
@@ -2418,7 +2475,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     SELECT Contact.* FROM Contact 
                     INNER JOIN EmailAddressData ON Contact.EmailId = EmailAddressData.Id 
                     WHERE (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE > ?1)
-                       OR (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE = ?1 
+                       OR (COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE = ?1
                            AND EmailAddressData.Address COLLATE NOCASE > ?2)
                     ORDER BY COALESCE(NULLIF(Contact.FullName, ''), EmailAddressData.Address) COLLATE NOCASE ASC, 
                              EmailAddressData.Address COLLATE NOCASE ASC 
