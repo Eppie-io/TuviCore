@@ -133,6 +133,6 @@ namespace Tuvi.Core
         Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken = default);
         Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default);
 
-        Task<bool> ClaimDecentralizedNameAsync(string name, EmailAddress address, CancellationToken cancellationToken = default);
+        Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default);
     }
 }
