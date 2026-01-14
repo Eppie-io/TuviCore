@@ -2291,6 +2291,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 var connection = db.Connection;
 
+                agent.AccountId = agent.Account is null ? 0 : agent.Account.Id;
                 agent.PreProcessorAgentId = agent.PreProcessorAgent is null ? 0 : agent.PreProcessorAgent.Id;
                 agent.PostProcessorAgentId = agent.PostProcessorAgent is null ? 0 : agent.PostProcessorAgent.Id;
 
