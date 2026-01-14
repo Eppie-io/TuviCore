@@ -2248,7 +2248,10 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 {
                     agent.PostProcessorAgentId = agent.PostProcessorAgent.Id;
                 }
+
                 connection.Insert(agent);
+                agent.Id = (uint)GetLastRowId(connection);
+
             }, cancellationToken);
         }
 
@@ -2291,9 +2294,18 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 var connection = db.Connection;
 
-                agent.AccountId = agent.Account is null ? 0 : agent.Account.Id;
-                agent.PreProcessorAgentId = agent.PreProcessorAgent is null ? 0 : agent.PreProcessorAgent.Id;
-                agent.PostProcessorAgentId = agent.PostProcessorAgent is null ? 0 : agent.PostProcessorAgent.Id;
+                if (agent.Account != null)
+                {
+                    agent.AccountId = agent.Account.Id;
+                }
+                if (agent.PreProcessorAgent != null)
+                {
+                    agent.PreProcessorAgentId = agent.PreProcessorAgent.Id;
+                }
+                if (agent.PostProcessorAgent != null)
+                {
+                    agent.PostProcessorAgentId = agent.PostProcessorAgent.Id;
+                }
 
                 connection.Update(agent);
             }, cancellationToken);
