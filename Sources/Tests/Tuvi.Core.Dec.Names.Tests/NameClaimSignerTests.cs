@@ -111,8 +111,8 @@ namespace Tuvi.Core.Dec.Names.Tests
 
             // Assert
             Assert.That(seq.Count, Is.EqualTo(2));
-            Assert.That(r.SignValue, Is.GreaterThan(0));
-            Assert.That(s.SignValue, Is.GreaterThan(0));
+            Assert.That(r.SignValue, Is.Positive);
+            Assert.That(s.SignValue, Is.Positive);
         }
 
         [Test]
