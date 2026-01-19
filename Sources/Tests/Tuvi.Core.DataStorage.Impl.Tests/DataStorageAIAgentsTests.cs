@@ -77,7 +77,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var agents = await db.GetAIAgentsAsync().ConfigureAwait(true);
 
                 Assert.That(agents.Count, Is.EqualTo(1));
-                Assert.That(agents[0].Id, Is.GreaterThan(0));
+                Assert.That(agents[0].Id, Is.Positive);
                 Assert.That(agents[0].Name, Is.EqualTo("agent-1"));
             }
         }
@@ -93,7 +93,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.AddAccountAsync(account).ConfigureAwait(true);
 
                 account = await db.GetAccountAsync(account.Email).ConfigureAwait(true);
-                Assert.That(account.Id, Is.GreaterThan(0));
+                Assert.That(account.Id, Is.Positive);
 
                 var pre = CreateAgent("pre");
                 await db.AddAIAgentAsync(pre).ConfigureAwait(true);
@@ -343,11 +343,11 @@ namespace Tuvi.Core.DataStorage.Tests
                 var loaded = await db.GetAIAgentAsync(main.Id).ConfigureAwait(true);
 
                 Assert.That(loaded, Is.Not.Null);
-                Assert.That(loaded.AccountId, Is.EqualTo(0));
+                Assert.That(loaded.AccountId, Is.Zero);
                 Assert.That(loaded.Account, Is.Null);
-                Assert.That(loaded.PreProcessorAgentId, Is.EqualTo(0));
+                Assert.That(loaded.PreProcessorAgentId, Is.Zero);
                 Assert.That(loaded.PreProcessorAgent, Is.Null);
-                Assert.That(loaded.PostProcessorAgentId, Is.EqualTo(0));
+                Assert.That(loaded.PostProcessorAgentId, Is.Zero);
                 Assert.That(loaded.PostProcessorAgent, Is.Null);
             }
         }
@@ -368,7 +368,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 Assert.That(loaded, Is.Null);
 
                 var agents = await db.GetAIAgentsAsync().ConfigureAwait(true);
-                Assert.That(agents.Count, Is.EqualTo(0));
+                Assert.That(agents.Count, Is.Zero);
             }
         }
 
@@ -425,11 +425,11 @@ namespace Tuvi.Core.DataStorage.Tests
                 Assert.That(a1.PostProcessorAgent.Id, Is.EqualTo(post.Id));
 
                 var a2 = byName["no-links"];
-                Assert.That(a2.AccountId, Is.EqualTo(0));
+                Assert.That(a2.AccountId, Is.Zero);
                 Assert.That(a2.Account, Is.Null);
-                Assert.That(a2.PreProcessorAgentId, Is.EqualTo(0));
+                Assert.That(a2.PreProcessorAgentId, Is.Zero);
                 Assert.That(a2.PreProcessorAgent, Is.Null);
-                Assert.That(a2.PostProcessorAgentId, Is.EqualTo(0));
+                Assert.That(a2.PostProcessorAgentId, Is.Zero);
                 Assert.That(a2.PostProcessorAgent, Is.Null);
             }
         }
@@ -625,7 +625,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var loaded = await db.GetAIAgentAsync(agent.Id).ConfigureAwait(true);
 
                 Assert.That(loaded, Is.Not.Null);
-                Assert.That(loaded.AccountId, Is.EqualTo(0));
+                Assert.That(loaded.AccountId, Is.Zero);
                 Assert.That(loaded.Account, Is.Null);
 
                 await db.AddAccountAsync(unsavedAccount).ConfigureAwait(true);
