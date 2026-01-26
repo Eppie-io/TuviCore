@@ -679,7 +679,6 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await sender.SendMessageAsync(message, default).ConfigureAwait(true);
 
             // add a corrupted envelope that cannot be decrypted
-            var mailboxId = new MailboxId(receiverAddress.DecentralizedAddress ?? receiverAddress.Address);
             var receiverMailboxId = mailbox.Keys.First(); // sender has added one entry for receiver
             var corruptedHash = "corrupted";
             mailbox[receiverMailboxId].Add(corruptedHash);
