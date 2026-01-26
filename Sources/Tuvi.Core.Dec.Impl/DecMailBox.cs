@@ -24,9 +24,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Entities;
+using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
 
@@ -55,6 +57,13 @@ namespace Tuvi.Core.Dec.Impl
 
             return new DecMailBox(account, storage, decClient, protector, publicKeyService);
         }
+    }
+
+    public class DecEnvelope
+    {
+        public int Version { get; set; } = 1;
+        public string PayloadHash { get; set; }
+        public string Nonce { get; set; }
     }
 
     internal class DecMailBox : IMailBox
@@ -90,6 +99,47 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
+        private static string CreateEnvelopeNonceBase64()
+        {
+            var nonce = new byte[32];
+
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonce);
+            }
+
+            var base64 = Convert.ToBase64String(nonce);
+            return base64.TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        /// <summary>
+        /// Sends a decentralized message using a two-object transport to avoid metadata leakage.
+        /// </summary>
+        /// <remarks>
+        /// Workflow per recipient:
+        /// <list type="number">
+        /// <item>
+        /// <description>
+        /// Serialize the message into JSON (<see cref="DecMessageRaw"/>), encrypt it with recipient public key and upload it.
+        /// This creates the <c>payload</c> object and returns <c>payloadHash</c>.
+        /// </description>
+        /// </item>
+        /// <item>
+        /// <description>
+        /// Build <see cref="DecEnvelope"/> as a small JSON { version, payloadHash, nonce }, encrypt it with the same recipient public key and upload it.
+        /// This creates the <c>envelope</c> object and returns <c>envelopeHash</c>.
+        /// </description>
+        /// </item>
+        /// <item>
+        /// <description>
+        /// Send only <c>envelopeHash</c> to the recipient mailbox (<see cref="MailboxId"/>).
+        /// On the transport level, only mailboxId + envelopeHash are observable.
+        /// </description>
+        /// </item>
+        /// </list>
+        /// The message is additionally saved to the local Sent folder; for Sent items the stored hash is a deterministic
+        /// SHA-256 over concatenated per-recipient <c>envelopeHash</c> values.
+        /// </remarks>
         public async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
         {
             if (message is null)
@@ -105,14 +155,33 @@ namespace Tuvi.Core.Dec.Impl
             foreach (var email in message.AllRecipients.Where(x => x.IsDecentralized))
             {
                 string publicKey = await PublicKeyService.GetEncodedByEmailAsync(email, cancellationToken).ConfigureAwait(false);
-                var encryptedData = await Protector.EncryptAsync(publicKey, data, cancellationToken).ConfigureAwait(false);
-                finalHashBuilder.Append(await SendToDecClientsAsync(publicKey, encryptedData, cancellationToken).ConfigureAwait(false));
+
+                // payload
+                var payloadBytes = await Protector.EncryptAsync(publicKey, data, cancellationToken).ConfigureAwait(false);
+                var payloadHash = await DecClient.PutAsync(payloadBytes, cancellationToken).ConfigureAwait(false);
+
+                // envelope
+                var envelope = new DecEnvelope
+                {
+                    PayloadHash = payloadHash,
+                    Nonce = CreateEnvelopeNonceBase64()
+                };
+                var envelopeInner = JsonConvert.SerializeObject(envelope);
+                var envelopeBytes = await Protector.EncryptAsync(publicKey, envelopeInner, cancellationToken).ConfigureAwait(false);
+                var envelopeHash = await DecClient.PutAsync(envelopeBytes, cancellationToken).ConfigureAwait(false);
+
+                // send only envelope hash to mailbox
+                var mailboxId = new MailboxId(publicKey);
+                await DecClient.SendAsync(mailboxId.ToString(), envelopeHash, cancellationToken).ConfigureAwait(false);
+                finalHashBuilder.Append(envelopeHash);
             }
 
             message.IsMarkedAsRead = true;
             message.IsDecentralized = true;
 
-            // save dec message to sent folder
+            // TODO: Sent currently stores a synthetic hash (SHA-256 of concatenated per-recipient envelopeHash values).
+            // In future, keep one Sent item but persist the full list of envelope hashes (delivery details) inside Message/storage
+            // and use a stable per-message local id instead of hashing concatenation.
             var finalHash = GetStringHashSha256(finalHashBuilder.ToString());
             await Storage.AddDecMessageAsync(AccountSettings.Email, new DecMessage(finalHash, message), cancellationToken).ConfigureAwait(false);
         }
@@ -138,16 +207,38 @@ namespace Tuvi.Core.Dec.Impl
             return new Folder("Inbox", FolderAttributes.Inbox);
         }
 
+        /// <summary>
+        /// Retrieves messages for the given folder.
+        /// </summary>
+        /// <remarks>
+        /// For Inbox, the decentralized transport returns a list of <c>envelopeHash</c> values.
+        /// Each envelope is processed in two steps:
+        /// <list type="number">
+        /// <item>
+        /// <description>
+        /// Download and decrypt the envelope by <c>envelopeHash</c> to extract <c>payloadHash</c>.
+        /// Envelope corruption is tolerated: invalid/undecryptable/unparseable envelopes are skipped and logged.
+        /// </description>
+        /// </item>
+        /// <item>
+        /// <description>
+        /// Download and decrypt the payload by <c>payloadHash</c> to obtain the message and persist it locally.
+        /// Payload failures are not swallowed and will propagate to the caller.
+        /// </description>
+        /// </item>
+        /// </list>
+        /// Received messages are stored locally with <see cref="DecMessage.Hash"/> set to <c>envelopeHash</c>.
+        /// </remarks>
         private async Task<List<Message>> GetMessageListAsync(Folder folder, int count, CancellationToken cancellationToken)
         {
             var email = AccountSettings.Email;
             if (folder.IsInbox)
             {
-                string decentralizedAddress = await GetDecentralizedAddressAsync(AccountSettings, cancellationToken).ConfigureAwait(false);
-                var list = await ListDecClientsMessagesAsync(decentralizedAddress, cancellationToken).ConfigureAwait(false);
+                var mailboxId = await GetMailboxIdAsync(AccountSettings, cancellationToken).ConfigureAwait(false);
+                var list = await ListDecClientsMessagesAsync(mailboxId, cancellationToken).ConfigureAwait(false);
                 var trash = (await GetFoldersStructureAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(f => f.IsTrash);
 
-                var tasks = list.Distinct().Select(hash => GetMessageListImplAsync(email, folder, trash, decentralizedAddress, hash, cancellationToken));
+                var tasks = list.Distinct().Select(hash => GetMessageListImplAsync(email, folder, trash, hash, cancellationToken));
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             }
 
@@ -155,45 +246,71 @@ namespace Tuvi.Core.Dec.Impl
             return items.ConvertAll(x => x.ToMessage());
         }
 
-        private async Task<string> GetDecentralizedAddressAsync(Account accountSettings, CancellationToken cancellationToken)
+        private async Task<MailboxId> GetMailboxIdAsync(Account accountSettings, CancellationToken cancellationToken)
         {
+            string publicKey;
             var masterKey = await Storage.GetMasterKeyAsync(cancellationToken).ConfigureAwait(false);
 
             if (accountSettings.Email.IsHybrid)
             {
-                return PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetKeyTag());
+                publicKey = PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetKeyTag());
+            }
+            else
+            {
+                publicKey = PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetCoinType(), accountSettings.DecentralizedAccountIndex, accountSettings.GetChannel(), accountSettings.GetKeyIndex());
             }
 
-            return PublicKeyService.DeriveEncoded(masterKey, accountSettings.GetCoinType(), accountSettings.DecentralizedAccountIndex, accountSettings.GetChannel(), accountSettings.GetKeyIndex());
+            return new MailboxId(publicKey);
         }
 
-        private async Task GetMessageListImplAsync(EmailAddress email, Folder folder, Folder trashFolder, string address, string hash, CancellationToken cancellationToken)
+        /// <summary>
+        /// Processes a single inbox item identified by <paramref name="envelopeHash"/>.
+        /// </summary>
+        /// <remarks>
+        /// Envelope issues are treated as non-fatal (logged and skipped). Payload/message issues are treated as fatal
+        /// and are propagated to the caller.
+        /// </remarks>
+        private async Task GetMessageListImplAsync(EmailAddress email, Folder folder, Folder trashFolder, string envelopeHash, CancellationToken cancellationToken)
         {
-            bool exists = await Storage.IsDecMessageExistsAsync(email, folder.FullName, hash, cancellationToken).ConfigureAwait(false)
-                         || (trashFolder != null && await Storage.IsDecMessageExistsAsync(email, trashFolder.FullName, hash, cancellationToken).ConfigureAwait(false));
+            bool exists = await Storage.IsDecMessageExistsAsync(email, folder.FullName, envelopeHash, cancellationToken).ConfigureAwait(false)
+                         || (trashFolder != null && await Storage.IsDecMessageExistsAsync(email, trashFolder.FullName, envelopeHash, cancellationToken).ConfigureAwait(false));
 
             if (exists)
             {
                 return;
             }
-            var data = await GetDecClientsMessageAsync(hash, cancellationToken).ConfigureAwait(false);
 
-            var json = await Protector.DecryptAsync(AccountSettings, data, cancellationToken).ConfigureAwait(false);
-            var message = JsonConvert.DeserializeObject<DecMessageRaw>(json).ToMessage();
+            DecEnvelope envelope;
+
+            try
+            {
+                // resolve envelope -> payload
+                var envelopeBytes = await GetDecClientsMessageAsync(envelopeHash, cancellationToken).ConfigureAwait(false);
+                var envelopeJson = await Protector.DecryptAsync(AccountSettings, envelopeBytes, cancellationToken).ConfigureAwait(false);
+                envelope = JsonConvert.DeserializeObject<DecEnvelope>(envelopeJson);
+
+                if (envelope is null || string.IsNullOrWhiteSpace(envelope.PayloadHash))
+                {
+                    this.Log().LogWarning("DEC envelope is invalid. Account={Account}, EnvelopeHash={EnvelopeHash}", AccountSettings?.Email?.Address, envelopeHash);
+                    return;
+                }
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                this.Log().LogWarning(ex, "Failed to process DEC envelope. Account={Account}, EnvelopeHash={EnvelopeHash}", AccountSettings?.Email?.Address, envelopeHash);
+                return;
+            }
+
+            var payloadBytes = await GetDecClientsMessageAsync(envelope.PayloadHash, cancellationToken).ConfigureAwait(false);
+            var payloadJson = await Protector.DecryptAsync(AccountSettings, payloadBytes, cancellationToken).ConfigureAwait(false);
+            var message = JsonConvert.DeserializeObject<DecMessageRaw>(payloadJson).ToMessage();
             message.Folder = folder;
-            await Storage.AddDecMessageAsync(email, new DecMessage(hash, message), cancellationToken).ConfigureAwait(false);
+            await Storage.AddDecMessageAsync(email, new DecMessage(envelopeHash, message), cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task<string> SendToDecClientsAsync(string address, byte[] data, CancellationToken cancellationToken)
+        private async Task<IReadOnlyList<string>> ListDecClientsMessagesAsync(MailboxId address, CancellationToken cancellationToken)
         {
-            var hash = await DecClient.PutAsync(data, cancellationToken).ConfigureAwait(false);
-            await DecClient.SendAsync(address, hash, cancellationToken).ConfigureAwait(false);
-            return hash;
-        }
-
-        private async Task<IReadOnlyList<string>> ListDecClientsMessagesAsync(string address, CancellationToken cancellationToken)
-        {
-            var res = await DecClient.ListAsync(address, cancellationToken).ConfigureAwait(false);
+            var res = await DecClient.ListAsync(address.ToString(), cancellationToken).ConfigureAwait(false);
             return res.ToList();
         }
 
