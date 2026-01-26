@@ -81,7 +81,7 @@ namespace Tuvi.Core.Dec.Impl
 
         public override int GetHashCode()
         {
-            return _value.GetHashCode();
+            return StringComparer.Ordinal.GetHashCode(_value);
         }
 
         public static bool operator ==(MailboxId left, MailboxId right)
