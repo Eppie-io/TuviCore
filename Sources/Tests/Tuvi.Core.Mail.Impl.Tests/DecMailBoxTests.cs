@@ -522,7 +522,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             (var index1, var senderAddress) = GetAddress1(addressType);
             var senderStorage = CreateKeyStorageMock1();
             var receiverStorage = CreateKeyStorageMock1();
-            (var index2, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
+            (_, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
 
             var client = CreateDecClient();
             using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage.Object, index1);
