@@ -40,6 +40,8 @@ using Tuvi.Core.Mail.Impl.Protocols;
 using Tuvi.Core.Utils;
 using TuviPgpLib;
 using TuviPgpLibImpl;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Tuvi.Core.Mail.Impl.Tests
 {
@@ -184,6 +186,17 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var messages = new Dictionary<EmailAddress, List<DecMessage>>();
             var storage = new Mock<IDecStorage>();
             storage.Setup(x => x.GetMasterKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(masterKey);
+            storage.Setup(x => x.IsDecMessageExistsAsync(It.IsAny<EmailAddress>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((EmailAddress email, string folder, string hash, CancellationToken ct) =>
+                {
+                    if (!messages.TryGetValue(email, out var emailMessages))
+                    {
+                        return false;
+                    }
+
+                    return emailMessages.Any(x => string.Equals(x.FolderName, folder, StringComparison.Ordinal)
+                                              && string.Equals(x.Hash, hash, StringComparison.Ordinal));
+                });
             storage.Setup(x => x.GetDecMessagesAsync(It.IsAny<EmailAddress>(),
                                          It.IsAny<Folder>(),
                                          It.IsAny<int>(),
@@ -499,6 +512,246 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(decryptedMessage, Is.EqualTo(message));
             Assert.That(decryptedMessage.Protection.SignaturesInfo.Count, Is.EqualTo(1));
             Assert.That(decryptedMessage.Protection.SignaturesInfo[0].IsVerified, Is.True);
+        }
+
+        [Test]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task SendCreatesEnvelopeAndPayloadAndSendsEnvelopeHash(string addressType)
+        {
+            (var index1, var senderAddress) = GetAddress1(addressType);
+            var senderStorage = CreateKeyStorageMock1();
+            var receiverStorage = CreateKeyStorageMock1();
+            (_, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
+
+            var client = CreateDecClient();
+            using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage.Object, index1);
+
+            var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
+            var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
+            Assert.That(sent, Is.Not.Null);
+
+            var message = CreateMessage(senderAddress, receiverAddress);
+            message.Folder = sent;
+
+            Assert.DoesNotThrowAsync(async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true));
+
+            client.Verify(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+            client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+
+            var sentEnvelopeHash = client.Invocations
+                .Where(x => x.Method.Name == nameof(IDecStorageClient.SendAsync))
+                .Select(x => (string)x.Arguments[1])
+                .Last();
+
+            var storedHashes = client.Invocations
+                .Where(x => x.Method.Name == nameof(IDecStorageClient.PutAsync))
+                .Select(x => GetSHA256((byte[])x.Arguments[0]))
+                .ToList();
+
+            Assert.That(storedHashes, Has.Member(sentEnvelopeHash));
+        }
+
+        [Test]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task ReceiveDownloadsEnvelopeThenPayload(string addressType)
+        {
+            (var index1, var senderAddress) = GetAddress1(addressType);
+            var senderStorage = CreateKeyStorageMock1();
+            var receiverStorage = CreateKeyStorageMock1();
+            (var index2, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
+
+            var client = new Mock<IDecStorageClient>();
+            var mailbox = new Dictionary<string, List<string>>();
+            var blobs = new Dictionary<string, byte[]>();
+
+            string sentEnvelopeHash = null;
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, string hash, CancellationToken ct) =>
+                  {
+                      sentEnvelopeHash = hash;
+                      if (!mailbox.ContainsKey(address))
+                      {
+                          mailbox[address] = new List<string>();
+                      }
+                      mailbox[address].Add(hash);
+                      return hash;
+                  });
+
+            client.Setup(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, CancellationToken ct) =>
+                  {
+                      return mailbox.TryGetValue(address, out var list) ? list.ToList() : new List<string>();
+                  });
+
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((byte[] data, CancellationToken ct) =>
+                  {
+                      var hash = GetSHA256(data);
+                      blobs[hash] = data;
+                      return hash;
+                  });
+
+            client.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string hash, CancellationToken ct) => blobs[hash]);
+
+            using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage.Object, index1);
+            using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage.Object, index2);
+
+            var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
+            var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
+            Assert.That(sent, Is.Not.Null);
+
+            var message = CreateMessage(senderAddress, receiverAddress);
+            message.Folder = sent;
+
+            await sender.SendMessageAsync(message, default).ConfigureAwait(true);
+            Assert.That(sentEnvelopeHash, Is.Not.Null);
+
+            var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
+            var messages = await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
+
+            Assert.That(messages.Count, Is.EqualTo(1));
+
+            // at least 2 gets: envelope + payload
+            client.Verify(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+
+            // envelope should be among requested hashes
+            var getHashes = client.Invocations
+                .Where(x => x.Method.Name == nameof(IDecStorageClient.GetAsync))
+                .Select(x => (string)x.Arguments[0])
+                .ToList();
+            Assert.That(getHashes, Has.Member(sentEnvelopeHash));
+        }
+
+        [Test]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task CorruptedEnvelopeIsSkipped(string addressType)
+        {
+            (var index1, var senderAddress) = GetAddress1(addressType);
+            var senderStorage = CreateKeyStorageMock1();
+            var receiverStorage = CreateKeyStorageMock1();
+            (var index2, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
+
+            var client = new Mock<IDecStorageClient>();
+            var mailbox = new Dictionary<string, List<string>>();
+            var blobs = new Dictionary<string, byte[]>();
+
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, string hash, CancellationToken ct) =>
+                  {
+                      if (!mailbox.ContainsKey(address))
+                      {
+                          mailbox[address] = new List<string>();
+                      }
+                      mailbox[address].Add(hash);
+                      return hash;
+                  });
+
+            client.Setup(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, CancellationToken ct) =>
+                  {
+                      return mailbox.TryGetValue(address, out var list) ? list.ToList() : new List<string>();
+                  });
+
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((byte[] data, CancellationToken ct) =>
+                  {
+                      var hash = GetSHA256(data);
+                      blobs[hash] = data;
+                      return hash;
+                  });
+
+            client.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string hash, CancellationToken ct) => blobs[hash]);
+
+            using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage.Object, index1);
+            using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage.Object, index2);
+
+            var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
+            var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
+            Assert.That(sent, Is.Not.Null);
+
+            var message = CreateMessage(senderAddress, receiverAddress);
+            message.Folder = sent;
+            await sender.SendMessageAsync(message, default).ConfigureAwait(true);
+
+            // add a corrupted envelope that cannot be decrypted
+            var receiverMailboxId = mailbox.Keys.First(); // sender has added one entry for receiver
+            var corruptedHash = "corrupted";
+            mailbox[receiverMailboxId].Add(corruptedHash);
+            blobs[corruptedHash] = Encoding.UTF8.GetBytes("not encrypted");
+
+            var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
+
+            Assert.DoesNotThrowAsync(async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true));
+        }
+
+        [Test]
+        [TestCase(HybridAddressType)]
+        [TestCase(DecentralizedAddressType)]
+        public async Task PayloadFailurePropagates(string addressType)
+        {
+            (var index1, var senderAddress) = GetAddress1(addressType);
+            var senderStorage = CreateKeyStorageMock1();
+            var receiverStorage = CreateKeyStorageMock1();
+            (var index2, var receiverAddress) = await GetAddress2Async(receiverStorage.Object, addressType).ConfigureAwait(true);
+
+            var client = new Mock<IDecStorageClient>();
+            var mailbox = new Dictionary<string, List<string>>();
+            var blobs = new Dictionary<string, byte[]>();
+            bool firstGet = true;
+
+            client.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, string hash, CancellationToken ct) =>
+                  {
+                      if (!mailbox.ContainsKey(address))
+                      {
+                          mailbox[address] = new List<string>();
+                      }
+                      mailbox[address].Add(hash);
+                      return hash;
+                  });
+
+            client.Setup(x => x.ListAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string address, CancellationToken ct) =>
+                  {
+                      return mailbox.TryGetValue(address, out var list) ? list.ToList() : new List<string>();
+                  });
+
+            client.Setup(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((byte[] data, CancellationToken ct) =>
+                  {
+                      var hash = GetSHA256(data);
+                      blobs[hash] = data;
+                      return hash;
+                  });
+
+            client.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync((string hash, CancellationToken ct) =>
+                  {
+                      // first Get is for envelope, second is for payload
+                      if (!firstGet)
+                      {
+                          throw new DecException();
+                      }
+                      firstGet = false;
+                      return blobs[hash];
+                  });
+
+            using var sender = CreateDecMailBox(senderAddress, client.Object, senderStorage.Object, index1);
+            using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage.Object, index2);
+
+            var senderFolders = await sender.GetFoldersStructureAsync(default).ConfigureAwait(true);
+            var sent = senderFolders.Where(x => x.IsSent).FirstOrDefault();
+            var message = CreateMessage(senderAddress, receiverAddress);
+            message.Folder = sent;
+            await sender.SendMessageAsync(message, default).ConfigureAwait(true);
+
+            var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
+            Assert.ThrowsAsync<DecException>(async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true));
         }
 
         [Test]
@@ -986,6 +1239,63 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             // Assert
             Assert.That(pgpContext.GetPublicKeysInfo().Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task SendMessageAsyncUsesMailboxIdNotPublicKey()
+        {
+            string addressType = DecentralizedAddressType;
+            (var index, var address) = GetAddress1(addressType);
+            Message message = CreateMessage(address, address);
+            var storage = CreateKeyStorageMock1();
+            var client = CreateDecClient();
+            Account account = CreateAccount(addressType, address, index);
+            using var mailBox = new DecMailBox(account, storage.Object, client.Object, new PgpDecProtector(storage.Object, _publicKeyService), _publicKeyService);
+
+            await mailBox.SendMessageAsync(message, default).ConfigureAwait(true);
+
+            string publicKey = address.DecentralizedAddress;
+            string expectedMailboxId = CalculateMailboxId(publicKey);
+
+            client.Verify(x => x.SendAsync(It.Is<string>(s => s == expectedMailboxId), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            client.Verify(x => x.SendAsync(It.Is<string>(s => s == publicKey), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task GetMessagesAsyncUsesMailboxIdNotPublicKey()
+        {
+            string addressType = DecentralizedAddressType;
+            (var index, var address) = GetAddress1(addressType);
+            var storage = CreateKeyStorageMock1();
+
+            var dummyMessage = new DecMessage("hash", CreateMessage(address, address));
+            await storage.Object.AddDecMessageAsync(address, dummyMessage, default).ConfigureAwait(true);
+
+            var client = CreateDecClient();
+            Account account = CreateAccount(addressType, address, index);
+            using var mailBox = new DecMailBox(account, storage.Object, client.Object, new PgpDecProtector(storage.Object, _publicKeyService), _publicKeyService);
+
+            var folder = new Folder("Inbox", FolderAttributes.Inbox);
+
+            await mailBox.GetMessagesAsync(folder, 10, default).ConfigureAwait(true);
+
+            string publicKey = address.DecentralizedAddress;
+            string expectedMailboxId = CalculateMailboxId(publicKey);
+
+            client.Verify(x => x.ListAsync(It.Is<string>(s => s == expectedMailboxId), It.IsAny<CancellationToken>()), Times.Once);
+            client.Verify(x => x.ListAsync(It.Is<string>(s => s == publicKey), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private static string CalculateMailboxId(string publicKey)
+        {
+            string routePrefix = "tuvi.dec.route.v1|";
+            var key = publicKey.ToUpperInvariant();
+            var input = routePrefix + key;
+            using (var sha = SHA256.Create())
+            {
+                var hash = sha.ComputeHash(Encoding.ASCII.GetBytes(input));
+                return BitConverter.ToString(hash).Replace("-", "", StringComparison.OrdinalIgnoreCase);
+            }
         }
     }
 }
