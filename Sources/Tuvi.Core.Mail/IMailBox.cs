@@ -134,5 +134,13 @@ namespace Tuvi.Core.Mail
         /// Move messages with <paramref name="ids"/> list in <paramref name="folder"/> to folder <paramref name="targetFolder"/>.
         /// </summary>
         Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folder, Folder targetFolder, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Create a new folder with <paramref name="folderName"/> in the mailbox.
+        /// </summary>
+        /// <param name="folderName">Name of the folder to create</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Created folder</returns>
+        Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default);
     }
 }

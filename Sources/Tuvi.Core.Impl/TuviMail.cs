@@ -83,6 +83,7 @@ namespace Tuvi.Core.Impl
         public event EventHandler<AccountEventArgs> AccountAdded;
         public event EventHandler<AccountEventArgs> AccountUpdated;
         public event EventHandler<AccountEventArgs> AccountDeleted;
+        public event EventHandler<FolderCreatedEventArgs> FolderCreated;
         public event EventHandler<ExceptionEventArgs> ExceptionOccurred;
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
         public event EventHandler<ContactChangedEventArgs> ContactChanged;
@@ -1226,6 +1227,28 @@ namespace Tuvi.Core.Impl
         {
             CheckDisposed();
             return DataStorage.UpdateMessageProcessingResultAsync(message, result, cancellationToken);
+        }
+
+        public async Task<Folder> CreateFolderAsync(EmailAddress accountEmail, string folderName, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+
+            if (accountEmail is null)
+            {
+                throw new ArgumentNullException(nameof(accountEmail));
+            }
+
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                throw new ArgumentException("Folder name cannot be empty", nameof(folderName));
+            }
+
+            var accountService = await GetAccountServiceAsync(accountEmail, cancellationToken).ConfigureAwait(false);
+            var newFolder = await accountService.CreateFolderAsync(folderName, cancellationToken).ConfigureAwait(false);
+
+            FolderCreated?.Invoke(this, new FolderCreatedEventArgs(newFolder, accountEmail));
+
+            return newFolder;
         }
 
         public async Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default)

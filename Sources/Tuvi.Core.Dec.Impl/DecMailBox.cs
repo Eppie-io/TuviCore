@@ -494,6 +494,12 @@ namespace Tuvi.Core.Dec.Impl
             }
         }
 
+        public Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default)
+        {
+            // DEC protocol doesn't support folder creation in the traditional sense
+            throw new NotSupportedException("DEC protocol does not support folder creation.");
+        }
+
         public void Dispose() { }
     }
 }
