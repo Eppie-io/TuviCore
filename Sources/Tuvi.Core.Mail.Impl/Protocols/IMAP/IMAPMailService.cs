@@ -535,7 +535,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
                 int startIndex;
-                if (lastMessage == null)
+                if (lastMessage is null)
                 {
                     if (count > mailFolder.Count || count == 0)
                     {
@@ -625,7 +625,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
                 int startIndex = 0, endIndex = 0;
-                if (lastMessage == null)
+                if (lastMessage is null)
                 {
                     if (count > mailFolder.Count || count == 0)
                     {
@@ -877,7 +877,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
             async Task<Message> AppendDraftMessageAsync()
             {
-                if (message.Folder == null)
+                if (message.Folder is null)
                 {
                     message.Folder = GetDraftsFolder().ToTuviMailFolder();
                 }
@@ -1276,7 +1276,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             async Task<Folder> DoCreateFolderAsync()
             {
                 var personalNamespaces = ImapClient.PersonalNamespaces;
-                if (personalNamespaces == null || personalNamespaces.Count == 0)
+                if (personalNamespaces is null || personalNamespaces.Count == 0)
                 {
                     throw new InvalidOperationException("IMAP server does not define any personal namespaces.");
                 }
