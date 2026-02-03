@@ -32,7 +32,7 @@ using Tuvi.Core.Mail;
 namespace Tuvi.Core.Tests
 {
     [TestFixture]
-    public class FolderCreationTests
+    public class FolderDeletionTests
     {
         private static Mock<ISecurityManager> InitMockSecurityManager()
         {
@@ -43,7 +43,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task CreateFolderAsyncValidInputShouldCreateFolder()
+        public async Task DeleteFolderAsyncValidInputShouldDeleteFolder()
         {
             // Arrange
             var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
@@ -67,13 +67,16 @@ namespace Tuvi.Core.Tests
                 AccountEmail = accountsList[0].Email
             };
 
-            mailBoxMock.Setup(m => m.CreateFolderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(testFolder);
+            mailBoxMock.Setup(m => m.DeleteFolderAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
             mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Folder>());
             mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Folder("INBOX", FolderAttributes.Inbox));
             mailBoxMock.Setup(m => m.HasFolderCounters).Returns(true);
+
+            dataStorageMock.Setup(d => d.DeleteFolderAsync(It.IsAny<EmailAddress>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             mailBoxFactoryMock.Setup(f => f.CreateMailBox(It.IsAny<Account>()))
                 .Returns(mailBoxMock.Object);
@@ -88,23 +91,22 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
                 decStorageClient.Object);
 
-            FolderCreatedEventArgs eventArgs = null;
-            core.FolderCreated += (sender, args) => eventArgs = args;
+            FolderDeletedEventArgs eventArgs = null;
+            core.FolderDeleted += (sender, args) => eventArgs = args;
 
             // Act
-            var result = await core.CreateFolderAsync(accountsList[0].Email, "TestFolder").ConfigureAwait(false);
+            await core.DeleteFolderAsync(accountsList[0].Email, testFolder).ConfigureAwait(false);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.FullName, Is.EqualTo("TestFolder"));
             Assert.That(eventArgs, Is.Not.Null);
             Assert.That(eventArgs.Folder.FullName, Is.EqualTo("TestFolder"));
             Assert.That(eventArgs.AccountEmail, Is.EqualTo(accountsList[0].Email));
-            mailBoxMock.Verify(m => m.CreateFolderAsync("TestFolder", It.IsAny<CancellationToken>()), Times.Once);
+            mailBoxMock.Verify(m => m.DeleteFolderAsync(testFolder, It.IsAny<CancellationToken>()), Times.Once);
+            dataStorageMock.Verify(d => d.DeleteFolderAsync(accountsList[0].Email, testFolder.FullName, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
-        public void CreateFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
+        public void DeleteFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
         {
             // Arrange
             var securityManagerMock = InitMockSecurityManager();
@@ -114,6 +116,49 @@ namespace Tuvi.Core.Tests
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
             var decStorageClient = new Mock<IDecStorageClient>();
+
+            using var core = TuviCoreCreator.CreateTuviMailCore(
+                mailBoxFactoryMock.Object,
+                mailServerTesterMock.Object,
+                dataStorageMock.Object,
+                securityManagerMock.Object,
+                backupManager.Object,
+                credentialsManager.Object,
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
+
+            var testFolder = new Folder("TestFolder", FolderAttributes.None);
+
+            // Act & Assert
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await core.DeleteFolderAsync(null, testFolder).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void DeleteFolderAsyncNullFolderShouldThrowArgumentNullException()
+        {
+            // Arrange
+            var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
+            var securityManagerMock = InitMockSecurityManager();
+            var mailBoxFactoryMock = new Mock<IMailBoxFactory>();
+            var mailServerTesterMock = new Mock<IMailServerTester>();
+            var dataStorageMock = new Mock<IDataStorage>();
+            var mailBoxMock = new Mock<IMailBox>();
+            var backupManager = new Mock<IBackupManager>();
+            var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
+
+            dataStorageMock.Setup(a => a.GetAccountsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(accountsList);
+            dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(accountsList[0]);
+
+            mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<Folder>());
+            mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Folder("INBOX", FolderAttributes.Inbox));
+
+            mailBoxFactoryMock.Setup(f => f.CreateMailBox(It.IsAny<Account>()))
+                .Returns(mailBoxMock.Object);
 
             using var core = TuviCoreCreator.CreateTuviMailCore(
                 mailBoxFactoryMock.Object,
@@ -127,11 +172,11 @@ namespace Tuvi.Core.Tests
 
             // Act & Assert
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.CreateFolderAsync(null, "TestFolder").ConfigureAwait(false));
+                await core.DeleteFolderAsync(accountsList[0].Email, null).ConfigureAwait(false));
         }
 
         [Test]
-        public void CreateFolderAsyncEmptyFolderNameShouldThrowArgumentException()
+        public async Task DeleteFolderAsyncUpdatesFolderStructure()
         {
             // Arrange
             var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
@@ -148,51 +193,7 @@ namespace Tuvi.Core.Tests
             dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(accountsList[0]);
 
-            mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<Folder>());
-            mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new Folder("INBOX", FolderAttributes.Inbox));
-
-            mailBoxFactoryMock.Setup(f => f.CreateMailBox(It.IsAny<Account>()))
-                .Returns(mailBoxMock.Object);
-
-            using var core = TuviCoreCreator.CreateTuviMailCore(
-                mailBoxFactoryMock.Object,
-                mailServerTesterMock.Object,
-                dataStorageMock.Object,
-                securityManagerMock.Object,
-                backupManager.Object,
-                credentialsManager.Object,
-                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
-                decStorageClient.Object);
-
-            // Act & Assert
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.CreateFolderAsync(accountsList[0].Email, "").ConfigureAwait(false));
-
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.CreateFolderAsync(accountsList[0].Email, "   ").ConfigureAwait(false));
-        }
-
-        [Test]
-        public async Task CreateFolderAsyncUpdatesFolderStructure()
-        {
-            // Arrange
-            var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
-            var securityManagerMock = InitMockSecurityManager();
-            var mailBoxFactoryMock = new Mock<IMailBoxFactory>();
-            var mailServerTesterMock = new Mock<IMailServerTester>();
-            var dataStorageMock = new Mock<IDataStorage>();
-            var mailBoxMock = new Mock<IMailBox>();
-            var backupManager = new Mock<IBackupManager>();
-            var credentialsManager = new Mock<ICredentialsManager>();
-            var decStorageClient = new Mock<IDecStorageClient>();
-
-            dataStorageMock.Setup(a => a.GetAccountsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(accountsList);
-            dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(accountsList[0]);
-
-            var testFolder = new Folder("NewFolder", FolderAttributes.None)
+            var testFolder = new Folder("OldFolder", FolderAttributes.None)
             {
                 Id = 10,
                 AccountId = 1,
@@ -201,17 +202,19 @@ namespace Tuvi.Core.Tests
 
             var updatedFolders = new List<Folder>
             {
-                new Folder("INBOX", FolderAttributes.Inbox),
-                testFolder
+                new Folder("INBOX", FolderAttributes.Inbox)
             };
 
-            mailBoxMock.Setup(m => m.CreateFolderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(testFolder);
+            mailBoxMock.Setup(m => m.DeleteFolderAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
             mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(updatedFolders);
             mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Folder("INBOX", FolderAttributes.Inbox));
             mailBoxMock.Setup(m => m.HasFolderCounters).Returns(true);
+
+            dataStorageMock.Setup(d => d.DeleteFolderAsync(It.IsAny<EmailAddress>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             mailBoxFactoryMock.Setup(f => f.CreateMailBox(It.IsAny<Account>()))
                 .Returns(mailBoxMock.Object);
@@ -227,14 +230,14 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act
-            await core.CreateFolderAsync(accountsList[0].Email, "NewFolder").ConfigureAwait(false);
+            await core.DeleteFolderAsync(accountsList[0].Email, testFolder).ConfigureAwait(false);
 
             // Assert - Verify that GetFoldersStructureAsync is called during folder structure update
             mailBoxMock.Verify(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
 
         [Test]
-        public void CreateFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
+        public void DeleteFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var protonAccount = new Account
@@ -263,8 +266,10 @@ namespace Tuvi.Core.Tests
             dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(protonAccount);
 
-            mailBoxMock.Setup(m => m.CreateFolderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new NotSupportedException("ProtonMail does not support folder creation via this API. Use labels instead."));
+            var testFolder = new Folder("TestFolder", FolderAttributes.None);
+
+            mailBoxMock.Setup(m => m.DeleteFolderAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new NotSupportedException("Proton Mail does not support folder deletion."));
             mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Folder>());
             mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
@@ -285,11 +290,11 @@ namespace Tuvi.Core.Tests
 
             // Act & Assert
             Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.CreateFolderAsync(protonAccount.Email, "TestFolder").ConfigureAwait(false));
+                await core.DeleteFolderAsync(protonAccount.Email, testFolder).ConfigureAwait(false));
         }
 
         [Test]
-        public void CreateFolderAsyncDecAccountShouldThrowNotSupportedException()
+        public void DeleteFolderAsyncDecAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var decAccount = new Account
@@ -318,8 +323,10 @@ namespace Tuvi.Core.Tests
             dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(decAccount);
 
-            mailBoxMock.Setup(m => m.CreateFolderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new NotSupportedException("DEC protocol does not support folder creation."));
+            var testFolder = new Folder("TestFolder", FolderAttributes.None);
+
+            mailBoxMock.Setup(m => m.DeleteFolderAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new NotSupportedException("DEC protocol does not support folder deletion."));
             mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Folder>());
             mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
@@ -340,7 +347,69 @@ namespace Tuvi.Core.Tests
 
             // Act & Assert
             Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.CreateFolderAsync(decAccount.Email, "TestFolder").ConfigureAwait(false));
+                await core.DeleteFolderAsync(decAccount.Email, testFolder).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void DeleteFolderAsyncSpecialFolderShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
+            var securityManagerMock = InitMockSecurityManager();
+            var mailBoxFactoryMock = new Mock<IMailBoxFactory>();
+            var mailServerTesterMock = new Mock<IMailServerTester>();
+            var dataStorageMock = new Mock<IDataStorage>();
+            var mailBoxMock = new Mock<IMailBox>();
+            var backupManager = new Mock<IBackupManager>();
+            var credentialsManager = new Mock<ICredentialsManager>();
+            var decStorageClient = new Mock<IDecStorageClient>();
+
+            dataStorageMock.Setup(a => a.GetAccountsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(accountsList);
+            dataStorageMock.Setup(a => a.GetAccountAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(accountsList[0]);
+
+            mailBoxMock.Setup(m => m.GetFoldersStructureAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<Folder>());
+            mailBoxMock.Setup(m => m.GetDefaultInboxFolderAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Folder("INBOX", FolderAttributes.Inbox));
+
+            mailBoxFactoryMock.Setup(f => f.CreateMailBox(It.IsAny<Account>()))
+                .Returns(mailBoxMock.Object);
+
+            using var core = TuviCoreCreator.CreateTuviMailCore(
+                mailBoxFactoryMock.Object,
+                mailServerTesterMock.Object,
+                dataStorageMock.Object,
+                securityManagerMock.Object,
+                backupManager.Object,
+                credentialsManager.Object,
+                new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                decStorageClient.Object);
+
+            // Test each special folder type
+            var inboxFolder = new Folder("INBOX", FolderAttributes.Inbox);
+            var sentFolder = new Folder("Sent", FolderAttributes.Sent);
+            var trashFolder = new Folder("Trash", FolderAttributes.Trash);
+            var draftFolder = new Folder("Drafts", FolderAttributes.Draft);
+            var junkFolder = new Folder("Spam", FolderAttributes.Junk);
+            var importantFolder = new Folder("Important", FolderAttributes.Important);
+            var allFolder = new Folder("All", FolderAttributes.All);
+
+            // Act & Assert
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, inboxFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, sentFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, trashFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, draftFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, junkFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, importantFolder).ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await core.DeleteFolderAsync(accountsList[0].Email, allFolder).ConfigureAwait(false));
         }
     }
 }

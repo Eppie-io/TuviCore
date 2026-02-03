@@ -84,6 +84,7 @@ namespace Tuvi.Core.Impl
         public event EventHandler<AccountEventArgs> AccountUpdated;
         public event EventHandler<AccountEventArgs> AccountDeleted;
         public event EventHandler<FolderCreatedEventArgs> FolderCreated;
+        public event EventHandler<FolderDeletedEventArgs> FolderDeleted;
         public event EventHandler<ExceptionEventArgs> ExceptionOccurred;
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
         public event EventHandler<ContactChangedEventArgs> ContactChanged;
@@ -1249,6 +1250,26 @@ namespace Tuvi.Core.Impl
             FolderCreated?.Invoke(this, new FolderCreatedEventArgs(newFolder, accountEmail));
 
             return newFolder;
+        }
+
+        public async Task DeleteFolderAsync(EmailAddress accountEmail, Folder folder, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+
+            if (accountEmail is null)
+            {
+                throw new ArgumentNullException(nameof(accountEmail));
+            }
+
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            var accountService = await GetAccountServiceAsync(accountEmail, cancellationToken).ConfigureAwait(false);
+            await accountService.DeleteFolderAsync(folder, cancellationToken).ConfigureAwait(false);
+
+            FolderDeleted?.Invoke(this, new FolderDeletedEventArgs(folder, accountEmail));
         }
 
         public async Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default)
