@@ -1332,5 +1332,80 @@ namespace Tuvi.Core.DataStorage.Tests
             var newUnread = await db.GetUnreadMessagesCountAsync(accountEmail, TestData.Folder).ConfigureAwait(true);
             Assert.That(newUnread, Is.EqualTo(initialUnread), "Unread count must not change when duplicates ignored");
         }
+
+        [Test]
+        public async Task UpdateFolderPathAsyncShouldUpdateMessagesInFolder()
+        {
+            using var db = await OpenDataStorageAsync().ConfigureAwait(true);
+            await db.AddAccountAsync(TestData.AccountWithFolder).ConfigureAwait(true);
+            var accountEmail = TestData.AccountWithFolder.Email;
+
+            // Add messages to a folder
+            var message1 = TestData.GetNewMessage();
+            var message2 = TestData.GetNewMessage();
+            await db.AddMessageAsync(accountEmail, message1).ConfigureAwait(true);
+            await db.AddMessageAsync(accountEmail, message2).ConfigureAwait(true);
+
+            // Verify messages exist in old folder
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message1.Id).ConfigureAwait(true), Is.True);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message2.Id).ConfigureAwait(true), Is.True);
+
+            // Rename folder
+            string oldFolderName = TestData.Folder;
+            string newFolderName = "RenamedFolder";
+            await db.UpdateFolderPathAsync(accountEmail, oldFolderName, newFolderName).ConfigureAwait(true);
+
+            // Verify messages exist in new folder
+            Assert.That(await db.IsMessageExistAsync(accountEmail, newFolderName, message1.Id).ConfigureAwait(true), Is.True);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, newFolderName, message2.Id).ConfigureAwait(true), Is.True);
+
+            // Verify messages don't exist in old folder
+            Assert.That(await db.IsMessageExistAsync(accountEmail, oldFolderName, message1.Id).ConfigureAwait(true), Is.False);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, oldFolderName, message2.Id).ConfigureAwait(true), Is.False);
+        }
+
+        [Test]
+        public async Task UpdateFolderPathAsyncShouldUpdateMessagesInSubfolders()
+        {
+            using var db = await OpenDataStorageAsync().ConfigureAwait(true);
+
+            // Create account with parent and subfolder structure
+            var account = TestData.CreateAccountWithFolder();
+            var parentFolder = new Folder("ParentFolder", FolderAttributes.None) { Id = 1 };
+            var subFolder = new Folder("ParentFolder\\SubFolder", FolderAttributes.None) { Id = 2 };
+            account.FoldersStructure = new List<Folder> { parentFolder, subFolder };
+
+            await db.AddAccountAsync(account).ConfigureAwait(true);
+            var accountEmail = account.Email;
+
+            // Add messages to parent folder and subfolder - need to use the folder structure
+            // Messages are stored with FolderId, so we need to get the folder IDs first
+            await db.UpdateAccountFolderStructureAsync(account).ConfigureAwait(true);
+
+            var messageInParent = TestData.GetNewMessage();
+            messageInParent.Folder = parentFolder;
+            messageInParent.FolderId = parentFolder.Id;
+            var messageInSubfolder = TestData.GetNewMessage();
+            messageInSubfolder.Folder = subFolder;
+            messageInSubfolder.FolderId = subFolder.Id;
+
+            await db.AddMessageAsync(accountEmail, messageInParent).ConfigureAwait(true);
+            await db.AddMessageAsync(accountEmail, messageInSubfolder).ConfigureAwait(true);
+
+            // Verify messages exist in old folders
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "ParentFolder", messageInParent.Id).ConfigureAwait(true), Is.True);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "ParentFolder\\SubFolder", messageInSubfolder.Id).ConfigureAwait(true), Is.True);
+
+            // Rename parent folder
+            await db.UpdateFolderPathAsync(accountEmail, "ParentFolder", "RenamedParent").ConfigureAwait(true);
+
+            // Verify messages exist in new folders with updated paths
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "RenamedParent", messageInParent.Id).ConfigureAwait(true), Is.True);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "RenamedParent\\SubFolder", messageInSubfolder.Id).ConfigureAwait(true), Is.True);
+
+            // Verify messages don't exist in old folders
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "ParentFolder", messageInParent.Id).ConfigureAwait(true), Is.False);
+            Assert.That(await db.IsMessageExistAsync(accountEmail, "ParentFolder\\SubFolder", messageInSubfolder.Id).ConfigureAwait(true), Is.False);
+        }
     }
 }

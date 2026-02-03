@@ -142,5 +142,21 @@ namespace Tuvi.Core.Mail
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created folder</returns>
         Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Delete a <paramref name="folder"/> from the mailbox.
+        /// </summary>
+        /// <param name="folder">Folder to delete</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task DeleteFolderAsync(Folder folder, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Rename a <paramref name="folder"/> in the mailbox.
+        /// </summary>
+        /// <param name="folder">Folder to rename</param>
+        /// <param name="newName">New name for the folder</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Renamed folder</returns>
+        Task<Folder> RenameFolderAsync(Folder folder, string newName, CancellationToken cancellationToken = default);
     }
 }

@@ -193,6 +193,18 @@ namespace Tuvi.Core.Mail.Impl
             return createFolderCommand.RunCommandAsync(AccountSettings.Email.Address, cancellationToken);
         }
 
+        public virtual Task DeleteFolderAsync(Folder folder, CancellationToken cancellationToken = default)
+        {
+            DeleteFolderCommand deleteFolderCommand = new DeleteFolderCommand(Receiver, folder);
+            return deleteFolderCommand.RunCommandAsync(AccountSettings.Email.Address, cancellationToken);
+        }
+
+        public virtual Task<Folder> RenameFolderAsync(Folder folder, string newName, CancellationToken cancellationToken = default)
+        {
+            RenameFolderCommand renameFolderCommand = new RenameFolderCommand(Receiver, folder, newName);
+            return renameFolderCommand.RunCommandAsync(AccountSettings.Email.Address, cancellationToken);
+        }
+
         private Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool forSync, CancellationToken cancellationToken)
         {
             GetEarlierMessagesCommand getEarlierMessagesCommand = new GetEarlierMessagesCommand(Receiver, folder, count, lastMessage, forSync);

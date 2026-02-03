@@ -49,6 +49,8 @@ namespace Tuvi.Core.Mail.Impl.Protocols
         public abstract Task DeleteMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, bool permanentDelete, CancellationToken cancellationToken);
         public abstract Task MoveMessagesAsync(IReadOnlyList<uint> ids, Folder folderPath, Folder targetFolderPath, CancellationToken cancellationToken);
         public abstract Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken);
+        public abstract Task DeleteFolderAsync(Folder folder, CancellationToken cancellationToken);
+        public abstract Task<Folder> RenameFolderAsync(Folder folder, string newName, CancellationToken cancellationToken);
 
         public abstract void Dispose();
     }

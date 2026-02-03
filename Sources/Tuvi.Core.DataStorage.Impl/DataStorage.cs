@@ -1513,6 +1513,37 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
+        public Task UpdateFolderPathAsync(EmailAddress email, string oldFolderName, string newFolderName, CancellationToken cancellationToken)
+        {
+            return WriteDatabaseAsync((db, ct) =>
+            {
+                var connection = db.Connection;
+                var oldPath = CreatePath(email, oldFolderName);
+                var newPath = CreatePath(email, newFolderName);
+                var oldPathPrefix = oldPath + "\\";
+                var oldPathLike = oldPathPrefix + "%";
+
+                // Update messages in the renamed folder and all its subfolders directly in the database
+                var sql = @"
+                    UPDATE Message
+                    SET Path = CASE
+                        WHEN Path = ? THEN ?
+                        WHEN Path LIKE ? THEN ? || substr(Path, ?)
+                    END
+                    WHERE Path = ? OR Path LIKE ?";
+
+                connection.Execute(
+                    sql,
+                    oldPath,              // WHEN Path = ?
+                    newPath,              // THEN ?
+                    oldPathLike,          // WHEN Path LIKE ?
+                    newPath,              // THEN ?
+                    oldPath.Length + 1,   // || substr(Path, ?)
+                    oldPath,              // WHERE Path = ?
+                    oldPathLike);         // OR Path LIKE ?
+            }, cancellationToken);
+        }
+
         public Task DeleteMessageAsync(EmailAddress email, string folder, uint uid, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
             return DeleteMessagesAsync(email, folder, new List<uint> { uid }, updateUnreadAndTotal, cancellationToken);
