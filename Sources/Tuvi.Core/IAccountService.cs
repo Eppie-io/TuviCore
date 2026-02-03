@@ -149,5 +149,13 @@ namespace Tuvi.Core
         Task SynchronizeFolderAsync(Folder folder, bool full, CancellationToken cancellationToken);
 
         Task MoveMessagesAsync(Folder folder, Folder targetFolder, IReadOnlyList<Message> messages, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Create a new folder in the mailbox for this account
+        /// </summary>
+        /// <param name="folderName">Name of the folder to create</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Created folder</returns>
+        Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default);
     }
 }

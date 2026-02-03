@@ -187,6 +187,12 @@ namespace Tuvi.Core.Mail.Impl
             Receiver.Dispose();
         }
 
+        public virtual Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default)
+        {
+            CreateFolderCommand createFolderCommand = new CreateFolderCommand(Receiver, folderName);
+            return createFolderCommand.RunCommandAsync(AccountSettings.Email.Address, cancellationToken);
+        }
+
         private Task<IReadOnlyList<Message>> GetEarlierMessagesAsync(Folder folder, int count, Message lastMessage, bool forSync, CancellationToken cancellationToken)
         {
             GetEarlierMessagesCommand getEarlierMessagesCommand = new GetEarlierMessagesCommand(Receiver, folder, count, lastMessage, forSync);

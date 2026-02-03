@@ -516,6 +516,27 @@ namespace Tuvi.Core.Mail.Impl
         }
     }
 
+    internal class CreateFolderCommand : ReceiverCommand<Folder>
+    {
+        private readonly string FolderName;
+
+        public CreateFolderCommand(ReceiverService receiver, string folderName)
+            : base(receiver, null)
+        {
+            FolderName = folderName ?? throw new ArgumentNullException(nameof(folderName));
+        }
+
+        protected override async Task<Folder> ExecuteAsync(CancellationToken cancellationToken)
+        {
+            return await Receiver.CreateFolderAsync(FolderName, cancellationToken).ConfigureAwait(false);
+        }
+
+        protected override string GetUniqueCommandIdentifier(string email)
+        {
+            return this.GetType().Name + email + FolderName;
+        }
+    }
+
     internal class FlagMessagesCommand : ReceiverCommand<bool>
     {
         private IList<uint> UIDs;

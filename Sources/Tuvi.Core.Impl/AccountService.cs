@@ -367,6 +367,22 @@ namespace Tuvi.Core.Impl
             await Task.WhenAll(localTask, remoteTask).ConfigureAwait(false);
         }
 
+        public async Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                throw new ArgumentException("Folder name cannot be empty", nameof(folderName));
+            }
+
+            var newFolder = await MailBox.CreateFolderAsync(folderName, cancellationToken).ConfigureAwait(false);
+            newFolder.AccountEmail = Account.Email;
+            newFolder.AccountId = Account.Id;
+
+            await UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(false);
+
+            return newFolder;
+        }
+
         public Task PermanentDeleteMessageAsync(Message message, CancellationToken cancellationToken)
         {
             if (message is null)

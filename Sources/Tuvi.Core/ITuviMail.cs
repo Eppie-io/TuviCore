@@ -42,6 +42,7 @@ namespace Tuvi.Core
         event EventHandler<AccountEventArgs> AccountAdded;
         event EventHandler<AccountEventArgs> AccountUpdated;
         event EventHandler<AccountEventArgs> AccountDeleted;
+        event EventHandler<FolderCreatedEventArgs> FolderCreated;
         event EventHandler<ExceptionEventArgs> ExceptionOccurred;
         event EventHandler<ContactAddedEventArgs> ContactAdded;
         event EventHandler<ContactChangedEventArgs> ContactChanged;
@@ -132,6 +133,15 @@ namespace Tuvi.Core
 
         Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken = default);
         Task UpdateMessageProcessingResultAsync(Message message, string result, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Create a new folder in the specified mailbox
+        /// </summary>
+        /// <param name="accountEmail">Email address of the account</param>
+        /// <param name="folderName">Name of the folder to create</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Created folder</returns>
+        Task<Folder> CreateFolderAsync(EmailAddress accountEmail, string folderName, CancellationToken cancellationToken = default);
 
         Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default);
     }

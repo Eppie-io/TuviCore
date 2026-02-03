@@ -535,7 +535,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
                 int startIndex;
-                if (lastMessage == null)
+                if (lastMessage is null)
                 {
                     if (count > mailFolder.Count || count == 0)
                     {
@@ -625,7 +625,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await mailFolder.OpenAsync(FolderAccess.ReadOnly, cancellationToken).ConfigureAwait(false);
 
                 int startIndex = 0, endIndex = 0;
-                if (lastMessage == null)
+                if (lastMessage is null)
                 {
                     if (count > mailFolder.Count || count == 0)
                     {
@@ -877,7 +877,7 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
             async Task<Message> AppendDraftMessageAsync()
             {
-                if (message.Folder == null)
+                if (message.Folder is null)
                 {
                     message.Folder = GetDraftsFolder().ToTuviMailFolder();
                 }
@@ -1241,6 +1241,52 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
             {
                 this.Log().LogWarning(ex, "IMAP folder close canceled/timeout");
                 await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public override async Task<Folder> CreateFolderAsync(string folderName, CancellationToken cancellationToken)
+        {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                throw new ArgumentException("Folder name cannot be empty", nameof(folderName));
+            }
+
+            try
+            {
+                return await DoCreateFolderAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCreateFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCreateFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoCreateFolderAsync().ConfigureAwait(false);
+            }
+
+            async Task<Folder> DoCreateFolderAsync()
+            {
+                var personalNamespaces = ImapClient.PersonalNamespaces;
+                if (personalNamespaces is null || personalNamespaces.Count == 0)
+                {
+                    throw new InvalidOperationException("IMAP server does not define any personal namespaces.");
+                }
+
+                var personalNamespace = personalNamespaces[0];
+                var parentFolder = await ImapClient.GetFolderAsync(personalNamespace.Path, cancellationToken).ConfigureAwait(false);
+                var createdFolder = await parentFolder.CreateAsync(folderName, true, cancellationToken).ConfigureAwait(false);
+
+                await createdFolder.StatusAsync(StatusItems.Unread | StatusItems.Count, cancellationToken).ConfigureAwait(false);
+                return createdFolder.ToTuviMailFolder();
             }
         }
     }
