@@ -1289,5 +1289,41 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 return createdFolder.ToTuviMailFolder();
             }
         }
+
+        public override async Task DeleteFolderAsync(Folder folder, CancellationToken cancellationToken)
+        {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            try
+            {
+                await DoDeleteFolderAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                await DoDeleteFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                await DoDeleteFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                await DoDeleteFolderAsync().ConfigureAwait(false);
+            }
+
+            async Task DoDeleteFolderAsync()
+            {
+                var imapFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                await imapFolder.DeleteAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 }
