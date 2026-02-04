@@ -24,13 +24,13 @@ namespace Tuvi.Core.Entities
     {
         public Folder Folder { get; }
         public EmailAddress AccountEmail { get; }
-        public string OldName { get; }
+        public string OldFullName { get; }
 
-        public FolderRenamedEventArgs(Folder folder, EmailAddress accountEmail, string oldName)
+        public FolderRenamedEventArgs(Folder folder, EmailAddress accountEmail, string oldFullName)
         {
             Folder = folder ?? throw new ArgumentNullException(nameof(folder));
             AccountEmail = accountEmail ?? throw new ArgumentNullException(nameof(accountEmail));
-            OldName = oldName ?? throw new ArgumentNullException(nameof(oldName));
+            OldFullName = oldFullName ?? throw new ArgumentNullException(nameof(oldFullName));
         }
     }
 }
