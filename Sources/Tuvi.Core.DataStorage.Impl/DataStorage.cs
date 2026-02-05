@@ -1545,13 +1545,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 var sql = @"
                     UPDATE Message
                     SET Path = CASE
-                        WHEN Path = ? THEN ?
-                        WHEN substr(Path, 1, ?) = ? AND substr(Path, ?, 1) IN ('/') 
+                        WHEN Path COLLATE NOCASE = ? COLLATE NOCASE THEN ?
+                        WHEN substr(Path, 1, ?) COLLATE NOCASE = ? COLLATE NOCASE AND substr(Path, ?, 1) IN ('/') 
                              THEN ? || substr(Path, ?)
                         ELSE Path
                     END
-                    WHERE Path = ?
-                       OR (substr(Path, 1, ?) = ? AND substr(Path, ?, 1) IN ('/'))";
+                    WHERE Path COLLATE NOCASE = ? COLLATE NOCASE
+                       OR (substr(Path, 1, ?) COLLATE NOCASE = ? COLLATE NOCASE AND substr(Path, ?, 1) IN ('/'))";
 
                 connection.Execute(
                     sql,
@@ -1572,7 +1572,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
                 // Rename the folder itself.
                 connection.Execute(
-                    "UPDATE Folder SET FullName = ? WHERE AccountId = ? AND FullName = ?",
+                    "UPDATE Folder SET FullName = ? WHERE AccountId = ? AND FullName COLLATE NOCASE = ? COLLATE NOCASE",
                     newFolderName,
                     account.Id,
                     oldFolderName);
@@ -1583,7 +1583,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     @"UPDATE Folder
                       SET FullName = ? || substr(FullName, ?)
                       WHERE AccountId = ?
-                        AND substr(FullName, 1, ?) = ? 
+                        AND substr(FullName, 1, ?) COLLATE NOCASE = ? COLLATE NOCASE 
                         AND substr(FullName, ?, 1) IN ('/')",
                     newFolderName,
                     oldFolderNameLen + 1,
