@@ -312,7 +312,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task RenameFolderAsyncSameNameShouldThrow()
+        public void RenameFolderAsyncSameNameShouldThrow()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
