@@ -1515,32 +1515,81 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task UpdateFolderPathAsync(EmailAddress email, string oldFolderName, string newFolderName, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(oldFolderName) || string.IsNullOrWhiteSpace(newFolderName))
+            {
+                throw new DataBaseException("Folder name cannot be empty");
+            }
+
             return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
+
+                if (FindAccountFolder(connection, email, oldFolderName) is null)
+                {
+                    throw new DataBaseException($"Folder '{oldFolderName}' doesn't exist");
+                }
+
+                if (FindAccountFolder(connection, email, newFolderName) != null)
+                {
+                    throw new DataBaseException($"Folder '{newFolderName}' already exists");
+                }
+
+                ct.ThrowIfCancellationRequested();
+
                 var oldPath = CreatePath(email, oldFolderName);
                 var newPath = CreatePath(email, newFolderName);
-                var oldPathPrefix = oldPath + "\\";
-                var oldPathLike = oldPathPrefix + "%";
+                var oldPathLen = oldPath.Length;
 
-                // Update messages in the renamed folder and all its subfolders directly in the database
+                // We check for exact match OR prefix match with a valid separator.
+                // SQLite substr is 1-based.
                 var sql = @"
                     UPDATE Message
                     SET Path = CASE
                         WHEN Path = ? THEN ?
-                        WHEN Path LIKE ? THEN ? || substr(Path, ?)
+                        WHEN substr(Path, 1, ?) = ? AND substr(Path, ?, 1) IN ('/') 
+                             THEN ? || substr(Path, ?)
+                        ELSE Path
                     END
-                    WHERE Path = ? OR Path LIKE ?";
+                    WHERE Path = ?
+                       OR (substr(Path, 1, ?) = ? AND substr(Path, ?, 1) IN ('/'))";
 
                 connection.Execute(
                     sql,
-                    oldPath,              // WHEN Path = ?
-                    newPath,              // THEN ?
-                    oldPathLike,          // WHEN Path LIKE ?
-                    newPath,              // THEN ?
-                    oldPath.Length + 1,   // || substr(Path, ?)
-                    oldPath,              // WHERE Path = ?
-                    oldPathLike);         // OR Path LIKE ?
+                    oldPath, newPath,                       // WHEN Path = ? THEN ?
+                    oldPathLen, oldPath, oldPathLen + 1,    // WHEN matches prefix...
+                    newPath, oldPathLen + 1,                // THEN newPath || suffix
+                    oldPath,                                // WHERE Path = ?
+                    oldPathLen, oldPath, oldPathLen + 1);   // OR matches prefix
+
+                ct.ThrowIfCancellationRequested();
+
+                // Update folder records as well to preserve existing Folder.Id values.
+                // Without this, folder structure reconciliation may treat the old folder as removed
+                // and delete all messages by FolderId.
+                var account = FindAccountStrict(connection, email);
+
+                var oldFolderNameLen = oldFolderName.Length;
+
+                // Rename the folder itself.
+                connection.Execute(
+                    "UPDATE Folder SET FullName = ? WHERE AccountId = ? AND FullName = ?",
+                    newFolderName,
+                    account.Id,
+                    oldFolderName);
+
+                // Rename descendant folders by prefix replacement, preserving the delimiter character.
+                // Using substr for case sensitivity and simplicity.
+                connection.Execute(
+                    @"UPDATE Folder
+                      SET FullName = ? || substr(FullName, ?)
+                      WHERE AccountId = ?
+                        AND substr(FullName, 1, ?) = ? 
+                        AND substr(FullName, ?, 1) IN ('/')",
+                    newFolderName,
+                    oldFolderNameLen + 1,
+                    account.Id,
+                    oldFolderNameLen, oldFolderName,
+                    oldFolderNameLen + 1);
             }, cancellationToken);
         }
 

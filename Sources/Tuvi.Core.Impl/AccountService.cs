@@ -419,12 +419,16 @@ namespace Tuvi.Core.Impl
                 throw new InvalidOperationException($"Cannot rename special folder: {folder.FullName}");
             }
 
-            var oldFolderName = folder.FullName;
+            if (folder.HasSameName(newName))
+            {
+                throw new InvalidOperationException("New folder name is the same as the current one.");
+            }
+
             var renamedFolder = await MailBox.RenameFolderAsync(folder, newName, cancellationToken).ConfigureAwait(false);
             renamedFolder.AccountEmail = Account.Email;
             renamedFolder.AccountId = Account.Id;
 
-            await DataStorage.UpdateFolderPathAsync(Account.Email, oldFolderName, renamedFolder.FullName, cancellationToken).ConfigureAwait(false);
+            await DataStorage.UpdateFolderPathAsync(Account.Email, folder.FullName, renamedFolder.FullName, cancellationToken).ConfigureAwait(false);
 
             await UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(false);
 
