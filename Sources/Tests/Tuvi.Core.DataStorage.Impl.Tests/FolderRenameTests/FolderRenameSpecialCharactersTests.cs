@@ -64,7 +64,6 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             await db.UpdateFolderPathAsync(account.Email, targetFolderName, newFolderName, CancellationToken.None).ConfigureAwait(true);
 
             // Assert
-            var allMessages = await db.GetMessageListAsync(account.Email, newFolderName, 100, CancellationToken.None).ConfigureAwait(true);
             // We need to check paths directly or query DB. 
             // GetMessageListAsync returns messages in strict folder.
 
