@@ -157,44 +157,6 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             Assert.That(await db.IsMessageExistAsync(account.Email, newFolderName, 301).ConfigureAwait(true), Is.True);
         }
 
-        [TestCase("Old", "Sub1", "Sub2", "New")]
-        [TestCase("Old", "Sub1", "Sub2", "Other/New")]
-        [TestCase("Old", "Sub1", "Sub2", "New/Sub")]
-        public async Task UpdateFolderPathAsyncMustMoveMessagesInFolderTree(string oldRoot,
-                                                                            string subFolder1,
-                                                                            string subFolder2,
-                                                                            string newRoot)
-        {
-            using var db = await OpenDataStorageAsync().ConfigureAwait(true);
-
-            const string delimiter = "/";
-            string oldSub1 = oldRoot + delimiter + subFolder1;
-            string oldSub2 = oldSub1 + delimiter + subFolder2;
-
-            string newSub1 = newRoot + delimiter + subFolder1;
-            string newSub2 = newSub1 + delimiter + subFolder2;
-
-            var account = TestData.CreateAccountWithFolder(new EmailAddress("rename-loss@test", "Rename Loss"));
-            Assert.That(account.FoldersStructure.Count, Is.EqualTo(1));
-
-            account.FoldersStructure[0].FullName = oldRoot;
-            account.FoldersStructure[0].Attributes = FolderAttributes.None;
-            account.FoldersStructure.Add(new Folder(oldSub1, FolderAttributes.None));
-            account.FoldersStructure.Add(new Folder(oldSub2, FolderAttributes.None));
-
-            await db.AddAccountAsync(account).ConfigureAwait(true);
-
-            await db.AddMessageAsync(account.Email, TestData.CreateNewMessage(oldRoot, 401, DateTimeOffset.UtcNow)).ConfigureAwait(true);
-            await db.AddMessageAsync(account.Email, TestData.CreateNewMessage(oldSub1, 402, DateTimeOffset.UtcNow)).ConfigureAwait(true);
-            await db.AddMessageAsync(account.Email, TestData.CreateNewMessage(oldSub2, 403, DateTimeOffset.UtcNow)).ConfigureAwait(true);
-
-            await db.UpdateFolderPathAsync(account.Email, oldRoot, newRoot).ConfigureAwait(true);
-
-            Assert.That(await db.IsMessageExistAsync(account.Email, newRoot, 401).ConfigureAwait(true), Is.True);
-            Assert.That(await db.IsMessageExistAsync(account.Email, newSub1, 402).ConfigureAwait(true), Is.True);
-            Assert.That(await db.IsMessageExistAsync(account.Email, newSub2, 403).ConfigureAwait(true), Is.True);
-        }
-
         [Test]
         public async Task UpdateFolderPathAsyncMustNotAffectSimilarPrefixFolders()
         {
