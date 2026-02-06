@@ -171,7 +171,7 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             var msg = new Message()
             {
                 Folder = folder,
-                Date = System.DateTime.Now
+                Date = System.DateTimeOffset.UtcNow
             };
             msg.From.Add(new EmailAddress("sender@test.com"));
 
