@@ -1325,5 +1325,65 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
                 await imapFolder.DeleteAsync(cancellationToken).ConfigureAwait(false);
             }
         }
+
+        public override async Task<Folder> RenameFolderAsync(Folder folder, string newName, CancellationToken cancellationToken)
+        {
+            await EnsureConnectionAliveAsync(cancellationToken).ConfigureAwait(false);
+
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                throw new ArgumentException("Folder name cannot be empty", nameof(newName));
+            }
+
+            try
+            {
+                return await DoRenameFolderAsync().ConfigureAwait(false);
+            }
+            catch (System.IO.IOException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoRenameFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapCommandException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoRenameFolderAsync().ConfigureAwait(false);
+            }
+            catch (MailKit.Net.Imap.ImapProtocolException)
+            {
+                await RestoreConnectionAsync(cancellationToken).ConfigureAwait(false);
+                return await DoRenameFolderAsync().ConfigureAwait(false);
+            }
+
+            async Task<Folder> DoRenameFolderAsync()
+            {
+                var imapFolder = await ImapClient.GetFolderAsync(folder.FullName, cancellationToken).ConfigureAwait(false);
+                var parentFolder = imapFolder.ParentFolder;
+                if (parentFolder != null)
+                {
+                    await imapFolder.RenameAsync(parentFolder, newName, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    var personalNamespaces = ImapClient.PersonalNamespaces;
+                    if (personalNamespaces is null || personalNamespaces.Count == 0)
+                    {
+                        throw new InvalidOperationException("IMAP server does not define any personal namespaces.");
+                    }
+                    var personalNamespace = personalNamespaces[0];
+                    var personalFolder = await ImapClient.GetFolderAsync(personalNamespace.Path, cancellationToken).ConfigureAwait(false);
+                    await imapFolder.RenameAsync(personalFolder, newName, cancellationToken).ConfigureAwait(false);
+                }
+                var renamedFullName = imapFolder.FullName;
+                var renamedImapFolder = await ImapClient.GetFolderAsync(renamedFullName, cancellationToken).ConfigureAwait(false);
+                await renamedImapFolder.StatusAsync(StatusItems.Unread | StatusItems.Count, cancellationToken).ConfigureAwait(false);
+                return renamedImapFolder.ToTuviMailFolder();
+            }
+        }
     }
 }

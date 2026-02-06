@@ -85,6 +85,7 @@ namespace Tuvi.Core.Impl
         public event EventHandler<AccountEventArgs> AccountDeleted;
         public event EventHandler<FolderCreatedEventArgs> FolderCreated;
         public event EventHandler<FolderDeletedEventArgs> FolderDeleted;
+        public event EventHandler<FolderRenamedEventArgs> FolderRenamed;
         public event EventHandler<ExceptionEventArgs> ExceptionOccurred;
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
         public event EventHandler<ContactChangedEventArgs> ContactChanged;
@@ -1270,6 +1271,34 @@ namespace Tuvi.Core.Impl
             await accountService.DeleteFolderAsync(folder, cancellationToken).ConfigureAwait(false);
 
             FolderDeleted?.Invoke(this, new FolderDeletedEventArgs(folder, accountEmail));
+        }
+
+        public async Task<Folder> RenameFolderAsync(EmailAddress accountEmail, Folder folder, string newName, CancellationToken cancellationToken = default)
+        {
+            CheckDisposed();
+
+            if (accountEmail is null)
+            {
+                throw new ArgumentNullException(nameof(accountEmail));
+            }
+
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                throw new ArgumentException("Folder name cannot be empty", nameof(newName));
+            }
+
+            var accountService = await GetAccountServiceAsync(accountEmail, cancellationToken).ConfigureAwait(false);
+            var oldName = folder.FullName;
+            var renamedFolder = await accountService.RenameFolderAsync(folder, newName, cancellationToken).ConfigureAwait(false);
+
+            FolderRenamed?.Invoke(this, new FolderRenamedEventArgs(renamedFolder, accountEmail, oldName));
+
+            return renamedFolder;
         }
 
         public async Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default)

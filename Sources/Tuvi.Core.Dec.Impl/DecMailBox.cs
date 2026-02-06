@@ -506,6 +506,12 @@ namespace Tuvi.Core.Dec.Impl
             throw new NotSupportedException("DEC protocol does not support folder deletion.");
         }
 
+        public Task<Folder> RenameFolderAsync(Folder folder, string newName, CancellationToken cancellationToken = default)
+        {
+            // DEC protocol doesn't support folder renaming in the traditional sense
+            throw new NotSupportedException("DEC protocol does not support folder renaming.");
+        }
+
         public void Dispose() { }
     }
 }

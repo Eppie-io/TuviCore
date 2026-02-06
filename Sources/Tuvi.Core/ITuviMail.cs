@@ -44,6 +44,7 @@ namespace Tuvi.Core
         event EventHandler<AccountEventArgs> AccountDeleted;
         event EventHandler<FolderCreatedEventArgs> FolderCreated;
         event EventHandler<FolderDeletedEventArgs> FolderDeleted;
+        event EventHandler<FolderRenamedEventArgs> FolderRenamed;
         event EventHandler<ExceptionEventArgs> ExceptionOccurred;
         event EventHandler<ContactAddedEventArgs> ContactAdded;
         event EventHandler<ContactChangedEventArgs> ContactChanged;
@@ -151,6 +152,16 @@ namespace Tuvi.Core
         /// <param name="folder">Folder to delete</param>
         /// <param name="cancellationToken">Cancellation token</param>
         Task DeleteFolderAsync(EmailAddress accountEmail, Folder folder, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Rename a folder in an account's mailbox
+        /// </summary>
+        /// <param name="accountEmail">Email address of the account</param>
+        /// <param name="folder">Folder to rename</param>
+        /// <param name="newName">New name for the folder</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Renamed folder</returns>
+        Task<Folder> RenameFolderAsync(EmailAddress accountEmail, Folder folder, string newName, CancellationToken cancellationToken = default);
 
         Task<string> ClaimDecentralizedNameAsync(string name, Account account, CancellationToken cancellationToken = default);
     }

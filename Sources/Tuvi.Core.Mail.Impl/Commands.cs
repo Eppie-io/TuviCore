@@ -556,6 +556,27 @@ namespace Tuvi.Core.Mail.Impl
         }
     }
 
+    internal class RenameFolderCommand : ReceiverCommand<Folder>
+    {
+        private readonly string NewName;
+
+        public RenameFolderCommand(ReceiverService receiver, Folder folder, string newName)
+            : base(receiver, folder ?? throw new ArgumentNullException(nameof(folder)))
+        {
+            NewName = newName ?? throw new ArgumentNullException(nameof(newName));
+        }
+
+        protected override async Task<Folder> ExecuteAsync(CancellationToken cancellationToken)
+        {
+            return await Receiver.RenameFolderAsync(FolderPath, NewName, cancellationToken).ConfigureAwait(false);
+        }
+
+        protected override string GetUniqueCommandIdentifier(string email)
+        {
+            return this.GetType().Name + email + FolderPath.FullName + NewName;
+        }
+    }
+
     internal class FlagMessagesCommand : ReceiverCommand<bool>
     {
         private IList<uint> UIDs;

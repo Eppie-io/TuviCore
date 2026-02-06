@@ -240,6 +240,12 @@ namespace Tuvi.Core.DataStorage
         Task DeleteFolderAsync(EmailAddress accountEmail, string folder, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Update folder path for messages when a folder is renamed.
+        /// </summary>
+        /// <exception cref="DataBaseException"/>
+        Task UpdateFolderPathAsync(EmailAddress accountEmail, string oldFolderName, string newFolderName, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Delete message with <paramref name="uid"/> from storage.
         /// </summary>
         /// <exception cref="DataBaseException"/>
