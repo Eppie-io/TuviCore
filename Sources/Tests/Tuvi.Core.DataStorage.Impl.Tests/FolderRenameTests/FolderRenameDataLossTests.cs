@@ -160,10 +160,10 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
         [TestCase("Old", "Sub1", "Sub2", "New")]
         [TestCase("Old", "Sub1", "Sub2", "Other/New")]
         [TestCase("Old", "Sub1", "Sub2", "New/Sub")]
-        public async Task UpdateFolderPathAsyncMustMoveMessagesInFolderTreeWithDotDelimiter(string oldRoot,
-                                                                                            string subFolder1,
-                                                                                            string subFolder2,
-                                                                                            string newRoot)
+        public async Task UpdateFolderPathAsyncMustMoveMessagesInFolderTree(string oldRoot,
+                                                                            string subFolder1,
+                                                                            string subFolder2,
+                                                                            string newRoot)
         {
             using var db = await OpenDataStorageAsync().ConfigureAwait(true);
 
