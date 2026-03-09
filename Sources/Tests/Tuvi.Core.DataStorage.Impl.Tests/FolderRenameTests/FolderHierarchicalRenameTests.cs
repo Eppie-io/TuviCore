@@ -34,49 +34,49 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             {
                 // Format: oldBase|newBase|descendantRelative1|descendantRelative2|...
                 yield return new TestCaseData("Parent|NewParent|Child|Child/GrandChild")
-                    .SetName("RenameHierarchy: Parent -> NewParent");
+                    .SetArgDisplayNames("RenameHierarchy: Parent -> NewParent");
 
                 yield return new TestCaseData("Projects|ProjectsRenamed|2026|2026/Q1")
-                    .SetName("RenameHierarchy: Projects -> ProjectsRenamed");
+                    .SetArgDisplayNames("RenameHierarchy: Projects -> ProjectsRenamed");
 
                 yield return new TestCaseData("Root/Sub|Root/SubRenamed|Leaf|Leaf/Deep")
-                    .SetName("RenameHierarchy: Root/Sub -> Root/SubRenamed");
+                    .SetArgDisplayNames("RenameHierarchy: Root/Sub -> Root/SubRenamed");
 
                 yield return new TestCaseData("A/B/C|A/B/C_Renamed|D|D/E")
-                    .SetName("RenameHierarchy: A/B/C -> A/B/C_Renamed");
+                    .SetArgDisplayNames("RenameHierarchy: A/B/C -> A/B/C_Renamed");
 
                 yield return new TestCaseData("Case/Insensitive|case/insensitive|Child|Child/GrandChild")
-                    .SetName("RenameHierarchy: case-insensitive rename");
+                    .SetArgDisplayNames("RenameHierarchy: case-insensitive rename");
 
                 yield return new TestCaseData(" Spaced | SpacedRenamed |Child |Child ./Grand.child")
-                    .SetName("RenameHierarchy: spaces+dots");
+                    .SetArgDisplayNames("RenameHierarchy: spaces+dots");
 
                 yield return new TestCaseData("Δοκιμή/Φάκελος|Δοκιμή/ΦάκελοςΜετονομασία|Παιδί|Παιδί/Εγγόνι")
-                    .SetName("RenameHierarchy: Greek");
+                    .SetArgDisplayNames("RenameHierarchy: Greek");
 
                 yield return new TestCaseData("Deep/A/B/C/D|Deep/A/B/C/D_R|E|E/F|E/F/G/H|I/J/K")
-                    .SetName("RenameHierarchy: deep paths");
+                    .SetArgDisplayNames("RenameHierarchy: deep paths");
 
                 yield return new TestCaseData("A|X/Y|B|B/C")
-                    .SetName("RenameHierarchy: increase depth A -> X/Y");
+                    .SetArgDisplayNames("RenameHierarchy: increase depth A -> X/Y");
 
                 yield return new TestCaseData("A/B|X|C|C/D")
-                    .SetName("RenameHierarchy: decrease depth A/B -> X");
+                    .SetArgDisplayNames("RenameHierarchy: decrease depth A/B -> X");
 
                 yield return new TestCaseData("A/B|X/Y/Z|C|C/D")
-                    .SetName("RenameHierarchy: branch switch + increase depth A/B -> X/Y/Z");
+                    .SetArgDisplayNames("RenameHierarchy: branch switch + increase depth A/B -> X/Y/Z");
 
                 yield return new TestCaseData("A/B/C|X|D|D/E")
-                    .SetName("RenameHierarchy: branch switch + decrease depth A/B/C -> X");
+                    .SetArgDisplayNames("RenameHierarchy: branch switch + decrease depth A/B/C -> X");
 
                 yield return new TestCaseData(" Alpha/Beta |Gamma/Delta/Epsilon|Zeta|Zeta/Eta")
-                    .SetName("RenameHierarchy: spaces + increase depth");
+                    .SetArgDisplayNames("RenameHierarchy: spaces + increase depth");
 
                 yield return new TestCaseData("Δοκιμή|X/Y|Φάκελος|Φάκελος/Παιδί")
-                    .SetName("RenameHierarchy: Greek + increase depth");
+                    .SetArgDisplayNames("RenameHierarchy: Greek + increase depth");
 
                 yield return new TestCaseData("Mail/✉️|Mail/✉️_R|📦|📦/📬")
-                    .SetName("RenameHierarchy: emoji+variation selector");
+                    .SetArgDisplayNames("RenameHierarchy: emoji+variation selector");
             }
         }
 
@@ -86,43 +86,43 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             {
                 // Format: oldBase|newBase|descendantRelative
                 yield return new TestCaseData("Parent|NewParent|Child")
-                    .SetName("MoveMessages: Parent -> NewParent");
+                    .SetArgDisplayNames("MoveMessages: Parent -> NewParent");
 
                 yield return new TestCaseData("Projects|ProjectsRenamed|2026")
-                    .SetName("MoveMessages: Projects -> ProjectsRenamed");
+                    .SetArgDisplayNames("MoveMessages: Projects -> ProjectsRenamed");
 
                 yield return new TestCaseData("Root/Sub|Root/SubRenamed|Leaf")
-                    .SetName("MoveMessages: Root/Sub -> Root/SubRenamed");
+                    .SetArgDisplayNames("MoveMessages: Root/Sub -> Root/SubRenamed");
 
                 yield return new TestCaseData("A/B/C|A/B/C_Renamed|D")
-                    .SetName("MoveMessages: A/B/C -> A/B/C_Renamed");
+                    .SetArgDisplayNames("MoveMessages: A/B/C -> A/B/C_Renamed");
 
                 yield return new TestCaseData("Case/Insensitive|case/insensitive|Child")
-                    .SetName("MoveMessages: case-insensitive rename");
+                    .SetArgDisplayNames("MoveMessages: case-insensitive rename");
 
                 yield return new TestCaseData(" Φάκελος | ΦάκελοςΝέος |Θυγατρικός φάκελος")
-                    .SetName("MoveMessages: Greek+spaces");
+                    .SetArgDisplayNames("MoveMessages: Greek+spaces");
 
                 yield return new TestCaseData("Deep/A/B|Deep/A/B_R|C/D/E/F")
-                    .SetName("MoveMessages: deep descendant");
+                    .SetArgDisplayNames("MoveMessages: deep descendant");
 
                 yield return new TestCaseData("A|X/Y|B")
-                    .SetName("MoveMessages: increase depth A -> X/Y");
+                    .SetArgDisplayNames("MoveMessages: increase depth A -> X/Y");
 
                 yield return new TestCaseData("A/B|X|C")
-                    .SetName("MoveMessages: decrease depth A/B -> X");
+                    .SetArgDisplayNames("MoveMessages: decrease depth A/B -> X");
 
                 yield return new TestCaseData("A/B|X/Y/Z|C")
-                    .SetName("MoveMessages: branch switch + increase depth A/B -> X/Y/Z");
+                    .SetArgDisplayNames("MoveMessages: branch switch + increase depth A/B -> X/Y/Z");
 
                 yield return new TestCaseData("A/B/C|X|D")
-                    .SetName("MoveMessages: branch switch + decrease depth A/B/C -> X");
+                    .SetArgDisplayNames("MoveMessages: branch switch + decrease depth A/B/C -> X");
 
                 yield return new TestCaseData(" Alpha/Beta |Gamma/Delta/Epsilon|Zeta")
-                    .SetName("MoveMessages: spaces + increase depth");
+                    .SetArgDisplayNames("MoveMessages: spaces + increase depth");
 
                 yield return new TestCaseData("Mail/✉️|Mail/✉️_R|📬/📭")
-                    .SetName("MoveMessages: emoji/variation selector");
+                    .SetArgDisplayNames("MoveMessages: emoji/variation selector");
             }
         }
 
@@ -132,37 +132,37 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             {
                 // Format: oldBase|newBase|unrelatedFolder
                 yield return new TestCaseData("Prefix|NewName|PrefixSuffix")
-                    .SetName("PrefixCollision: Prefix vs PrefixSuffix");
+                    .SetArgDisplayNames("PrefixCollision: Prefix vs PrefixSuffix");
 
                 yield return new TestCaseData("Root/Sub|Root/SubRenamed|Root/SubSuffix")
-                    .SetName("PrefixCollision: Root/Sub vs Root/SubSuffix");
+                    .SetArgDisplayNames("PrefixCollision: Root/Sub vs Root/SubSuffix");
 
                 yield return new TestCaseData("A/B|A/B_Renamed|A/BSuffix")
-                    .SetName("PrefixCollision: A/B vs A/BSuffix");
+                    .SetArgDisplayNames("PrefixCollision: A/B vs A/BSuffix");
 
                 yield return new TestCaseData("A/B|A/B_Renamed|A/B2")
-                    .SetName("PrefixCollision: segment boundary A/B vs A/B2");
+                    .SetArgDisplayNames("PrefixCollision: segment boundary A/B vs A/B2");
 
                 yield return new TestCaseData("A/B|A/B_Renamed|A/B2/C")
-                    .SetName("PrefixCollision: segment boundary A/B vs A/B2/C");
+                    .SetArgDisplayNames("PrefixCollision: segment boundary A/B vs A/B2/C");
 
                 yield return new TestCaseData("Case/Prefix|case/prefix_new|CASE/PrefixSuffix")
-                    .SetName("PrefixCollision: case-insensitive");
+                    .SetArgDisplayNames("PrefixCollision: case-insensitive");
 
                 yield return new TestCaseData(" Space|SpaceNew| SpaceSuffix")
-                    .SetName("PrefixCollision: spaces");
+                    .SetArgDisplayNames("PrefixCollision: spaces");
 
                 yield return new TestCaseData("Dot.|DotNew.|Dot.Suffix")
-                    .SetName("PrefixCollision: dots");
+                    .SetArgDisplayNames("PrefixCollision: dots");
 
                 yield return new TestCaseData("Root/Sub/Leaf|Root/SubLeaf|Root/Sub/LeafSuffix")
-                    .SetName("PrefixCollision: decrease depth should not touch LeafSuffix");
+                    .SetArgDisplayNames("PrefixCollision: decrease depth should not touch LeafSuffix");
 
                 yield return new TestCaseData("📁|📂|📁Suffix")
-                    .SetName("PrefixCollision: emoji");
+                    .SetArgDisplayNames("PrefixCollision: emoji");
 
                 yield return new TestCaseData("Mail/✉️|Mail/✉️_R|Mail/✉️Suffix")
-                    .SetName("PrefixCollision: emoji+variation selector");
+                    .SetArgDisplayNames("PrefixCollision: emoji+variation selector");
             }
         }
 

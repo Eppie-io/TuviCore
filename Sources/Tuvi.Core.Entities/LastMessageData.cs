@@ -27,7 +27,7 @@ namespace Tuvi.Core.Entities
         public int Id { get; set; }
 
         [SQLite.Ignore]
-        public EmailAddress AccountEmail { get; set; }
+        public Account Account { get; set; }
         public int AccountId { get; set; }
 
         // TODO: remove this property after migration (18.05.2025)
@@ -41,10 +41,10 @@ namespace Tuvi.Core.Entities
         {
         }
 
-        public LastMessageData(int accountId, EmailAddress accountEmail, uint messageId, DateTimeOffset date)
+        public LastMessageData(int accountId, Account account, uint messageId, DateTimeOffset date)
         {
             AccountId = accountId;
-            AccountEmail = accountEmail;
+            Account = account;
             MessageId = messageId;
             Date = date;
         }

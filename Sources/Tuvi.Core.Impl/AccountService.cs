@@ -144,7 +144,7 @@ namespace Tuvi.Core.Impl
             }
             foreach (var messageGroup in messages.GroupBy(message => message.Folder))
             {
-                MessagesIsReadChanged.Invoke(null, new MessagesAttributeChangedEventArgs(Account.Email,
+                MessagesIsReadChanged.Invoke(null, new MessagesAttributeChangedEventArgs(Account,
                                                                                          messageGroup.Key,
                                                                                          messageGroup.Select(message => message).ToList()));
             }
@@ -201,7 +201,7 @@ namespace Tuvi.Core.Impl
 
             foreach (var messageGroup in messages.GroupBy(message => message.Folder))
             {
-                MessagesIsFlaggedChanged.Invoke(null, new MessagesAttributeChangedEventArgs(Account.Email,
+                MessagesIsFlaggedChanged.Invoke(null, new MessagesAttributeChangedEventArgs(Account,
                                                                                             messageGroup.Key,
                                                                                             messageGroup.Select(message => message).ToList()));
             }
@@ -375,8 +375,7 @@ namespace Tuvi.Core.Impl
             }
 
             var newFolder = await MailBox.CreateFolderAsync(folderName, cancellationToken).ConfigureAwait(false);
-            newFolder.AccountEmail = Account.Email;
-            newFolder.AccountId = Account.Id;
+            newFolder.Account = Account;
 
             await UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(false);
 
@@ -425,8 +424,7 @@ namespace Tuvi.Core.Impl
             }
 
             var renamedFolder = await MailBox.RenameFolderAsync(folder, newName, cancellationToken).ConfigureAwait(false);
-            renamedFolder.AccountEmail = Account.Email;
-            renamedFolder.AccountId = Account.Id;
+            renamedFolder.Account = Account;
 
             await DataStorage.UpdateFolderPathAsync(Account.Email, folder.FullName, renamedFolder.FullName, cancellationToken).ConfigureAwait(false);
 
@@ -493,7 +491,7 @@ namespace Tuvi.Core.Impl
         {
             this.Log().LogDebug("MessageDeleted {Folder}, {UID}", folder.FullName, uid);
             Debug.Assert(MessageDeleted != null);
-            MessageDeleted.Invoke(null, new MessageDeletedEventArgs(Account.Email, folder, uid));
+            MessageDeleted.Invoke(null, new MessageDeletedEventArgs(Account, folder, uid));
         }
 
         public async Task<Message> CreateDraftMessageAsync(Message message, CancellationToken cancellationToken)
@@ -566,7 +564,7 @@ namespace Tuvi.Core.Impl
 
             if (messageList.Any(m => !m.IsMarkedAsRead))
             {
-                UnreadMessagesReceived?.Invoke(null, new UnreadMessagesReceivedEventArgs(Account.Email, folder));
+                UnreadMessagesReceived?.Invoke(null, new UnreadMessagesReceivedEventArgs(Account, folder));
             }
         }
 
@@ -639,7 +637,7 @@ namespace Tuvi.Core.Impl
                                                                                    uint maxUid,
                                                                                    CancellationToken cancellationToken)
             {
-                return DataStorage.GetMessageListAsync(_folder.AccountEmail,
+                return DataStorage.GetMessageListAsync(Account.Email,
                                                        _folder.FullName,
                                                        (minUid, maxUid),
                                                        true,
@@ -754,7 +752,7 @@ namespace Tuvi.Core.Impl
                 return;
             }
 
-            this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} started...", full, folder?.AccountEmail?.Address, folder?.FullName);
+            this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} started...", full, folder?.Account?.Email?.Address, folder?.FullName);
             var sw = new Stopwatch();
             sw.Start();
             try
@@ -789,12 +787,12 @@ namespace Tuvi.Core.Impl
             }
             catch (OperationCanceledException)
             {
-                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} is interrupted", full, folder?.AccountEmail?.Address, folder?.FullName);
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} is interrupted", full, folder?.Account?.Email?.Address, folder?.FullName);
             }
             finally
             {
                 sw.Stop();
-                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} took {Time}", full, folder?.AccountEmail?.Address, folder?.FullName, sw.Elapsed);
+                this.Log().LogDebug("Sync({Full}) {Email} folder {Folder} took {Time}", full, folder?.Account?.Email?.Address, folder?.FullName, sw.Elapsed);
             }
         }
     }

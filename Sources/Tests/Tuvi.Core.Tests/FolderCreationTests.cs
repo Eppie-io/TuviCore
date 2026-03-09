@@ -64,7 +64,7 @@ namespace Tuvi.Core.Tests
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = accountsList[0].Email
+                Account = accountsList[0]
             };
 
             mailBoxMock.Setup(m => m.CreateFolderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -196,7 +196,7 @@ namespace Tuvi.Core.Tests
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = accountsList[0].Email
+                Account = accountsList[0]
             };
 
             var updatedFolders = new List<Folder>

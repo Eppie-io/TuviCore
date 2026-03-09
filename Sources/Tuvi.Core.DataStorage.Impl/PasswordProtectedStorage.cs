@@ -298,6 +298,43 @@ namespace Tuvi.Core.DataStorage.Impl
                     }
                 }
             }
+
+            // --- Data migration (09.03.2026): legacy named decentralized Eppie accounts ---
+            {
+                var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                bool needMigration = accounts.Any(NeedsLegacyDecentralizedNameMigration);
+
+                if (needMigration)
+                {
+                    foreach (var account in accounts.Where(NeedsLegacyDecentralizedNameMigration))
+                    {
+                        account.DecentralizedName = account.EmailName;
+                        account.EmailName = null;
+                        await db.UpdateAsync(account).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        private static bool NeedsLegacyDecentralizedNameMigration(Account account)
+        {
+            if (account is null
+                || string.IsNullOrWhiteSpace(account.EmailAddress)
+                || !account.EmailAddress.EndsWith("@eppie", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(account.EmailName)
+                || !string.IsNullOrWhiteSpace(account.DecentralizedName))
+            {
+                return false;
+            }
+
+            var localPartEnd = account.EmailAddress.IndexOf('@');
+            if (localPartEnd <= 0)
+            {
+                return false;
+            }
+
+            var localPart = account.EmailAddress.Substring(0, localPartEnd);
+            return !string.Equals(account.EmailName, localPart, StringComparison.Ordinal);
 #pragma warning restore CS0618 // Only for migration purposes
         }
 

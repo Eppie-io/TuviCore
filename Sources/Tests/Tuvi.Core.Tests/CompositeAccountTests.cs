@@ -90,15 +90,15 @@ namespace Tuvi.Core.Tests
             };
 
             var defaultFolder = compositeFolders[0];
-            var addresses = new List<EmailAddress>()
+            var accounts = new List<Account>()
             {
-                address1,
-                address2
+                new Account { Email = address1 },
+                new Account { Email = address2 }
             };
 
-            var account = new CompositeAccount(compositeFolders, addresses, defaultFolder);
+            var account = new CompositeAccount(compositeFolders, accounts, defaultFolder);
 
-            Assert.That(account.Addresses, Is.EqualTo(addresses));
+            Assert.That(account.Accounts, Is.EqualTo(accounts));
             Assert.That(account.Email, Is.EqualTo(address1));
             Assert.That(account.FoldersStructure.Count, Is.EqualTo(2));
             Assert.That(account.FoldersStructure, Is.EqualTo(compositeFolders));

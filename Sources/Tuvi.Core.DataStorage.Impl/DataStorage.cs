@@ -305,7 +305,7 @@ namespace Tuvi.Core.DataStorage.Impl
             var connection = db.Connection;
 
             var prev = connection.Table<Folder>().Where(x => x.AccountId == accountId).ToList(cancellationToken);
-            prev.ForEach(x => x.AccountEmail = account.Email);
+            prev.ForEach(x => x.Account = account);
 
             if (account.FoldersStructure is null)
             {
@@ -319,7 +319,7 @@ namespace Tuvi.Core.DataStorage.Impl
             account.FoldersStructure.ForEach(x =>
             {
                 x.AccountId = accountId;
-                x.AccountEmail = account.Email;
+                x.Account = account;
             });
 
             foreach (var folder in prev)
@@ -490,7 +490,7 @@ namespace Tuvi.Core.DataStorage.Impl
             var folders = connection.Table<Folder>().Where(x => x.AccountId == account.Id).ToList();
             foreach (var folder in folders)
             {
-                folder.AccountEmail = account.Email;
+                folder.Account = account;
             }
             account.FoldersStructure = folders;
             account.DefaultInboxFolder = folders.FirstOrDefault(x => x.Id == account.DefaultInboxFolderId);
@@ -548,7 +548,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 var messages = GetEarlierContactMessages(connection, contact.Email, 1, null, cancellationToken);
                 if (messages.Count > 0)
                 {
-                    contact.LastMessageData = CreateLastMessageData(messages[0].Folder.AccountEmail, messages[0]);
+                    contact.LastMessageData = CreateLastMessageData(messages[0]);
                     UpdateContact(db, contact);
                 }
                 else
@@ -592,7 +592,6 @@ namespace Tuvi.Core.DataStorage.Impl
             {
                 throw new DataBaseException($"Folder '{folderName}' doesn't exist");
             }
-            folder.AccountEmail = accountEmail;
             return folder;
         }
 
@@ -601,6 +600,10 @@ namespace Tuvi.Core.DataStorage.Impl
             var account = FindAccountStrict(connection, accountEmail);
             var folder = connection.Find<Folder>(x => x.AccountId == account.Id &&
                                                       x.FullName == folderName);
+            if (folder != null)
+            {
+                folder.Account = account;
+            }
             return folder;
         }
 
@@ -780,7 +783,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 if (contact is null)
                 {
                     contact = new Contact(contactEmail.Name, contactEmail);
-                    contact.LastMessageData = CreateLastMessageData(accountEmail, message);
+                    contact.LastMessageData = CreateLastMessageData(message);
                     InsertContact(db, contact, cancellationToken);
                 }
                 else
@@ -789,7 +792,7 @@ namespace Tuvi.Core.DataStorage.Impl
                     if (contact.LastMessageData is null ||
                         message.Date > contact.LastMessageData.Date)
                     {
-                        contact.LastMessageData = CreateLastMessageData(accountEmail, message);
+                        contact.LastMessageData = CreateLastMessageData(message);
                         UpdateContact(db, contact);
                     }
                 }
@@ -798,9 +801,9 @@ namespace Tuvi.Core.DataStorage.Impl
             }
         }
 
-        private static LastMessageData CreateLastMessageData(EmailAddress accountEmail, Message message)
+        private static LastMessageData CreateLastMessageData(Message message)
         {
-            return new LastMessageData(message.Folder.AccountId, accountEmail, message.Id, message.Date);
+            return new LastMessageData(message.Folder.AccountId, message.Folder.Account, message.Id, message.Date);
         }
 
         public async Task<List<DecMessage>> GetDecMessagesAsync(EmailAddress email, Folder folder, int count, CancellationToken cancellationToken)
@@ -1052,7 +1055,7 @@ namespace Tuvi.Core.DataStorage.Impl
             if (message.Folder != null)
             {
                 var account = connection.Find<Account>(message.Folder.AccountId);
-                message.Folder.AccountEmail = account.Email;
+                message.Folder.Account = account;
             }
             cancellationToken.ThrowIfCancellationRequested();
             message.Protection = connection.Find<ProtectionInfo>(x => x.MessageId == message.Pk);
@@ -1693,7 +1696,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                 }
                 else
                 {
-                    contact.LastMessageData.AccountEmail = account.Email;
+                    contact.LastMessageData.Account = account;
                 }
             }
             cancellationToken.ThrowIfCancellationRequested();
@@ -1742,8 +1745,15 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             {
                 int oldLastMessageDataId = contact.LastMessageDataId;
 
-                var account = FindAccountStrict(connection, contact.LastMessageData.AccountEmail);
+                var account = contact.LastMessageData.Account ?? connection.Find<Account>(contact.LastMessageData.AccountId);
+
+                if (account is null)
+                {
+                    throw new AccountIsNotExistInDatabaseException("Account for LastMessageData doesn't exist");
+                }
+
                 contact.LastMessageData.AccountId = account.Id;
+                contact.LastMessageData.Account = account;
 
                 connection.Insert(contact.LastMessageData);
                 contact.LastMessageDataId = GetLastRowId(connection);

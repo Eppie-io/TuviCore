@@ -73,12 +73,16 @@ namespace Tuvi.Core.Entities
                 throw new ArgumentNullException(nameof(address));
             }
             Address = address;
+            Name = GetDefaultName(address);
         }
 
         [JsonConstructor]
         public EmailAddress(string address, string name) : this(address)
         {
-            Name = name;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                Name = name;
+            }
         }
 
         private int _hashValue;
@@ -119,6 +123,11 @@ namespace Tuvi.Core.Entities
             }
             return HasSameAddress(other);// && 
                                          //Name == other.Name;
+        }
+
+        private static string GetDefaultName(string address)
+        {
+            return new EmailStructure(address).Name;
         }
 
         public override bool Equals(object obj)
@@ -265,29 +274,6 @@ namespace Tuvi.Core.Entities
             get
             {
                 return GetNetworkType(this);
-            }
-        }
-
-        [JsonIgnore]
-        /// <summary>
-        /// Gets the address to be displayed to users. 
-        /// For decentralized addresses that are not hybrid and have a non-empty <c>Name</c>, 
-        /// this property returns the <c>Name</c> with the Eppie network postfix (e.g., "Name@eppie").
-        /// Otherwise, it returns the raw <c>Address</c>.
-        /// Use this property when presenting the address in UI or logs, as it may differ from <c>Address</c> for user-friendly display.
-        /// </summary>
-        public string DisplayAddress
-        {
-            get
-            {
-                var res = Address;
-
-                if (IsDecentralized && !IsHybrid && !string.IsNullOrWhiteSpace(Name))
-                {
-                    res = $"{Name}{EppieNetworkPostfix}";
-                }
-
-                return res;
             }
         }
 

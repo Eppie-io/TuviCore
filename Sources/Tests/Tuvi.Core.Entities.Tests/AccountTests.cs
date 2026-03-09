@@ -31,7 +31,7 @@ namespace Tuvi.Core.Entities.Test
         }
 
         [Test]
-        public void AccountEqualityWithSameExternalContentPolicy()
+        public void AccountDeepEqualityWithSameExternalContentPolicy()
         {
             var account1 = new Account
             {
@@ -61,11 +61,11 @@ namespace Tuvi.Core.Entities.Test
                 AuthData = new BasicAuthData { Password = "test" }
             };
 
-            Assert.That(account1, Is.EqualTo(account2));
+            Assert.That(account1.DeepEquals(account2), Is.True);
         }
 
         [Test]
-        public void AccountEqualityWithDifferentExternalContentPolicy()
+        public void AccountDeepEqualityWithDifferentExternalContentPolicy()
         {
             var account1 = new Account
             {
@@ -95,7 +95,27 @@ namespace Tuvi.Core.Entities.Test
                 AuthData = new BasicAuthData { Password = "test" }
             };
 
-            Assert.That(account1, Is.Not.EqualTo(account2));
+            Assert.That(account1.DeepEquals(account2), Is.False);
+        }
+
+        [Test]
+        public void AccountEqualityIgnoresExternalContentPolicy()
+        {
+            var account1 = new Account
+            {
+                Id = 1,
+                Email = new EmailAddress("test@test.com"),
+                ExternalContentPolicy = ExternalContentPolicy.AlwaysAllow
+            };
+
+            var account2 = new Account
+            {
+                Id = 1,
+                Email = new EmailAddress("test@test.com"),
+                ExternalContentPolicy = ExternalContentPolicy.Block
+            };
+
+            Assert.That(account1, Is.EqualTo(account2));
         }
 
         [Test]

@@ -22,13 +22,13 @@ namespace Tuvi.Core.Entities
 {
     public class MessageDeletedEventArgs : EventArgs
     {
-        public EmailAddress Email { get; }
+        public Account Account { get; }
         public Folder Folder { get; }
         public uint MessageID { get; }
 
-        public MessageDeletedEventArgs(EmailAddress email, Folder folder, uint messageID)
+        public MessageDeletedEventArgs(Account account, Folder folder, uint messageID)
         {
-            Email = email;
+            Account = account;
             Folder = folder;
             MessageID = messageID;
         }

@@ -100,14 +100,14 @@ namespace Tuvi.Core.Tests
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = account.Email
+                Account = account
             };
 
             var renamedFolder = new Folder("NewFolderName", FolderAttributes.None)
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = account.Email
+                Account = account
             };
 
             _mailBoxMock.Setup(m => m.RenameFolderAsync(It.IsAny<Folder>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -322,7 +322,7 @@ namespace Tuvi.Core.Tests
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = account.Email
+                Account = account
             };
 
             using var core = CreateCore();
@@ -358,7 +358,7 @@ namespace Tuvi.Core.Tests
             {
                 Id = 10,
                 AccountId = 1,
-                AccountEmail = account.Email
+                Account = account
             };
 
             _mailBoxMock.Setup(m => m.RenameFolderAsync(It.IsAny<Folder>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))

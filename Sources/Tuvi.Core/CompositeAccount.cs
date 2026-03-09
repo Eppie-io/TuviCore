@@ -16,28 +16,68 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Tuvi.Core.Entities;
 
 namespace Tuvi.Core
 {
-    public class CompositeAccount
+    public class CompositeAccount : IEquatable<CompositeAccount>
     {
         private IReadOnlyList<CompositeFolder> _foldersStructure;
         public IReadOnlyList<CompositeFolder> FoldersStructure => _foldersStructure;
-        public EmailAddress Email => _addresses.First();
-        private List<EmailAddress> _addresses;
-        public IReadOnlyList<EmailAddress> Addresses => _addresses;
+        public EmailAddress Email => _accounts.FirstOrDefault()?.Email;
+        public string DisplayAddress => _accounts.FirstOrDefault()?.DisplayEmail.Address;
+
+        private List<Account> _accounts;
+        public IReadOnlyList<Account> Accounts => _accounts;
 
         private CompositeFolder _defaultInboxFolder;
         public CompositeFolder DefaultInboxFolder => _defaultInboxFolder;
 
-        internal CompositeAccount(IReadOnlyList<CompositeFolder> folders, IEnumerable<EmailAddress> emailAddresses, CompositeFolder inboxFolder)
+        internal CompositeAccount(IReadOnlyList<CompositeFolder> folders, IEnumerable<Account> accounts, CompositeFolder inboxFolder)
         {
             _foldersStructure = folders;
             _defaultInboxFolder = inboxFolder;
-            _addresses = new List<EmailAddress>(emailAddresses);
+            _accounts = accounts.ToList();
+        }
+
+        public bool HasAccount(Account account)
+        {
+            if (account is null)
+            {
+                return false;
+            }
+
+            return _accounts.Any(x => x?.Equals(account) == true);
+        }
+
+        public bool Equals(CompositeAccount other)
+        {
+            return !(other is null)
+                && _accounts.Count == other._accounts.Count
+                && _accounts.All(other.HasAccount);
+        }
+
+        public static bool operator ==(CompositeAccount left, CompositeAccount right)
+        {
+            return object.Equals(left, right);
+        }
+
+        public static bool operator !=(CompositeAccount left, CompositeAccount right)
+        {
+            return !object.Equals(left, right);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as CompositeAccount);
+        }
+
+        public override int GetHashCode()
+        {
+            return _accounts.Aggregate(0, (hash, account) => hash ^ (account?.GetHashCode() ?? 0));
         }
     }
 }

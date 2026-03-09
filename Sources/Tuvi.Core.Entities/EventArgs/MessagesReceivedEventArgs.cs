@@ -23,13 +23,12 @@ namespace Tuvi.Core.Entities
 {
     public class ReceivedMessageInfo
     {
-        public EmailAddress Email { get; }
+        public Account Account => Folder.Account;
         public Folder Folder => Message.Folder;
         public Message Message { get; }
 
-        public ReceivedMessageInfo(EmailAddress email, Message message)
+        public ReceivedMessageInfo(Message message)
         {
-            Email = email;
             Message = message;
         }
     }

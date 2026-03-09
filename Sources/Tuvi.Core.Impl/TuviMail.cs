@@ -360,7 +360,7 @@ namespace Tuvi.Core.Impl
             var comparer = new FolderEqualityComparer();
             foreach (var accountGroup in accountGroups)
             {
-                var addresses = new List<EmailAddress>();
+                var accounts = new List<Account>();
                 var defaultInboxFolders = new List<Folder>();
                 var mergedFolders = new Dictionary<string, List<Folder>>(comparer);
                 foreach (var account in accountGroup)
@@ -377,7 +377,7 @@ namespace Tuvi.Core.Impl
                     }
                     var accountService = GetAccountService(account);
 
-                    addresses.Add(account.Email);
+                    accounts.Add(account);
 
                     foreach (var folder in account.FoldersStructure)
                     {
@@ -397,8 +397,8 @@ namespace Tuvi.Core.Impl
                     }
                     if (accountGroup.Key == 0)
                     {
-                        AddCompositeFolder(addresses, mergedFolders.Values, defaultInboxFolders);
-                        addresses.Clear();
+                        AddCompositeFolder(accounts, mergedFolders.Values, defaultInboxFolders);
+                        accounts.Clear();
                         mergedFolders.Clear();
                         defaultInboxFolders.Clear();
                     }
@@ -406,17 +406,17 @@ namespace Tuvi.Core.Impl
 
                 if (accountGroup.Key > 0)
                 {
-                    AddCompositeFolder(addresses, mergedFolders.Values, defaultInboxFolders);
+                    AddCompositeFolder(accounts, mergedFolders.Values, defaultInboxFolders);
                 }
             }
             return res;
 
-            void AddCompositeFolder(List<EmailAddress> addresses,
+            void AddCompositeFolder(List<Account> accounts,
                                     IEnumerable<List<Folder>> folders,
                                     List<Folder> defaultInboxFolders)
             {
                 var compositeFolders = folders.Select(x => new CompositeFolder(x, GetAccountService)).ToList();
-                res.Add(new CompositeAccount(compositeFolders, addresses, new CompositeFolder(defaultInboxFolders, GetAccountService)));
+                res.Add(new CompositeAccount(compositeFolders, accounts, new CompositeFolder(defaultInboxFolders, GetAccountService)));
             }
         }
 
@@ -636,14 +636,13 @@ namespace Tuvi.Core.Impl
 
             try
             {
-                var uniqueAccountEmails = folder.Folders
-                    .Select(f => f.AccountEmail)
-                    .Distinct();
+                var uniqueFolders = folder.Folders
+                    .GroupBy(f => f.AccountId)
+                    .Select(g => g.First());
 
-                var tasks = uniqueAccountEmails.Select(async email =>
+                var tasks = uniqueFolders.Select(async item =>
                 {
-                    var account = await GetAccountAsync(email, cancellationToken).ConfigureAwait(false);
-                    await CheckForNewMessagesForceAsync(account, cancellationToken).ConfigureAwait(false);
+                    await CheckForNewMessagesForceAsync(item.Account, cancellationToken).ConfigureAwait(false);
                 });
 
                 await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -658,7 +657,7 @@ namespace Tuvi.Core.Impl
         {
             var messages = await accountService.ReceiveNewMessagesInFolderAsync(folder, cancellationToken)
                                                .ConfigureAwait(true);
-            var receivedMessages = new List<ReceivedMessageInfo>(messages.Select(m => new ReceivedMessageInfo(folder.AccountEmail, m)));
+            var receivedMessages = new List<ReceivedMessageInfo>(messages.Select(m => new ReceivedMessageInfo(m)));
 
             if (receivedMessages.Count > 0)
             {
@@ -934,7 +933,7 @@ namespace Tuvi.Core.Impl
                 throw new ArgumentNullException(nameof(folder));
             }
             // ensure that we cashed account service
-            await GetAccountServiceAsync(folder.AccountEmail, cancellationToken).ConfigureAwait(false);
+            await GetAccountServiceAsync(folder.Account.Email, cancellationToken).ConfigureAwait(false);
             var compositeFolder = new CompositeFolder(new List<Folder>() { folder }, GetAccountService);
             return await GetFolderEarlierMessagesAsync(compositeFolder, count, lastMessage, cancellationToken).ConfigureAwait(false);
         }
@@ -1020,7 +1019,7 @@ namespace Tuvi.Core.Impl
             {
                 var message = group.First();
                 var folder = message.Folder;
-                var accountService = await GetAccountServiceAsync(folder.AccountEmail, cancellationToken).ConfigureAwait(true);
+                var accountService = await GetAccountServiceAsync(folder.Account.Email, cancellationToken).ConfigureAwait(true);
                 await accountService.DeleteMessagesAsync(folder, group.ToList(), cancellationToken).ConfigureAwait(true);
             }
         }
@@ -1148,12 +1147,21 @@ namespace Tuvi.Core.Impl
             return res;
         }
 
-        public async Task<Message> CreateDraftMessageAsync(Message message, CancellationToken cancellationToken)
+        public async Task<Message> CreateDraftMessageAsync(Account account, Message message, CancellationToken cancellationToken)
         {
             CheckDisposed();
-            Debug.Assert(message != null);
-            Debug.Assert(message.From.Count > 0);
-            var accountService = await GetAccountServiceAsync(message.From.First(), cancellationToken).ConfigureAwait(false);
+
+            if (account is null)
+            {
+                throw new ArgumentNullException(nameof(account));
+            }
+
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            var accountService = await GetAccountServiceAsync(account.Email, cancellationToken).ConfigureAwait(false);
             return await accountService.CreateDraftMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1162,7 +1170,7 @@ namespace Tuvi.Core.Impl
             CheckDisposed();
             Debug.Assert(message != null);
             Debug.Assert(message.From.Count > 0);
-            var accountService = await GetAccountServiceAsync(message.From.First(), cancellationToken).ConfigureAwait(false);
+            var accountService = await GetAccountServiceAsync(message.Folder.Account.Email, cancellationToken).ConfigureAwait(false);
             return await accountService.UpdateDraftMessageAsync(id, message, cancellationToken).ConfigureAwait(false);
         }
 
@@ -1189,7 +1197,7 @@ namespace Tuvi.Core.Impl
             {
                 return accountService;
             }
-            accountService = GetAccountService(folder.AccountEmail);
+            accountService = GetAccountService(folder.Account.Email);
             FolderToAccountMapping.AddOrReplace(folder, accountService);
             return accountService;
         }
@@ -1213,9 +1221,9 @@ namespace Tuvi.Core.Impl
             {
                 var message = group.First();
                 var folder = message.Folder;
-                var accountService = await GetAccountServiceAsync(folder.AccountEmail, cancellationToken).ConfigureAwait(true);
+                var accountService = await GetAccountServiceAsync(folder.Account.Email, cancellationToken).ConfigureAwait(true);
 
-                var target = targetFolder?.Folders.FirstOrDefault(x => x.AccountEmail == folder.AccountEmail);
+                var target = targetFolder?.Folders.FirstOrDefault(x => x.AccountId == folder.AccountId);
                 await accountService.MoveMessagesAsync(folder, target, group.ToList(), cancellationToken).ConfigureAwait(true);
             }
         }

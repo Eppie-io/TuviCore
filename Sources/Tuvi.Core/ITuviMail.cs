@@ -130,7 +130,7 @@ namespace Tuvi.Core
         /// </summary>
         Task SendMessageAsync(Message message, bool encrypt, bool sign, CancellationToken cancellationToken = default);
 
-        Task<Message> CreateDraftMessageAsync(Message message, CancellationToken cancellationToken = default);
+        Task<Message> CreateDraftMessageAsync(Account account, Message message, CancellationToken cancellationToken = default);
         Task<Message> UpdateDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken = default);
 
         Task MoveMessagesAsync(IReadOnlyList<Message> messages, CompositeFolder targetFolder, CancellationToken cancellationToken = default);

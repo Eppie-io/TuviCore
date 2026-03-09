@@ -286,7 +286,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             await db.AddAccountAsync(TestData.Account).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
-            contact.LastMessageData = new LastMessageData(1, TestData.Account.Email, TestData.Message.Id, now);
+            contact.LastMessageData = new LastMessageData(1, TestData.Account, TestData.Message.Id, now);
 
             // Act
             await db.UpdateContactAsync(contact, default).ConfigureAwait(false);
@@ -296,7 +296,7 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(stored.LastMessageData, Is.Not.Null);
             Assert.That(stored.LastMessageData.MessageId == TestData.Message.Id, Is.True);
             Assert.That(stored.LastMessageData.Date > DateTimeOffset.MinValue, Is.True);
-            Assert.That(stored.LastMessageData.AccountEmail, Is.EqualTo(TestData.Account.Email));
+            Assert.That(stored.LastMessageData.Account?.Email, Is.EqualTo(TestData.Account.Email));
         }
 
         [Test]

@@ -46,12 +46,22 @@ namespace Tuvi.Core.DataStorage
 
         public DecMessageRaw() { }
 
-        public DecMessageRaw(Message message)
+        public DecMessageRaw(Message message, EmailAddress from = null)
         {
-            if (message == null)
-                return;
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
 
-            From = message.From[0].DisplayAddress;
+            if (from is null)
+            {
+                From = message.From[0].Address;
+            }
+            else
+            {
+                From = from.Address;
+            }
+
             To = String.Join(";", message.AllRecipients.Select(x => x.Address));
             Date = message.Date;
             Subject = message.Subject;

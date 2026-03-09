@@ -39,18 +39,30 @@ namespace Tuvi.Core.Entities
     /// </summary>
     public class Folder : IEquatable<Folder>
     {
+        [JsonIgnore]
         [SQLite.PrimaryKey]
         [SQLite.AutoIncrement]
         public int Id { get; set; }
 
+        [JsonIgnore]
         [SQLite.Indexed]
         public int AccountId { get; set; }
 
+        [JsonIgnore]
         [SQLite.Ignore]
-        /// <summary>
-        /// The address of account that owns this folder
-        /// </summary>
-        public EmailAddress AccountEmail { get; set; }
+        public Account Account
+        {
+            get { return _account; }
+            set
+            {
+                _account = value;
+                if (value != null)
+                {
+                    AccountId = value.Id;
+                }
+            }
+        }
+        private Account _account;
 
         /// <summary>
         /// Unread messages count
@@ -84,32 +96,39 @@ namespace Tuvi.Core.Entities
         /// <summary>
         /// Attribute indicating that this is Inbox folder
         /// </summary>
+        [JsonIgnore]
         public bool IsInbox => Attributes.HasFlag(FolderAttributes.Inbox);
         /// <summary>
         /// Attribute indicating that this is Drafts folder
         /// </summary>
+        [JsonIgnore]
         public bool IsDraft => Attributes.HasFlag(FolderAttributes.Draft);
         /// <summary>
         /// Attribute indicating that this is Spam folder
         /// </summary>
+        [JsonIgnore]
         public bool IsJunk => Attributes.HasFlag(FolderAttributes.Junk);
         /// <summary>
         /// Attribute indicating that this is Trash folder
         /// </summary>
+        [JsonIgnore]
         public bool IsTrash => Attributes.HasFlag(FolderAttributes.Trash);
         /// <summary>
         /// Attribute indicating that this is Sent folder
         /// </summary>
+        [JsonIgnore]
         public bool IsSent => Attributes.HasFlag(FolderAttributes.Sent);
 
         /// <summary>
         /// Attribute indicating that this is Important folder
         /// </summary>
+        [JsonIgnore]
         public bool IsImportant => Attributes.HasFlag(FolderAttributes.Important);
 
         /// <summary>
         /// Attribute indicating that this is Important folder
         /// </summary>
+        [JsonIgnore]
         public bool IsAll => Attributes.HasFlag(FolderAttributes.All);
 
         /// <summary>
@@ -149,7 +168,7 @@ namespace Tuvi.Core.Entities
             }
             // if folder is not stored then we don't take into account that Ids should be equal
             return (Id == 0 || other.Id == 0 || Id == other.Id) &&
-                   AccountEmail == other.AccountEmail &&
+                   Account == other.Account &&
                    HasSameName(other.FullName) &&
                    Attributes == other.Attributes;
         }

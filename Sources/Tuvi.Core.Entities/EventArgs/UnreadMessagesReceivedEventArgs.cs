@@ -22,12 +22,12 @@ namespace Tuvi.Core.Entities
 {
     public class UnreadMessagesReceivedEventArgs : EventArgs
     {
-        public EmailAddress Email { get; }
+        public Account Account { get; }
         public Folder Folder { get; }
 
-        public UnreadMessagesReceivedEventArgs(EmailAddress email, Folder folder)
+        public UnreadMessagesReceivedEventArgs(Account account, Folder folder)
         {
-            Email = email;
+            Account = account;
             Folder = folder;
         }
     }

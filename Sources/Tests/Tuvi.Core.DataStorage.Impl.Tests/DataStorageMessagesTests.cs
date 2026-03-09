@@ -107,7 +107,7 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(await db.IsMessageExistAsync(accountEmail, TestData.Folder, message.Id).ConfigureAwait(true), Is.True);
             Assert.That(message.Folder, Is.Not.Null);
             Assert.That(message.FolderId, Is.Not.EqualTo(0));
-            Assert.That(message.Folder.AccountEmail, Is.Not.Null);
+            Assert.That(message.Folder.Account?.Email, Is.Not.Null);
             Assert.That(message.Folder.AccountId, Is.Not.EqualTo(0));
         }
 

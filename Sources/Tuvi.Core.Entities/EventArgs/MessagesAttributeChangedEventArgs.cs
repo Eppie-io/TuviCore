@@ -24,13 +24,13 @@ namespace Tuvi.Core.Entities
     public class MessagesAttributeChangedEventArgs
         : EventArgs
     {
-        public EmailAddress Email { get; }
+        public Account Account { get; }
         public Folder Folder { get; }
         public IReadOnlyList<Message> Messages { get; }
 
-        public MessagesAttributeChangedEventArgs(EmailAddress email, Folder folder, IReadOnlyList<Message> messages)
+        public MessagesAttributeChangedEventArgs(Account account, Folder folder, IReadOnlyList<Message> messages)
         {
-            Email = email;
+            Account = account;
             Folder = folder;
             Messages = messages;
         }

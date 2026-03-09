@@ -61,10 +61,11 @@ namespace Tuvi.Core.Entities.Test
         }
 
         [Test]
-        public void DisplayNameWithoutNameReturnsAddress()
+        public void ConstructorWithoutNameUsesLocalPartAsName()
         {
             var email = new EmailAddress("test@example.com");
-            Assert.That(email.DisplayName, Is.EqualTo("test@example.com"));
+            Assert.That(email.Name, Is.EqualTo("test"));
+            Assert.That(email.DisplayName, Is.EqualTo("test<test@example.com>"));
         }
 
         [Test]
@@ -75,10 +76,11 @@ namespace Tuvi.Core.Entities.Test
         }
 
         [Test]
-        public void DisplayNameWithEmptyNameReturnsAddress()
+        public void ConstructorWithEmptyNameUsesLocalPartAsName()
         {
             var email = new EmailAddress("test@example.com", " ");
-            Assert.That(email.DisplayName, Is.EqualTo("test@example.com"));
+            Assert.That(email.Name, Is.EqualTo("test"));
+            Assert.That(email.DisplayName, Is.EqualTo("test<test@example.com>"));
         }
 
         [Test]
@@ -87,7 +89,7 @@ namespace Tuvi.Core.Entities.Test
             var result = EmailAddress.Parse("test@example.com");
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Address, Is.EqualTo("test@example.com"));
-            Assert.That(result.Name, Is.EqualTo(string.Empty));
+            Assert.That(result.Name, Is.EqualTo("test"));
         }
 
         [Test]

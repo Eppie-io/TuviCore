@@ -163,6 +163,61 @@ namespace Tuvi.Core.DataStorage.Tests
         }
 
         [Test]
+        public async Task OpenAsyncMigratesLegacyNamedDecentralizedEppieAccount()
+        {
+            const string rawAddress = "legacyaccount@eppie";
+            const string legacyName = "alice";
+
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+                await db.AddAccountAsync(new Account
+                {
+                    Email = new EmailAddress(rawAddress, legacyName),
+                    DecentralizedAccountIndex = 0,
+                    Type = MailBoxType.Dec
+                }).ConfigureAwait(true);
+            }
+
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var migratedAccount = await db.GetAccountAsync(new EmailAddress(rawAddress)).ConfigureAwait(true);
+
+                Assert.That(migratedAccount.GetDecentralizedName(), Is.EqualTo(legacyName));
+                Assert.That(migratedAccount.DisplayEmail?.Address, Is.EqualTo($"{legacyName}@eppie"));
+            }
+        }
+
+        [Test]
+        public async Task OpenAsyncDoesNotMigrateRegularEppieAccountNameDerivedFromAddress()
+        {
+            const string rawAddress = "regularaccount@eppie";
+
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+                await db.AddAccountAsync(new Account
+                {
+                    Email = new EmailAddress(rawAddress),
+                    DecentralizedAccountIndex = 0,
+                    Type = MailBoxType.Dec
+                }).ConfigureAwait(true);
+            }
+
+            using (var db = GetDataStorage())
+            {
+                await db.OpenAsync(Password).ConfigureAwait(true);
+
+                var account = await db.GetAccountAsync(new EmailAddress(rawAddress)).ConfigureAwait(true);
+
+                Assert.That(account.GetDecentralizedName(), Is.Null.Or.Empty);
+                Assert.That(account.DisplayEmail?.Address, Is.EqualTo(rawAddress));
+            }
+        }
+
+        [Test]
         public async Task UpdateAccountAuthData()
         {
             using (var db = GetDataStorage())

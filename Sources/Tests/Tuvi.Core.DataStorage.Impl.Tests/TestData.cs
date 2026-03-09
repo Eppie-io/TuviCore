@@ -135,7 +135,7 @@ namespace Tuvi.Core.DataStorage.Tests
             message.Subject = "Subject";
             message.TextBody = "Hello world message body";
             message.Id = 7;
-            message.Folder = new Folder(Folder, FolderAttributes.Inbox) { AccountEmail = new EmailAddress("tuvi2.mail@email.test") };
+            message.Folder = new Folder(Folder, FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("tuvi2.mail@email.test") } };
 
             return message;
         }

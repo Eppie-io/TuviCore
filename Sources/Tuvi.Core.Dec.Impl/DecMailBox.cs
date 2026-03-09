@@ -148,7 +148,7 @@ namespace Tuvi.Core.Dec.Impl
             }
 
             message.Date = DateTime.Now;
-            var rawMessage = new DecMessageRaw(message);
+            var rawMessage = new DecMessageRaw(message, AccountSettings.DisplayEmail);
             var data = JsonConvert.SerializeObject(rawMessage);
             var finalHashBuilder = new StringBuilder();
 

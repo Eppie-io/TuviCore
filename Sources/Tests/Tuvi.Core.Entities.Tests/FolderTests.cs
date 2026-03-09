@@ -33,14 +33,14 @@ namespace Tuvi.Core.Entities.Test
             Assert.That(folder1, Is.Not.EqualTo(folder2));
             Assert.That(folder3, Is.Not.EqualTo(folder4));
             Assert.That(folder1, Is.Not.EqualTo(folder4));
-            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { AccountEmail = new EmailAddress("address@test.t") },
-             Is.Not.EqualTo(new Folder("Folder1", FolderAttributes.Inbox) { AccountEmail = new EmailAddress("address2@test.t") }));
+            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("address@test.t") } },
+             Is.Not.EqualTo(new Folder("Folder1", FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("address2@test.t") } }));
 
 
-            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { AccountEmail = new EmailAddress("address@test.t") },
-             Is.Not.EqualTo(new Folder("Folder1", FolderAttributes.Draft) { AccountEmail = new EmailAddress("address@test.t") }));
-            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { AccountEmail = new EmailAddress("address@test.t") },
-             Is.Not.EqualTo(new Folder("Folder2", FolderAttributes.Inbox) { AccountEmail = new EmailAddress("address@test.t") }));
+            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("address@test.t") } },
+             Is.Not.EqualTo(new Folder("Folder1", FolderAttributes.Draft) { Account = new Account { Email = new EmailAddress("address@test.t") } }));
+            Assert.That(new Folder("Folder1", FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("address@test.t") } },
+             Is.Not.EqualTo(new Folder("Folder2", FolderAttributes.Inbox) { Account = new Account { Email = new EmailAddress("address@test.t") } }));
 
             Assert.That(folder1, Is.EqualTo(folder1));
             Assert.That(folder1, Is.EqualTo(folder3));

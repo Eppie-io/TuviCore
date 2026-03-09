@@ -129,8 +129,8 @@ namespace BackupTests
             Assert.That(TestData.ProtocolVersion, Is.EqualTo(version));
 
             var accounts = await parser.GetAccountsAsync().ConfigureAwait(true);
-            Assert.That(TestData.Account1, Is.EqualTo(accounts[0]));
-            Assert.That(TestData.Account2, Is.EqualTo(accounts[1]));
+            Assert.That(TestData.Account1.DeepEquals(accounts[0]), Is.True);
+            Assert.That(TestData.Account2.DeepEquals(accounts[1]), Is.True);
         }
     }
 }
