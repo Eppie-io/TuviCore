@@ -76,6 +76,11 @@ namespace Tuvi.Core.Tests
                 LocalMessages.AddRange(messages);
                 return Task.CompletedTask;
             }
+
+            protected override bool CanDeleteLocalMessageMissingOnRemote(Message localMessage)
+            {
+                return localMessage != null && !localMessage.IsDecentralized;
+            }
         }
 
         static Message CreateMessage(uint id)
