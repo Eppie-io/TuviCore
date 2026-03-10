@@ -136,6 +136,8 @@ namespace Tuvi.Core
 
         Task<Message> UpdateDraftMessageAsync(uint id, Message message, CancellationToken cancellationToken = default);
 
+        Task RestoreMessagesAsync(Folder folder, IReadOnlyList<Message> messageList, CancellationToken cancellationToken = default);
+
         Task AddMessagesToDataStorageAsync(Folder folder, IReadOnlyList<Message> messageList, CancellationToken cancellationToken);
 
         Task<int> GetUnreadMessagesCountInFolderAsync(Folder folder, CancellationToken cancellationToken = default);

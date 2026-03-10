@@ -64,9 +64,6 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
 
                 switch (propertyName)
                 {
-                    case nameof(Message.Id):
-                        message.Id = reader.GetUInt32();
-                        break;
                     case nameof(Message.Subject):
                         message.Subject = reader.GetString();
                         break;
@@ -141,7 +138,6 @@ namespace Tuvi.Core.Backup.Impl.JsonUtf8.Converters
 
             writer.WriteStartObject();
 
-            writer.WriteNumber(nameof(Message.Id), value.Id);
             writer.WriteString(nameof(Message.Subject), value.Subject);
             writer.WriteString(nameof(Message.Date), value.Date);
             writer.WriteString(nameof(Message.TextBody), value.TextBody);

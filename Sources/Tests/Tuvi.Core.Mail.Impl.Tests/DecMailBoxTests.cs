@@ -1286,6 +1286,31 @@ namespace Tuvi.Core.Mail.Impl.Tests
             client.Verify(x => x.ListAsync(It.Is<string>(s => s == publicKey), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        [Test]
+        public async Task RestoreMessagesAsyncAssignsNewLocalIdToRestoredMessage()
+        {
+            string addressType = DecentralizedAddressType;
+            (var index, var address) = GetAddress1(addressType);
+            var storage = new Mock<IDecStorage>(MockBehavior.Strict);
+            var client = CreateDecClient();
+            Account account = CreateAccount(addressType, address, index);
+            var folder = new Folder("Inbox", FolderAttributes.Inbox);
+            var message = CreateMessage(address, address);
+            message.Id = 7;
+            message.IsDecentralized = true;
+
+            storage.Setup(x => x.AddDecMessageAsync(account.Email, It.IsAny<DecMessage>(), It.IsAny<CancellationToken>()))
+                   .ReturnsAsync(new DecMessage("restored-hash", message) { Id = 13 });
+
+            using var mailBox = new DecMailBox(account, storage.Object, client.Object, new PgpDecProtector(storage.Object, _publicKeyService), _publicKeyService);
+
+            await mailBox.RestoreMessagesAsync(folder, new List<Message> { message }, default).ConfigureAwait(true);
+
+            Assert.That(message.Id, Is.EqualTo(13));
+            storage.Verify(x => x.AddDecMessageAsync(account.Email, It.IsAny<DecMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+            storage.Verify(x => x.UpdateDecMessageAsync(It.IsAny<EmailAddress>(), It.IsAny<DecMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static string CalculateMailboxId(string publicKey)
         {
             string routePrefix = "tuvi.dec.route.v1|";

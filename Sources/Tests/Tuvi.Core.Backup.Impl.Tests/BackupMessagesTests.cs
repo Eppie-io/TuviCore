@@ -378,6 +378,35 @@ namespace BackupTests
             AssertCompleteMessageEquals(message, restoredMessage);
         }
 
+        [Test]
+        [Category("Backup")]
+        [Category("Messages")]
+        public async Task BackupDecentralizedMessageDoesNotPreserveLocalId()
+        {
+            var message = CreateTestMessage(id: 42, subject: "Decentralized message");
+            message.IsDecentralized = true;
+
+            var folder = new FolderMessagesBackupContainer(TestData.InboxFolderName, new List<Message> { message });
+            var emailContainer = new EmailAccountBackupContainer(TestData.Account1.Email.Address, new List<FolderMessagesBackupContainer> { folder });
+
+            using var backup = new MemoryStream();
+            var builder = BackupSerializationFactory.CreateBackupBuilder();
+
+            await builder.SetVersionAsync(TestData.ProtocolVersion).ConfigureAwait(true);
+            await builder.SetMessagesAsync(new List<EmailAccountBackupContainer> { emailContainer }).ConfigureAwait(true);
+            await builder.BuildBackupAsync(backup).ConfigureAwait(true);
+
+            backup.Position = 0;
+
+            var parser = BackupSerializationFactory.CreateBackupParser();
+            await parser.ParseBackupAsync(backup).ConfigureAwait(true);
+            var restoredMessages = await parser.GetMessagesAsync().ConfigureAwait(true);
+
+            var restoredMessage = restoredMessages[0].Folders[0].Messages[0];
+            Assert.That(restoredMessage.IsDecentralized, Is.True);
+            Assert.That(restoredMessage.Id, Is.EqualTo(0));
+        }
+
         #region Helper Methods
 
         private static Message CreateTestMessage(uint id = 1, string subject = "Test Subject")
@@ -439,7 +468,6 @@ namespace BackupTests
 
         private static void AssertMessageEquals(Message expected, Message actual)
         {
-            Assert.That(actual.Id, Is.EqualTo(expected.Id));
             Assert.That(actual.Subject, Is.EqualTo(expected.Subject));
             Assert.That(actual.Date, Is.EqualTo(expected.Date));
             Assert.That(actual.TextBody, Is.EqualTo(expected.TextBody));

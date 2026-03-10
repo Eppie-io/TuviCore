@@ -528,6 +528,32 @@ namespace Tuvi.Core.Impl
             return newMessage;
         }
 
+        public async Task RestoreMessagesAsync(Folder folder, IReadOnlyList<Message> messageList, CancellationToken cancellationToken = default)
+        {
+            if (folder is null)
+            {
+                throw new ArgumentNullException(nameof(folder));
+            }
+
+            if (messageList is null)
+            {
+                throw new ArgumentNullException(nameof(messageList));
+            }
+
+            if (messageList.Count == 0)
+            {
+                return;
+            }
+
+            var mailBoxMessagesRestorer = MailBox as IMailBoxMessagesRestorer;
+            if (mailBoxMessagesRestorer != null)
+            {
+                await mailBoxMessagesRestorer.RestoreMessagesAsync(folder, messageList, cancellationToken).ConfigureAwait(false);
+            }
+
+            await AddMessagesToDataStorageAsync(folder, messageList, cancellationToken).ConfigureAwait(false);
+        }
+
         public Task AddMessagesToDataStorageAsync(Folder folder,
                                                   IReadOnlyList<Message> messageList,
                                                   CancellationToken cancellationToken)

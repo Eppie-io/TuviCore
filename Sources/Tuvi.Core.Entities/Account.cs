@@ -190,7 +190,6 @@ namespace Tuvi.Core.Entities
         public int OutgoingServerPort { get; set; }
         public MailProtocol OutgoingMailProtocol { get; set; }
 
-        [JsonIgnore]
         [SQLite.Ignore]
         public Folder DefaultInboxFolder { get; set; }
 

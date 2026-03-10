@@ -326,7 +326,6 @@ namespace BackupTests
             // Assert - Verify messages
             Assert.That(restoredMessages, Is.Not.Null);
             var restoredMessage = restoredMessages[0].Messages[0];
-            Assert.That(restoredMessage.Id, Is.EqualTo(TestMessageId));
             Assert.That(restoredMessage.Subject, Is.EqualTo(TestData.ImportantMessageSubject));
             Assert.That(restoredMessage.Date, Is.EqualTo(TestData.BackupManagerTestMessageDate));
             Assert.That(restoredMessage.From.Count, Is.EqualTo(1));

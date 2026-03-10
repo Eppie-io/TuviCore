@@ -816,23 +816,23 @@ namespace Tuvi.Core.Impl
 
             if (isAccountExist)
             {
-                await AddMessagesAsync(email, messages).ConfigureAwait(false);
+                await RestoreMessagesAsync(email, messages).ConfigureAwait(false);
             }
         }
 
-        private async Task AddMessagesAsync(EmailAddress email, IReadOnlyList<FolderMessagesBackupContainer> messagesHolder, CancellationToken cancellationToken = default)
+        private async Task RestoreMessagesAsync(EmailAddress email, IReadOnlyList<FolderMessagesBackupContainer> messagesHolder, CancellationToken cancellationToken = default)
         {
             var account = await GetAccountAsync(email, cancellationToken).ConfigureAwait(false);
             var accountService = GetAccountService(account);
             foreach (var messages in messagesHolder)
             {
-                var folder = account.FoldersStructure.Where(x => x.HasSameName(messages.FolderFullName)).FirstOrDefault();
+                var folder = account.FoldersStructure.FirstOrDefault(x => x.HasSameName(messages.FolderFullName));
                 if (folder is null)
                 {
                     // TODO: discuss what should we do in this case
                     continue; // skip unknown folder
                 }
-                await accountService.AddMessagesToDataStorageAsync(folder, messages.Messages, cancellationToken).ConfigureAwait(false);
+                await accountService.RestoreMessagesAsync(folder, messages.Messages, cancellationToken).ConfigureAwait(false);
             }
         }
 
