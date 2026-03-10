@@ -661,6 +661,12 @@ namespace Tuvi.Core.Impl
                                                                updateUnreadAndTotal: !MailBox.HasFolderCounters,
                                                                cancellationToken).ConfigureAwait(false);
             }
+
+            protected override bool CanDeleteLocalMessageMissingOnRemote(Message localMessage)
+            {
+                return localMessage != null && !localMessage.IsDecentralized;
+            }
+
             protected override async Task UpdateMessagesAsync(IReadOnlyList<Message> messages,
                                                               CancellationToken cancellationToken)
             {
@@ -903,6 +909,7 @@ namespace Tuvi.Core.Impl
                     addedMessages.Add(remoteMessages[iremote]);
                     ++iremote;
                 }
+                deletedMessages = deletedMessages.Where(CanDeleteLocalMessageMissingOnRemote).ToList();
                 localMaxId = localMinId - 1;
 
                 // Commit changes and notify observers
@@ -938,5 +945,6 @@ namespace Tuvi.Core.Impl
                                                     CancellationToken cancellationToken);
         protected abstract Task AddMessagesAsync(IReadOnlyList<Message> messages,
                                                  CancellationToken cancellationToken);
+        protected abstract bool CanDeleteLocalMessageMissingOnRemote(Message localMessage);
     }
 }
