@@ -243,14 +243,14 @@ namespace Tuvi.Core.DataStorage.Impl
             // --- Data migration (18.05.2025) ---
             // LastMessageData.AccountEmailId -> LastMessageData.AccountId
             // Account.EmailId -> Account.Email
-            await DataMigration18052025(db).ConfigureAwait(false);
+            await DataMigration18052025Async(db).ConfigureAwait(false);
 
             // --- Data migration (09.03.2026) ---
             // legacy named decentralized Eppie accounts: Account.EmailName -> Account.DecentralizedName
-            await DataMigration09032026(db).ConfigureAwait(false);
+            await DataMigration09032026Async(db).ConfigureAwait(false);
         }
 
-        private static async Task DataMigration18052025(SQLiteAsyncConnection db)
+        private static async Task DataMigration18052025Async(SQLiteAsyncConnection db)
         {
 #pragma warning disable CS0618 // Only for migration purposes
             // --- Data migration (18.05.2025): LastMessageData.AccountEmailId -> LastMessageData.AccountId ---
@@ -305,7 +305,7 @@ namespace Tuvi.Core.DataStorage.Impl
 #pragma warning restore CS0618 // Only for migration purposes
         }
 
-        private static async Task DataMigration09032026(SQLiteAsyncConnection db)
+        private static async Task DataMigration09032026Async(SQLiteAsyncConnection db)
         {
 #pragma warning disable CS0618 // Only for migration purposes
             // --- Data migration (09.03.2026): legacy named decentralized Eppie accounts ---
