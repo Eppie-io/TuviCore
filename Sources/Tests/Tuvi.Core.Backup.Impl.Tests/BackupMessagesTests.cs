@@ -404,7 +404,7 @@ namespace BackupTests
 
             var restoredMessage = restoredMessages[0].Folders[0].Messages[0];
             Assert.That(restoredMessage.IsDecentralized, Is.True);
-            Assert.That(restoredMessage.Id, Is.EqualTo(0));
+            Assert.That(restoredMessage.Id, Is.Zero);
         }
 
         #region Helper Methods
