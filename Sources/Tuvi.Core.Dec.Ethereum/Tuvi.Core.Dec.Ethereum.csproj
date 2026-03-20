@@ -26,7 +26,7 @@
     <PackageReference Include="Nethereum.RLP" Version="6.0.4" />
     <PackageReference Include="Nethereum.Hex" Version="6.0.4" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" ExcludeAssets="all" />
-    <PackageReference Include="System.Text.Json" Version="10.0.3" />
+    <PackageReference Include="System.Text.Json" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Tuvi.Core.Logging\Tuvi.Core.Logging.csproj" />
