@@ -162,8 +162,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)() =>
-                 BitcoinToolsImpl.FetchSpentTransactionAsync(BitcoinNetworkConfig.TestNet4, Address2, httpClient, cts.Token));
+            Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)(() =>
+                 BitcoinToolsImpl.FetchSpentTransactionAsync(BitcoinNetworkConfig.TestNet4, Address2, httpClient, cts.Token)));
         }
     }
 

@@ -124,13 +124,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetPublicKeyAsyncThrowsArgumentNullExceptionWhenAddressIsNull()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => Tools.RetrievePublicKeyAsync(null));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => Tools.RetrievePublicKeyAsync(null)));
         }
 
         [Test]
         public void GetPublicKeyAsyncThrowsArgumentNullExceptionWhenAddressIsEmpty()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => Tools.RetrievePublicKeyAsync(string.Empty));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => Tools.RetrievePublicKeyAsync(string.Empty)));
         }
 
         [Test]
@@ -321,8 +321,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void RetrievePublicKeyAsyncThrowsArgumentNullExceptionWhenHttpClientIsNull()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() =>
-                BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, null));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() =>
+                BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, null)));
         }
 
         [Test]
@@ -330,8 +330,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         {
             using (var httpClient = new HttpClient())
             {
-                Assert.ThrowsAsync<ArgumentException>((Func<Task>)() =>
-                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "invalid_address", httpClient));
+                Assert.ThrowsAsync<ArgumentException>((Func<Task>)(() =>
+                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, "invalid_address", httpClient)));
             }
         }
 
@@ -356,8 +356,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             {
                 cts.Cancel();
 
-                Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)() =>
-                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient, cts.Token));
+                Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)(() =>
+                    BitcoinToolsImpl.RetrievePublicKeyAsync(BitcoinNetworkConfig.TestNet4, Address, httpClient, cts.Token)));
             }
         }
 
@@ -738,13 +738,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         public void BroadcastTransactionThrowsOnNullArgs()
         {
             // config null
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => BitcoinToolsImpl.BroadcastTransactionAsync(null, "tx", new HttpClient()));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => BitcoinToolsImpl.BroadcastTransactionAsync(null, "tx", new HttpClient())));
 
             // txHex null
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, null, new HttpClient()));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, null, new HttpClient())));
 
             // httpClient null
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, "tx", null));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, "tx", null)));
         }
 
         [Test]
@@ -794,7 +794,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                Assert.ThrowsAsync<InvalidOperationException>((Func<Task>)() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+                Assert.ThrowsAsync<InvalidOperationException>((Func<Task>)(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient)));
             }
         }
 
@@ -820,14 +820,14 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                Assert.ThrowsAsync<InvalidOperationException>((Func<Task>)() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+                Assert.ThrowsAsync<InvalidOperationException>((Func<Task>)(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient)));
             }
         }
 
         [Test]
         public void ActivateBitcoinAddressThrowsOnNullHttpClient()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, null));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, null)));
         }
 
     }

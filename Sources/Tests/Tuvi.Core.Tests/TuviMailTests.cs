@@ -158,7 +158,7 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test")
                 , decStorageClient.Object);
 
-            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>((Func<Task>)async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true));
+            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>((Func<Task>)(async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true)));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
                 decStorageClient.Object);
 
-            Assert.ThrowsAsync<ConnectionException>((Func<Task>)async () => await core.AddAccountAsync(account, default).ConfigureAwait(true));
+            Assert.ThrowsAsync<ConnectionException>((Func<Task>)(async () => await core.AddAccountAsync(account, default).ConfigureAwait(true)));
         }
 
         [Test]
@@ -435,7 +435,7 @@ namespace Tuvi.Core.Tests
             Assert.That(updated, Is.False);
 
             cts.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)async () => await serverTask.ConfigureAwait(true));
+            Assert.ThrowsAsync<OperationCanceledException>((Func<Task>)(async () => await serverTask.ConfigureAwait(true)));
         }
     }
 }

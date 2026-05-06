@@ -247,8 +247,8 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             var account = TestData.CreateAccountWithFolder(new EmailAddress("nonexistent@test.com", "NonExistent"));
             await db.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<DataBaseException>((Func<Task>)async () =>
-                await db.UpdateFolderPathAsync(account.Email, "Ghost", "Buster").ConfigureAwait(true));
+            Assert.ThrowsAsync<DataBaseException>((Func<Task>)(async () =>
+                await db.UpdateFolderPathAsync(account.Email, "Ghost", "Buster").ConfigureAwait(true)));
         }
 
         [TestCaseSource(nameof(PrefixCollisionCases))]

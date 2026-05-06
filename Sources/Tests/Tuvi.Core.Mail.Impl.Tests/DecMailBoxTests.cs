@@ -751,7 +751,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await sender.SendMessageAsync(message, default).ConfigureAwait(true);
 
             var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
-            Assert.ThrowsAsync<DecException>((Func<Task>)async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true));
+            Assert.ThrowsAsync<DecException>((Func<Task>)(async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true)));
         }
 
         [Test]
@@ -1043,9 +1043,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Assert.DoesNotThrowAsync(() => messageProtector2.TryVerifyAndDecryptAsync(messageToSign));
             Assert.DoesNotThrowAsync(() => messageProtector2.TryVerifyAndDecryptAsync(messageToSign)); // we do the same test two times intentionally
-            Assert.ThrowsAsync<NoSecretKeyException>((Func<Task>)() => messageProtector2.TryVerifyAndDecryptAsync(messageToSignAndEncrypt));
+            Assert.ThrowsAsync<NoSecretKeyException>((Func<Task>)(() => messageProtector2.TryVerifyAndDecryptAsync(messageToSignAndEncrypt)));
             Assert.DoesNotThrowAsync(() => messageProtector.TryVerifyAndDecryptAsync(messageToSignAndEncrypt));
-            Assert.ThrowsAsync<NoSecretKeyException>((Func<Task>)() => messageProtector2.TryVerifyAndDecryptAsync(messageToEncrypt));
+            Assert.ThrowsAsync<NoSecretKeyException>((Func<Task>)(() => messageProtector2.TryVerifyAndDecryptAsync(messageToEncrypt)));
             Assert.DoesNotThrowAsync(() => messageProtector.TryVerifyAndDecryptAsync(messageToEncrypt));
         }
 

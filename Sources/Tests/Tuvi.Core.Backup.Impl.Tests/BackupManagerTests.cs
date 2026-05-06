@@ -214,7 +214,7 @@ namespace BackupTests
 
             // Act
             using var backup = new MemoryStream(backupData);
-            Assert.ThrowsAsync<BackupVersionMismatchException>((Func<Task>)() => BackupManager.RestoreBackupAsync(backup, CancellationToken.None));
+            Assert.ThrowsAsync<BackupVersionMismatchException>((Func<Task>)(() => BackupManager.RestoreBackupAsync(backup, CancellationToken.None)));
             Assert.That(accountRestoredCalled, Is.False);
         }
 

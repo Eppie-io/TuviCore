@@ -253,7 +253,7 @@ namespace BackupTests
             await parser.ParseBackupAsync(backup).ConfigureAwait(true);
 
             // Assert
-            Assert.ThrowsAsync<BackupDeserializationException>((Func<Task>)() => parser.GetMessagesAsync());
+            Assert.ThrowsAsync<BackupDeserializationException>((Func<Task>)(() => parser.GetMessagesAsync()));
         }
 
         [Test]

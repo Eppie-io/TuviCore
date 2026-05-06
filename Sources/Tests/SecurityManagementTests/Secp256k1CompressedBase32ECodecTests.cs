@@ -40,7 +40,7 @@ namespace SecurityManagementTests
         [Test]
         public void EncodeNullThrows()
         {
-            TestDelegate act = () => _codec.Encode(null);
+            Action act = () => _codec.Encode(null);
 
             Assert.Throws<ArgumentNullException>(act);
         }
@@ -48,7 +48,7 @@ namespace SecurityManagementTests
         [Test]
         public void DecodeNullThrows()
         {
-            TestDelegate act = () => _codec.Decode(null);
+            Action act = () => _codec.Decode(null);
 
             Assert.Throws<ArgumentNullException>(act);
         }
@@ -69,7 +69,7 @@ namespace SecurityManagementTests
         {
             const string invalid = "abc";
 
-            TestDelegate act = () => _codec.Decode(invalid);
+            Action act = () => _codec.Decode(invalid);
 
             Assert.Throws<ArgumentException>(act);
         }

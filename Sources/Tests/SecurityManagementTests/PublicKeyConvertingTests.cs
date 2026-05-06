@@ -256,7 +256,7 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyBase32EAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => _svc.GetEncodedByEmailAsync(null, default));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => _svc.GetEncodedByEmailAsync(null, default)));
         }
 
         [Test]
@@ -272,7 +272,7 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => _svc.GetByEmailAsync(null, default));
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)(() => _svc.GetByEmailAsync(null, default)));
         }
 
         [Test]

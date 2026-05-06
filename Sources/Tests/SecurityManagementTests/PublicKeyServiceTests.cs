@@ -67,7 +67,7 @@ namespace SecurityManagementTests
         {
             const string invalid = "abc"; // not 53 chars
 
-            TestDelegate act = () => _svc.Decode(invalid);
+            Action act = () => _svc.Decode(invalid);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -102,7 +102,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveTagNullThrows()
         {
-            TestDelegate act = () => _svc.DeriveEncoded(_masterKey, null);
+            Action act = () => _svc.DeriveEncoded(_masterKey, null);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -110,7 +110,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveTagEmptyThrows()
         {
-            TestDelegate act = () => _svc.DeriveEncoded(_masterKey, string.Empty);
+            Action act = () => _svc.DeriveEncoded(_masterKey, string.Empty);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -118,7 +118,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveMasterKeyNullThrows()
         {
-            TestDelegate act = () => _svc.DeriveEncoded(null, 0, 0, 0, 0);
+            Action act = () => _svc.DeriveEncoded(null, 0, 0, 0, 0);
 
             Assert.Throws<ArgumentNullException>(act);
         }

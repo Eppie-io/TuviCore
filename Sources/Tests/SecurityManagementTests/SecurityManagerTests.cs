@@ -186,7 +186,7 @@ namespace SecurityManagementTests
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
-                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => manager.StartAsync(Password));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)(() => manager.StartAsync(Password)));
                 Assert.DoesNotThrowAsync(() => manager.StartAsync(NewPassword));
             }
         }
