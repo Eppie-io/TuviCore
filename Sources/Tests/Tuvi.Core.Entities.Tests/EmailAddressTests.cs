@@ -49,7 +49,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void ConstructorNullAddressThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new EmailAddress(null));
+            Assert.Throws<ArgumentNullException>((Action)() => new EmailAddress(null));
         }
 
         [Test]
@@ -385,7 +385,7 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void CreateDecentralizedAddressUnsupportedThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address"));
+            Assert.Throws<ArgumentException>((Action)() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address"));
         }
 
         [Test]
@@ -414,14 +414,14 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void CreateDecentralizedAddressWithEmptyAddressThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>((Action)() =>
                 EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, ""));
         }
 
         [Test]
         public void CreateDecentralizedAddressWithWhitespaceAddressThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentException>((Action)() =>
                 EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   "));
         }
 
@@ -520,7 +520,7 @@ namespace Tuvi.Core.Entities.Test
             const string NewHybridAddressPubKey = "aaaaaaahijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
             var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
 
-            Assert.Throws<NotSupportedException>(() => email.MakeHybrid(NewHybridAddressPubKey));
+            Assert.Throws<NotSupportedException>((Action)() => email.MakeHybrid(NewHybridAddressPubKey));
         }
 
         [Test]

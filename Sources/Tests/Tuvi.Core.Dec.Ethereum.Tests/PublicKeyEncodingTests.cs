@@ -66,8 +66,8 @@ namespace Tuvi.Core.Dec.Ethereum.Tests
         [Test]
         public void EncodePublicKeyInvalidLengthThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => EthereumClient.EncodePublicKey(Array.Empty<byte>()));
-            Assert.Throws<ArgumentException>(() => EthereumClient.EncodePublicKey(new byte[10]));
+            Assert.Throws<ArgumentNullException>((Action)() => EthereumClient.EncodePublicKey(Array.Empty<byte>()));
+            Assert.Throws<ArgumentException>((Action)() => EthereumClient.EncodePublicKey(new byte[10]));
         }
 
         private static byte[] Compress(byte[] xy)

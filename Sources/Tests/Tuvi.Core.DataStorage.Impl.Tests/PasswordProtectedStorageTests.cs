@@ -38,7 +38,7 @@ namespace Tuvi.Core.DataStorage.Tests
         {
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBaseNotCreatedException>(() => storage.OpenAsync(Password));
+                Assert.ThrowsAsync<DataBaseNotCreatedException>((Func<Task>)() => storage.OpenAsync(Password));
                 Assert.DoesNotThrowAsync(() => storage.CreateAsync(Password));
             }
         }
@@ -49,7 +49,7 @@ namespace Tuvi.Core.DataStorage.Tests
             using (var storage = GetDataStorage())
             {
                 Assert.DoesNotThrowAsync(() => storage.CreateAsync(Password));
-                Assert.ThrowsAsync<DataBaseAlreadyExistsException>(() => storage.CreateAsync(Password));
+                Assert.ThrowsAsync<DataBaseAlreadyExistsException>((Func<Task>)() => storage.CreateAsync(Password));
                 Assert.DoesNotThrowAsync(() => storage.OpenAsync(Password));
             }
         }
@@ -82,7 +82,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(IncorrectPassword));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => storage.OpenAsync(IncorrectPassword));
             }
         }
 
@@ -107,7 +107,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => storage.OpenAsync(Password));
                 Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword));
             }
         }
@@ -142,15 +142,15 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => storage.OpenAsync(Password));
                 Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword1));
                 Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword1, NewPassword2));
             }
 
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(Password));
-                Assert.ThrowsAsync<DataBasePasswordException>(() => storage.OpenAsync(NewPassword1));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => storage.OpenAsync(Password));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => storage.OpenAsync(NewPassword1));
                 Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword2));
                 Assert.DoesNotThrowAsync(() => storage.ChangePasswordAsync(NewPassword2, NewPassword3));
             }
@@ -181,7 +181,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
             using (var storage = GetDataStorage())
             {
-                Assert.ThrowsAsync<DataBaseNotCreatedException>(() => storage.OpenAsync(NewPassword3));
+                Assert.ThrowsAsync<DataBaseNotCreatedException>((Func<Task>)() => storage.OpenAsync(NewPassword3));
                 Assert.DoesNotThrowAsync(() => storage.CreateAsync(NewPassword3));
                 Assert.DoesNotThrowAsync(() => storage.OpenAsync(NewPassword3));
             }

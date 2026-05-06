@@ -51,7 +51,7 @@ namespace SecurityManagementTests
             var resolver = new BitcoinEmailPublicKeyResolver(new MockEmptyBitcoinFetcher());
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "mydsbvVx5sTpf7h2WD5KxjVKzUAXZtC77i");
 
-            AsyncTestDelegate act = () => resolver.ResolveAsync(email, default);
+            Func<Task> act = () => resolver.ResolveAsync(email, default);
 
             Assert.ThrowsAsync<NoPublicKeyException>(act);
         }
@@ -76,7 +76,7 @@ namespace SecurityManagementTests
             });
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c");
 
-            AsyncTestDelegate act = () => composite.ResolveAsync(email, default);
+            Func<Task> act = () => composite.ResolveAsync(email, default);
 
             Assert.ThrowsAsync<NotSupportedException>(act);
         }
@@ -96,7 +96,7 @@ namespace SecurityManagementTests
         {
             var resolver = new EthereumEmailPublicKeyResolver(new MockEthereumFetcherEmpty());
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Ethereum, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
-            Assert.ThrowsAsync<NoPublicKeyException>(() => resolver.ResolveAsync(email, default));
+            Assert.ThrowsAsync<NoPublicKeyException>((Func<Task>)() => resolver.ResolveAsync(email, default));
         }
     }
 }

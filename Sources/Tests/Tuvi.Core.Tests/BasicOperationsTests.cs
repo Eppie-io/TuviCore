@@ -409,7 +409,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, false, false, default); });
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => { return core.SendMessageAsync(null, false, false, default); });
         }
 
         [Test]
@@ -443,7 +443,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, encrypt: true, sign: true, default); });
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => { return core.SendMessageAsync(null, encrypt: true, sign: true, default); });
         }
 
         [Test]
@@ -475,7 +475,7 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: false, sign: true, default); });
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => { return accountService.SendMessageAsync(null, encrypt: false, sign: true, default); });
         }
 
         [Test]
@@ -507,7 +507,7 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: true, sign: false, default); });
+            Assert.ThrowsAsync<ArgumentNullException>((Func<Task>)() => { return accountService.SendMessageAsync(null, encrypt: true, sign: false, default); });
         }
 
         [Test]

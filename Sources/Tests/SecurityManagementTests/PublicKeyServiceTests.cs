@@ -53,13 +53,13 @@ namespace SecurityManagementTests
         [Test]
         public void EncodeNullThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.Encode(null));
+            Assert.Throws<ArgumentNullException>((Action)() => _svc.Encode(null));
         }
 
         [Test]
         public void DecodeNullThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.Decode(null));
+            Assert.Throws<ArgumentNullException>((Action)() => _svc.Decode(null));
         }
 
         [Test]
@@ -78,7 +78,7 @@ namespace SecurityManagementTests
             const string valid = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var mutated = string.Concat("z", valid.AsSpan(1));
 
-            Assert.Throws<FormatException>(() => _svc.Decode(mutated));
+            Assert.Throws<FormatException>((Action)() => _svc.Decode(mutated));
         }
 
         [Test]
@@ -140,8 +140,8 @@ namespace SecurityManagementTests
         [Test]
         public void ResolveEmailNullThrows()
         {
-            AsyncTestDelegate act1 = () => _svc.GetEncodedByEmailAsync(null, default);
-            AsyncTestDelegate act2 = () => _svc.GetByEmailAsync(null, default);
+            Func<Task> act1 = () => _svc.GetEncodedByEmailAsync(null, default);
+            Func<Task> act2 = () => _svc.GetByEmailAsync(null, default);
 
             Assert.ThrowsAsync<ArgumentNullException>(act1);
             Assert.ThrowsAsync<ArgumentNullException>(act2);

@@ -80,7 +80,7 @@ namespace SecurityManagementTests
             const string valid = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var mutated = string.Concat("z", valid.AsSpan(1));
 
-            Assert.Throws<FormatException>(() => _codec.Decode(mutated));
+            Assert.Throws<FormatException>((Action)() => _codec.Decode(mutated));
         }
     }
 }

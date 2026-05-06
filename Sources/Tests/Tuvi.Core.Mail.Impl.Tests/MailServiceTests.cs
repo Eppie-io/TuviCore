@@ -79,7 +79,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", ServerPort, credentialsProviderMock.Object);
-            Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
+            Assert.ThrowsAsync<ConnectionException>((Func<Task>)async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
         [Test]
@@ -88,7 +88,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, 54321, credentialsProviderMock.Object);
-            Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
+            Assert.ThrowsAsync<ConnectionException>((Func<Task>)async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
         [Test]
@@ -97,7 +97,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", 54321, credentialsProviderMock.Object);
-            Assert.ThrowsAsync<ConnectionException>(async () => await service.ConnectAsync(default).ConfigureAwait(false));
+            Assert.ThrowsAsync<ConnectionException>((Func<Task>)async () => await service.ConnectAsync(default).ConfigureAwait(false));
         }
 
 

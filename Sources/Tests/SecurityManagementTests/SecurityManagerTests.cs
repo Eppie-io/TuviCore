@@ -186,7 +186,7 @@ namespace SecurityManagementTests
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
-                Assert.ThrowsAsync<DataBasePasswordException>(() => manager.StartAsync(Password));
+                Assert.ThrowsAsync<DataBasePasswordException>((Func<Task>)() => manager.StartAsync(Password));
                 Assert.DoesNotThrowAsync(() => manager.StartAsync(NewPassword));
             }
         }
@@ -324,7 +324,7 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.Throws<ArgumentNullException>(() => manager.RemovePgpKeys((EmailAddress)null));
+                Assert.Throws<ArgumentNullException>((Action)() => manager.RemovePgpKeys((EmailAddress)null));
             }
         }
 

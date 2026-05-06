@@ -223,7 +223,7 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             account.FoldersStructure[0].Attributes = FolderAttributes.None;
             await db.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<DataBaseException>(async () =>
+            Assert.ThrowsAsync<DataBaseException>((Func<Task>)async () =>
             {
                 await db.UpdateFolderPathAsync(account.Email, "DoesNotExist", "New").ConfigureAwait(true);
             });

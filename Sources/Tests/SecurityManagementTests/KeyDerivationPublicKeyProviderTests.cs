@@ -46,7 +46,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveByIndexNullMasterThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => _provider.Derive(null, 0, 0, 0, 0));
+            Assert.Throws<ArgumentNullException>((Action)() => _provider.Derive(null, 0, 0, 0, 0));
         }
 
         [Test]
@@ -59,19 +59,19 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveByTagNullMasterThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => _provider.Derive(null, "tag"));
+            Assert.Throws<ArgumentNullException>((Action)() => _provider.Derive(null, "tag"));
         }
 
         [Test]
         public void DeriveByTagNullTagThrows()
         {
-            Assert.Throws<ArgumentException>(() => _provider.Derive(_masterKey, (string)null));
+            Assert.Throws<ArgumentException>((Action)() => _provider.Derive(_masterKey, (string)null));
         }
 
         [Test]
         public void DeriveByTagEmptyTagThrows()
         {
-            Assert.Throws<ArgumentException>(() => _provider.Derive(_masterKey, string.Empty));
+            Assert.Throws<ArgumentException>((Action)() => _provider.Derive(_masterKey, string.Empty));
         }
     }
 }
