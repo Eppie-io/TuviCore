@@ -409,7 +409,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, false, false, default); });
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(null, false, false, default); }));
         }
 
         [Test]
@@ -425,7 +425,7 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, false, false, default); });
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(message, false, false, default); }));
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), default), Times.Once);
 
             // TODO: uncomment this and fix
@@ -443,7 +443,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, encrypt: true, sign: true, default); });
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(null, encrypt: true, sign: true, default); }));
         }
 
         [Test]
@@ -461,7 +461,7 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>()); });
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>()); }));
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -475,7 +475,7 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: false, sign: true, default); });
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return accountService.SendMessageAsync(null, encrypt: false, sign: true, default); }));
         }
 
         [Test]
@@ -493,7 +493,7 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: false, sign: true, default); });
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(message, encrypt: false, sign: true, default); }));
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -507,7 +507,7 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: true, sign: false, default); });
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return accountService.SendMessageAsync(null, encrypt: true, sign: false, default); }));
         }
 
         [Test]
@@ -524,7 +524,7 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: false, default); });
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => { return core.SendMessageAsync(message, encrypt: true, sign: false, default); }));
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -547,7 +547,7 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true)));
         }
 
         [Test]
@@ -569,7 +569,7 @@ namespace Tuvi.Core.Tests
                                                                new List<Message>() { message1000 },
                                                                default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true)));
             var storedMessages = await core.GetAllEarlierMessagesAsync(100, null, default).ConfigureAwait(true);
             Assert.That(storedMessages.Count, Is.EqualTo(2));
             Assert.That(storedMessages[0].Id, Is.EqualTo(1000));

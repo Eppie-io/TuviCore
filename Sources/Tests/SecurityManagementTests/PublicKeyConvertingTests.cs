@@ -128,7 +128,7 @@ namespace SecurityManagementTests
         [Test]
         public void EmailNameConvertingNullEmailNameThrowArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.Decode(null), "Email name can not be a null.");
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.Decode(null)), "Email name can not be a null.");
         }
 
         [TestCase(1)]
@@ -140,7 +140,7 @@ namespace SecurityManagementTests
 
             byte[] publicKeyAsBytes = publicKey.Q.GetEncoded(false);
 
-            Assert.Throws<ArgumentException>(() => Base32EConverter.ToEmailBase32(publicKeyAsBytes));
+            Assert.Throws<ArgumentException>(new global::System.Action(() => Base32EConverter.ToEmailBase32(publicKeyAsBytes)));
         }
 
         [TestCase("")]
@@ -151,7 +151,7 @@ namespace SecurityManagementTests
         [TestCase("abracadabraabracadabraabracadabraabracadabraabracadabraabracadabraabracadabra")]
         public void EmailNameConvertingWrongEmailNameLengthThrowArgumentException(string emailName)
         {
-            Assert.Throws<ArgumentException>(() => _svc.Decode(emailName), "Incorrect length of email name.");
+            Assert.Throws<ArgumentException>(new global::System.Action(() => _svc.Decode(emailName)), "Incorrect length of email name.");
         }
 
         [TestCase("abracadabraabracadabraabracadabraabracadabraabracadab")]
@@ -165,13 +165,13 @@ namespace SecurityManagementTests
         [TestCase("6gwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c")]
         public void EmailNameConvertingWrongFormatThrowArgumentException(string emailName)
         {
-            Assert.Throws<FormatException>(() => _svc.Decode(emailName), "Invalid point format. Encoded public key should start with 0x02 or 0x03.");
+            Assert.Throws<FormatException>(new global::System.Action(() => _svc.Decode(emailName)), "Invalid point format. Encoded public key should start with 0x02 or 0x03.");
         }
 
         [Test]
         public void ToPublicKeyBase32ENullPublicKeyThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.Encode((ECPublicKeyParameters)null));
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.Encode((ECPublicKeyParameters)null)));
         }
 
         [Test]
@@ -195,7 +195,7 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyBase32ENullMasterKeyWithDerivationParamsThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.DeriveEncoded(null, 0, 0, 0, 0));
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.DeriveEncoded(null, 0, 0, 0, 0)));
         }
 
         [Test]
@@ -216,21 +216,21 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyBase32ENullMasterKeyWithKeyTagThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => _svc.DeriveEncoded(null, "test-tag"));
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.DeriveEncoded(null, "test-tag")));
         }
 
         [Test]
         public void ToPublicKeyBase32ENullKeyTagThrowsArgumentNullException()
         {
             var masterKey = TestData.MasterKey;
-            Assert.Throws<ArgumentException>(() => _svc.DeriveEncoded(masterKey, null));
+            Assert.Throws<ArgumentException>(new global::System.Action(() => _svc.DeriveEncoded(masterKey, null)));
         }
 
         [Test]
         public void ToPublicKeyBase32EEmptyKeyTagThrowsArgumentException()
         {
             var masterKey = TestData.MasterKey;
-            Assert.Throws<ArgumentException>(() => _svc.DeriveEncoded(masterKey, string.Empty));
+            Assert.Throws<ArgumentException>(new global::System.Action(() => _svc.DeriveEncoded(masterKey, string.Empty)));
         }
 
         [Test]
@@ -250,13 +250,13 @@ namespace SecurityManagementTests
         {
             var publicKey = EccPgpContext.GenerateEccPublicKey(TestData.MasterKey, 0, 0, 0, 1);
             var publicKeyBase32E = _svc.Encode(publicKey);
-            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress((NetworkType)999, publicKeyBase32E));
+            Assert.Throws<ArgumentException>(new global::System.Action(() => EmailAddress.CreateDecentralizedAddress((NetworkType)999, publicKeyBase32E)));
         }
 
         [Test]
         public void ToPublicKeyBase32EAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => _svc.GetEncodedByEmailAsync(null, default));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => _svc.GetEncodedByEmailAsync(null, default)));
         }
 
         [Test]
@@ -272,14 +272,14 @@ namespace SecurityManagementTests
         [Test]
         public void ToPublicKeyAsyncNullEmailThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => _svc.GetByEmailAsync(null, default));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => _svc.GetByEmailAsync(null, default)));
         }
 
         [Test]
         public void ToPublicKeyInvalidCurveOidThrowsException()
         {
             const string InvalidEncodedKey = "invalidbase32ethatdecodestowrongpoint";
-            Assert.Throws<ArgumentException>(() => _svc.Decode(InvalidEncodedKey));
+            Assert.Throws<ArgumentException>(new global::System.Action(() => _svc.Decode(InvalidEncodedKey)));
         }
     }
 }

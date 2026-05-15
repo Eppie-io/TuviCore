@@ -51,19 +51,19 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinAddressFromMasterKeyThrowsArgumentNullExceptionWhenMasterKeyIsNull()
         {
-            Assert.Throws<ArgumentNullException>(() => Tools.DeriveBitcoinAddress(null, 0, 0));
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => Tools.DeriveBitcoinAddress(null, 0, 0)));
         }
 
         [Test]
         public void GetBitcoinAddressFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenAccountIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(MasterKey, -1, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(new global::System.Action(() => Tools.DeriveBitcoinAddress(MasterKey, -1, 0)));
         }
 
         [Test]
         public void GetBitcoinAddressFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenIndexIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinAddress(MasterKey, 0, -1));
+            Assert.Throws<ArgumentOutOfRangeException>(new global::System.Action(() => Tools.DeriveBitcoinAddress(MasterKey, 0, -1)));
         }
 
         [Test]
@@ -87,19 +87,19 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyThrowsArgumentNullExceptionWhenMasterKeyIsNull()
         {
-            Assert.Throws<ArgumentNullException>(() => Tools.DeriveBitcoinSecretKeyWif(null, 0, 0));
+            Assert.Throws<ArgumentNullException>(new global::System.Action(() => Tools.DeriveBitcoinSecretKeyWif(null, 0, 0)));
         }
 
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenAccountIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, -1, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(new global::System.Action(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, -1, 0)));
         }
 
         [Test]
         public void GetBitcoinSecretKeyWIFFromMasterKeyThrowsArgumentOutOfRangeExceptionWhenIndexIsNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, 0, -1));
+            Assert.Throws<ArgumentOutOfRangeException>(new global::System.Action(() => Tools.DeriveBitcoinSecretKeyWif(MasterKey, 0, -1)));
         }
 
         [Test]
@@ -124,13 +124,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         [Test]
         public void GetPublicKeyAsyncThrowsArgumentNullExceptionWhenAddressIsNull()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => Tools.RetrievePublicKeyAsync(null));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => Tools.RetrievePublicKeyAsync(null)));
         }
 
         [Test]
         public void GetPublicKeyAsyncThrowsArgumentNullExceptionWhenAddressIsEmpty()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => Tools.RetrievePublicKeyAsync(string.Empty));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => Tools.RetrievePublicKeyAsync(string.Empty)));
         }
 
         [Test]
@@ -738,13 +738,13 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         public void BroadcastTransactionThrowsOnNullArgs()
         {
             // config null
-            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(null, "tx", new HttpClient()));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.BroadcastTransactionAsync(null, "tx", new HttpClient())));
 
             // txHex null
-            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, null, new HttpClient()));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, null, new HttpClient())));
 
             // httpClient null
-            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, "tx", null));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.BroadcastTransactionAsync(BitcoinNetworkConfig.TestNet4, "tx", null)));
         }
 
         [Test]
@@ -794,7 +794,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                Assert.ThrowsAsync<InvalidOperationException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+                Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient)));
             }
         }
 
@@ -820,14 +820,14 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
 
             using (var httpClient = new HttpClient(handlerMock.Object))
             {
-                Assert.ThrowsAsync<InvalidOperationException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient));
+                Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, httpClient)));
             }
         }
 
         [Test]
         public void ActivateBitcoinAddressThrowsOnNullHttpClient()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, null));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => BitcoinToolsImpl.ActivateBitcoinAddressAsync(BitcoinNetworkConfig.TestNet4, MasterKey, 0, 0, null)));
         }
 
     }

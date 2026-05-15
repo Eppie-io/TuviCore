@@ -219,7 +219,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var msg = CreateMessage(aliasEmail, aliasEmail);
             msg.Folder = sentFolder;
 
-            AsyncTestDelegate act = () => box.SendMessageAsync(msg, default);
+            global::System.Func<global::System.Threading.Tasks.Task> act = () => box.SendMessageAsync(msg, default);
             Assert.ThrowsAsync<NoPublicKeyException>(act);
         }
 
@@ -347,7 +347,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             msg.To.Add(a2Email);
             msg.Folder = sentFolder;
 
-            AsyncTestDelegate act = () => senderBox.SendMessageAsync(msg, default);
+            global::System.Func<global::System.Threading.Tasks.Task> act = () => senderBox.SendMessageAsync(msg, default);
             Assert.ThrowsAsync<NoPublicKeyException>(act);
             Assert.That(resolver.CallCount, Is.GreaterThanOrEqualTo(1));
         }

@@ -68,7 +68,7 @@ namespace SecurityManagementTests
                     }
                 });
 
-            Assert.DoesNotThrow(() => Task.Run(testDelegate, cancelationToken).Wait());
+            Assert.DoesNotThrow(new global::System.Action(() => Task.Run(testDelegate, cancelationToken).Wait()));
         }
 
         [Test]

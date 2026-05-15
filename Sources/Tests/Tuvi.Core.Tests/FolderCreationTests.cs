@@ -126,8 +126,8 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.CreateFolderAsync(null, "TestFolder").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.CreateFolderAsync(null, "TestFolder").ConfigureAwait(false)));
         }
 
         [Test]
@@ -167,11 +167,11 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.CreateFolderAsync(accountsList[0].Email, "").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.CreateFolderAsync(accountsList[0].Email, "").ConfigureAwait(false)));
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.CreateFolderAsync(accountsList[0].Email, "   ").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.CreateFolderAsync(accountsList[0].Email, "   ").ConfigureAwait(false)));
         }
 
         [Test]
@@ -284,8 +284,8 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.CreateFolderAsync(protonAccount.Email, "TestFolder").ConfigureAwait(false));
+            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.CreateFolderAsync(protonAccount.Email, "TestFolder").ConfigureAwait(false)));
         }
 
         [Test]
@@ -339,8 +339,8 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.CreateFolderAsync(decAccount.Email, "TestFolder").ConfigureAwait(false));
+            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.CreateFolderAsync(decAccount.Email, "TestFolder").ConfigureAwait(false)));
         }
     }
 }

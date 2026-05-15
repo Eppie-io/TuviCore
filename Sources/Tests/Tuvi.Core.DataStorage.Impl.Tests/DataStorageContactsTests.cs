@@ -98,8 +98,8 @@ namespace Tuvi.Core.DataStorage.Tests
             var contact = new Contact { FullName = "Contact Name" };
 
             // Act + Assert
-            var ex = Assert.CatchAsync<DataBaseException>(async () =>
-                await db.AddContactAsync(contact, default).ConfigureAwait(false));
+            var ex = Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await db.AddContactAsync(contact, default).ConfigureAwait(false)));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.Message, Does.Contain("invalid").IgnoreCase);
 
@@ -107,8 +107,8 @@ namespace Tuvi.Core.DataStorage.Tests
             contact.Email = new EmailAddress("contact@address1.io");
 
             // Act + Assert
-            Assert.DoesNotThrowAsync(async () =>
-                await db.AddContactAsync(contact, default).ConfigureAwait(false));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await db.AddContactAsync(contact, default).ConfigureAwait(false)));
 
             var exists = await db.ExistsContactWithEmailAddressAsync(contact.Email, default).ConfigureAwait(false);
             Assert.That(exists, Is.True);
@@ -182,8 +182,8 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(existsAfterAdd, Is.True);
 
             // Act + Assert
-            var dupEx = Assert.CatchAsync<DataBaseException>(async () =>
-                await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(false));
+            var dupEx = Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(false)));
             Assert.That(dupEx, Is.Not.Null);
 
             // Act
@@ -322,8 +322,8 @@ namespace Tuvi.Core.DataStorage.Tests
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(false);
 
             // Act + Assert
-            Assert.CatchAsync<DataBaseException>(async () =>
-                await db.GetContactAsync(new EmailAddress("unknown@mail.box"), default).ConfigureAwait(false));
+            Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await db.GetContactAsync(new EmailAddress("unknown@mail.box"), default).ConfigureAwait(false)));
         }
 
         [Test]
@@ -523,13 +523,13 @@ namespace Tuvi.Core.DataStorage.Tests
             cts.Cancel();
 
             // Act + Assert
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            Assert.CatchAsync<OperationCanceledException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         10,
                         lastContact: null,
                         sortOrder: ContactsSortOrder.ByName,
                         cancellationToken: cts.Token)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)));
         }
 
         [Test]
@@ -901,21 +901,21 @@ namespace Tuvi.Core.DataStorage.Tests
             using var db = await OpenDataStorageAsync().ConfigureAwait(false);
 
             // Act + Assert
-            Assert.CatchAsync<ArgumentOutOfRangeException>(async () =>
+            Assert.CatchAsync<ArgumentOutOfRangeException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         count: 0,
                         lastContact: null,
                         sortOrder: ContactsSortOrder.ByName,
                         cancellationToken: CancellationToken.None)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)));
 
-            Assert.CatchAsync<ArgumentOutOfRangeException>(async () =>
+            Assert.CatchAsync<ArgumentOutOfRangeException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         count: -1,
                         lastContact: null,
                         sortOrder: ContactsSortOrder.ByName,
                         cancellationToken: CancellationToken.None)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)));
         }
 
         [Test]

@@ -105,7 +105,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
                 var keys = storage.GetPgpPublicKeysAsync().Result;
-                Assert.That(null, Is.EqualTo(keys), "Key hasn't to exist.");
+                Assert.That(keys, Is.Null, "Key hasn't to exist.");
 
                 var randomKeyData = GenerateRandomPgpPublicKeyBundleData();
                 storage.SavePgpPublicKeys(randomKeyData);
@@ -128,7 +128,7 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
-                Assert.That(null, Is.EqualTo(storage.GetPgpSecretKeysAsync().Result), "Key hasn't to exist.");
+                Assert.That(storage.GetPgpSecretKeysAsync().Result, Is.Null, "Key hasn't to exist.");
 
                 var randomKeyData = GenerateRandomPgpSecretKeyBundleData();
                 storage.SavePgpSecretKeys(randomKeyData);
@@ -150,20 +150,20 @@ namespace Tuvi.Core.DataStorage.Tests
             DeleteStorage();
             Assert.That(DatabaseFileExists(), Is.False);
             var storage = await CreateDataStorageAsync().ConfigureAwait(true);
-            Assert.DoesNotThrow(() => storage.Dispose());
+            Assert.DoesNotThrow(new global::System.Action(() => storage.Dispose()));
             Assert.That(DatabaseFileExists(), Is.True);
-            Assert.DoesNotThrowAsync(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true));
-            Assert.DoesNotThrow(() => storage.Dispose());
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true)));
+            Assert.DoesNotThrow(new global::System.Action(() => storage.Dispose()));
             Assert.That(DatabaseFileExists(), Is.True);
-            Assert.DoesNotThrowAsync(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true));
-            Assert.DoesNotThrowAsync(() => storage.ResetAsync());
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => storage = await OpenDataStorageAsync().ConfigureAwait(true)));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => storage.ResetAsync()));
             Assert.That(DatabaseFileExists(), Is.False);
-            Assert.DoesNotThrow(() => storage.Dispose());
-            Assert.DoesNotThrowAsync(async () => storage = await CreateDataStorageAsync().ConfigureAwait(true));
+            Assert.DoesNotThrow(new global::System.Action(() => storage.Dispose()));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => storage = await CreateDataStorageAsync().ConfigureAwait(true)));
             Assert.That(DatabaseFileExists(), Is.True);
-            Assert.DoesNotThrowAsync(() => storage.ResetAsync());
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => storage.ResetAsync()));
             Assert.That(DatabaseFileExists(), Is.False);
-            Assert.DoesNotThrow(() => storage.Dispose());
+            Assert.DoesNotThrow(new global::System.Action(() => storage.Dispose()));
             Assert.That(DatabaseFileExists(), Is.False);
         }
 

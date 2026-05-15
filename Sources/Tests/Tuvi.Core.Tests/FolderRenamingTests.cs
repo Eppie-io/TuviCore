@@ -161,8 +161,8 @@ namespace Tuvi.Core.Tests
             var testFolder = new Folder("TestFolder", FolderAttributes.None);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.RenameFolderAsync(null, testFolder, "NewName").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(null, testFolder, "NewName").ConfigureAwait(false)));
         }
 
         [Test]
@@ -175,8 +175,8 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore();
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.RenameFolderAsync(account.Email, null, "NewName").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, null, "NewName").ConfigureAwait(false)));
         }
 
         [Test]
@@ -191,10 +191,10 @@ namespace Tuvi.Core.Tests
             var testFolder = new Folder("TestFolder", FolderAttributes.None);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.RenameFolderAsync(account.Email, testFolder, "").ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await core.RenameFolderAsync(account.Email, testFolder, "   ").ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, testFolder, "").ConfigureAwait(false)));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, testFolder, "   ").ConfigureAwait(false)));
         }
 
         [Test]
@@ -209,8 +209,8 @@ namespace Tuvi.Core.Tests
             var inboxFolder = new Folder("INBOX", FolderAttributes.Inbox);
 
             // Act & Assert
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.RenameFolderAsync(account.Email, inboxFolder, "NewName").ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, inboxFolder, "NewName").ConfigureAwait(false)));
         }
 
         [Test]
@@ -238,8 +238,8 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore();
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.RenameFolderAsync(protonAccount.Email, testFolder, "NewName").ConfigureAwait(false));
+            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(protonAccount.Email, testFolder, "NewName").ConfigureAwait(false)));
 
             _dataStorageMock.Verify(d => d.UpdateFolderPathAsync(
                 protonAccount.Email,
@@ -276,8 +276,8 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore();
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.RenameFolderAsync(decAccount.Email, testFolder, "NewName").ConfigureAwait(false));
+            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(decAccount.Email, testFolder, "NewName").ConfigureAwait(false)));
 
             _dataStorageMock.Verify(d => d.UpdateFolderPathAsync(
                 decAccount.Email,
@@ -305,8 +305,8 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             // Expecting an exception when account is not found.
             // Since specific exception type is not known in this context, catch generic Exception.
-            Assert.CatchAsync<Exception>(async () =>
-                await core.RenameFolderAsync(account.Email, testFolder, "NewName").ConfigureAwait(false));
+            Assert.CatchAsync<Exception>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, testFolder, "NewName").ConfigureAwait(false)));
 
             _mailBoxMock.Verify(m => m.RenameFolderAsync(It.IsAny<Folder>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
@@ -328,8 +328,8 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore();
 
             // Assert
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                            await core.RenameFolderAsync(account.Email, testFolder, "SameName").ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                            await core.RenameFolderAsync(account.Email, testFolder, "SameName").ConfigureAwait(false)));
 
             // Verify MailBox.RenameFolderAsync is never called
             _mailBoxMock.Verify(m => m.RenameFolderAsync(
@@ -367,8 +367,8 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore();
 
             // Act & Assert
-            var ex = Assert.CatchAsync<System.IO.IOException>(async () =>
-                await core.RenameFolderAsync(account.Email, testFolder, "NewFolderName").ConfigureAwait(false));
+            var ex = Assert.CatchAsync<System.IO.IOException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                await core.RenameFolderAsync(account.Email, testFolder, "NewFolderName").ConfigureAwait(false)));
 
             // Verify exception message
             Assert.That(ex.Message, Is.EqualTo("Connection failed"));

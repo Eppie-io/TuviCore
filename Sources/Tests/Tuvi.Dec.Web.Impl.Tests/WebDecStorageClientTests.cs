@@ -113,7 +113,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false)));
         }
 
         [Test]
@@ -121,7 +121,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false)));
         }
 
         [Test]
@@ -129,7 +129,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.GetAddressByNameAsync("", _ct).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await client.GetAddressByNameAsync("", _ct).ConfigureAwait(false)));
         }
 
         [Test]
@@ -170,7 +170,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
                 Content = new StringContent(string.Empty)
             });
 
-            Assert.DoesNotThrowAsync(async () => await client.GetAddressByNameAsync("unknown", _ct).ConfigureAwait(false));
+            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await client.GetAddressByNameAsync("unknown", _ct).ConfigureAwait(false)));
         }
 
         [Test]
