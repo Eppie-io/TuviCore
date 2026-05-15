@@ -52,7 +52,7 @@ namespace SecurityManagementTests
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => null));
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "unknown");
-            Assert.ThrowsAsync<NoPublicKeyException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => service.GetEncodedByEmailAsync(email, default)));
+            Assert.ThrowsAsync<NoPublicKeyException>(new System.Func<System.Threading.Tasks.Task>(() => service.GetEncodedByEmailAsync(email, default)));
         }
 
         [Test]
@@ -60,7 +60,7 @@ namespace SecurityManagementTests
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => "invalid_key"));
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias");
-            Assert.ThrowsAsync<NoPublicKeyException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => service.GetEncodedByEmailAsync(email, default)));
+            Assert.ThrowsAsync<NoPublicKeyException>(new System.Func<System.Threading.Tasks.Task>(() => service.GetEncodedByEmailAsync(email, default)));
         }
 
         [Test]

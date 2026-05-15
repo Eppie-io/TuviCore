@@ -168,7 +168,7 @@ namespace SecurityManagementTests
             var account = CreateEppieAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync(null, account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync(null, account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -183,7 +183,7 @@ namespace SecurityManagementTests
             var account = CreateEppieAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync(string.Empty, account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync(string.Empty, account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -198,7 +198,7 @@ namespace SecurityManagementTests
             var account = CreateEppieAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("   ", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("   ", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -212,7 +212,7 @@ namespace SecurityManagementTests
             var manager = GetSecurityManager(storage);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", null).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", null).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentNullException>(act);
@@ -227,7 +227,7 @@ namespace SecurityManagementTests
             var account = CreateBitcoinAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -242,7 +242,7 @@ namespace SecurityManagementTests
             var account = CreateEthereumAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -257,7 +257,7 @@ namespace SecurityManagementTests
             var account = CreateTraditionalAccount();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -278,7 +278,7 @@ namespace SecurityManagementTests
             };
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<InvalidOperationException>(act);
@@ -372,7 +372,7 @@ namespace SecurityManagementTests
             cts.Cancel();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account, cts.Token).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await manager.SignNameClaimAsync("testname", account, cts.Token).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<OperationCanceledException>(act);

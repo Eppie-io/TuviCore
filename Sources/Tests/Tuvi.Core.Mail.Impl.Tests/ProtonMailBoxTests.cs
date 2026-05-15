@@ -542,7 +542,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
 
             // Expect DataBaseException wrapping SQLiteException "too many SQL variables"
-            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () =>
             {
                 // count = 0 => request all labeled messages
                 await storage.GetMessagesAsync(accountId, label, 0, true, 0).ConfigureAwait(true);
@@ -575,7 +575,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             // Should no longer throw DataBaseException (chunked internally)
             List<Proton.Message> byIds = null;
-            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () =>
             {
                 var res = await storage.GetMessagesAsync(accountId, ids, default).ConfigureAwait(true);
                 byIds = res.ToList();

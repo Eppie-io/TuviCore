@@ -379,7 +379,7 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 await db.OpenAsync(Password).ConfigureAwait(true);
 
-                Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await db.DeleteAIAgentAsync(123456).ConfigureAwait(true)));
+                Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () => await db.DeleteAIAgentAsync(123456).ConfigureAwait(true)));
             }
         }
 
@@ -599,7 +599,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.AddAIAgentAsync(a1).ConfigureAwait(true);
 
                 var a2 = CreateAgent("duplicate-name");
-                Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await db.AddAIAgentAsync(a2).ConfigureAwait(true)));
+                Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () => await db.AddAIAgentAsync(a2).ConfigureAwait(true)));
 
                 var agents = await db.GetAIAgentsAsync().ConfigureAwait(true);
                 var dupes = agents.Where(x => x.Name == "duplicate-name").ToList();

@@ -53,13 +53,13 @@ namespace SecurityManagementTests
         [Test]
         public void EncodeNullThrows()
         {
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.Encode(null)));
+            Assert.Throws<ArgumentNullException>(new System.Action(() => _svc.Encode(null)));
         }
 
         [Test]
         public void DecodeNullThrows()
         {
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() => _svc.Decode(null)));
+            Assert.Throws<ArgumentNullException>(new System.Action(() => _svc.Decode(null)));
         }
 
         [Test]
@@ -67,7 +67,7 @@ namespace SecurityManagementTests
         {
             const string invalid = "abc"; // not 53 chars
 
-            global::System.Action act = () => _svc.Decode(invalid);
+            System.Action act = () => _svc.Decode(invalid);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -78,7 +78,7 @@ namespace SecurityManagementTests
             const string valid = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var mutated = string.Concat("z", valid.AsSpan(1));
 
-            Assert.Throws<FormatException>(new global::System.Action(() => _svc.Decode(mutated)));
+            Assert.Throws<FormatException>(new System.Action(() => _svc.Decode(mutated)));
         }
 
         [Test]
@@ -102,7 +102,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveTagNullThrows()
         {
-            global::System.Action act = () => _svc.DeriveEncoded(_masterKey, null);
+            System.Action act = () => _svc.DeriveEncoded(_masterKey, null);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -110,7 +110,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveTagEmptyThrows()
         {
-            global::System.Action act = () => _svc.DeriveEncoded(_masterKey, string.Empty);
+            System.Action act = () => _svc.DeriveEncoded(_masterKey, string.Empty);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -118,7 +118,7 @@ namespace SecurityManagementTests
         [Test]
         public void DeriveMasterKeyNullThrows()
         {
-            global::System.Action act = () => _svc.DeriveEncoded(null, 0, 0, 0, 0);
+            System.Action act = () => _svc.DeriveEncoded(null, 0, 0, 0, 0);
 
             Assert.Throws<ArgumentNullException>(act);
         }
@@ -140,8 +140,8 @@ namespace SecurityManagementTests
         [Test]
         public void ResolveEmailNullThrows()
         {
-            global::System.Func<global::System.Threading.Tasks.Task> act1 = () => _svc.GetEncodedByEmailAsync(null, default);
-            global::System.Func<global::System.Threading.Tasks.Task> act2 = () => _svc.GetByEmailAsync(null, default);
+            System.Func<System.Threading.Tasks.Task> act1 = () => _svc.GetEncodedByEmailAsync(null, default);
+            System.Func<System.Threading.Tasks.Task> act2 = () => _svc.GetByEmailAsync(null, default);
 
             Assert.ThrowsAsync<ArgumentNullException>(act1);
             Assert.ThrowsAsync<ArgumentNullException>(act2);

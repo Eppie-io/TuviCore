@@ -123,7 +123,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.AddMessageAsync(accountEmail, message).ConfigureAwait(true);
             }
 
-            Assert.ThrowsAsync<MessageAlreadyExistInDatabaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => db.AddMessageAsync(accountEmail, message)));
+            Assert.ThrowsAsync<MessageAlreadyExistInDatabaseException>(new System.Func<System.Threading.Tasks.Task>(() => db.AddMessageAsync(accountEmail, message)));
         }
 
         [Test]

@@ -116,7 +116,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync(null!, account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync(null!, account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -132,7 +132,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync(string.Empty, account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync(string.Empty, account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -148,7 +148,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("   ", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("   ", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentException>(act);
@@ -163,7 +163,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", null!).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", null!).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ArgumentNullException>(act);
@@ -179,7 +179,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -195,7 +195,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -211,7 +211,7 @@ namespace Tuvi.Core.Tests
             using var core = CreateTuviMailCore(securityManagerMock, decStorageClientMock);
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<NotSupportedException>(act);
@@ -228,7 +228,7 @@ namespace Tuvi.Core.Tests
             core.Dispose();
 
             // Act
-            global::System.Func<global::System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
+            System.Func<System.Threading.Tasks.Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
             Assert.ThrowsAsync<ObjectDisposedException>(act);

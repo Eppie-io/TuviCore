@@ -130,7 +130,7 @@ namespace Tuvi.Core.Tests
             var testFolder = new Folder("TestFolder", FolderAttributes.None);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(null, testFolder).ConfigureAwait(false)));
         }
 
@@ -171,7 +171,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, null).ConfigureAwait(false)));
         }
 
@@ -289,7 +289,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<NotSupportedException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(protonAccount.Email, testFolder).ConfigureAwait(false)));
         }
 
@@ -346,7 +346,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<NotSupportedException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(decAccount.Email, testFolder).ConfigureAwait(false)));
         }
 
@@ -396,19 +396,19 @@ namespace Tuvi.Core.Tests
             var allFolder = new Folder("All", FolderAttributes.All);
 
             // Act & Assert
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, inboxFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, sentFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, trashFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, draftFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, junkFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, importantFolder).ConfigureAwait(false)));
-            Assert.ThrowsAsync<InvalidOperationException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<InvalidOperationException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.DeleteFolderAsync(accountsList[0].Email, allFolder).ConfigureAwait(false)));
         }
     }

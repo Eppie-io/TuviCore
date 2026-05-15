@@ -126,7 +126,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.CreateFolderAsync(null, "TestFolder").ConfigureAwait(false)));
         }
 
@@ -167,10 +167,10 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.CreateFolderAsync(accountsList[0].Email, "").ConfigureAwait(false)));
 
-            Assert.ThrowsAsync<ArgumentException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.CreateFolderAsync(accountsList[0].Email, "   ").ConfigureAwait(false)));
         }
 
@@ -284,7 +284,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<NotSupportedException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.CreateFolderAsync(protonAccount.Email, "TestFolder").ConfigureAwait(false)));
         }
 
@@ -339,7 +339,7 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<NotSupportedException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await core.CreateFolderAsync(decAccount.Email, "TestFolder").ConfigureAwait(false)));
         }
     }

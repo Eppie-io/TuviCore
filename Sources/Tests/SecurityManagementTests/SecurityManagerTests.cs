@@ -133,7 +133,7 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => manager.CreateSeedPhraseAsync()));
+                Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(() => manager.CreateSeedPhraseAsync()));
                 manager.StartAsync(Password).Wait();
 
                 Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
@@ -186,8 +186,8 @@ namespace SecurityManagementTests
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
-                Assert.ThrowsAsync<DataBasePasswordException>(new global::System.Func<global::System.Threading.Tasks.Task>(() => manager.StartAsync(Password)));
-                Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(() => manager.StartAsync(NewPassword)));
+                Assert.ThrowsAsync<DataBasePasswordException>(new System.Func<System.Threading.Tasks.Task>(() => manager.StartAsync(Password)));
+                Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(() => manager.StartAsync(NewPassword)));
             }
         }
 
@@ -208,7 +208,7 @@ namespace SecurityManagementTests
                 Assert.That(keyString, Is.Not.Null);
                 Assert.That(keyString, Is.Not.Empty);
                 Assert.That(keyString, Is.EqualTo("agd5r3j32csbqxy5j9tqs5xwqvh48rfht9ursj3vbamnjycbbseup"));
-                Assert.DoesNotThrow(new global::System.Action(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString)));
+                Assert.DoesNotThrow(new System.Action(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString)));
             }
         }
 
@@ -227,7 +227,7 @@ namespace SecurityManagementTests
 
                 Assert.That(accountIndex, Is.Zero);
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
-                Assert.DoesNotThrow(new global::System.Action(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString)));
+                Assert.DoesNotThrow(new System.Action(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString)));
             }
         }
 
@@ -324,7 +324,7 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.Throws<ArgumentNullException>(new global::System.Action(() => manager.RemovePgpKeys((EmailAddress)null)));
+                Assert.Throws<ArgumentNullException>(new System.Action(() => manager.RemovePgpKeys((EmailAddress)null)));
             }
         }
 
@@ -364,7 +364,7 @@ namespace SecurityManagementTests
 
                 // Try to remove the service key - this should be blocked by protection
                 var serviceEmail = new EmailAddress("backup@test");
-                Assert.DoesNotThrow(new global::System.Action(() => manager.RemovePgpKeys(serviceEmail)));
+                Assert.DoesNotThrow(new System.Action(() => manager.RemovePgpKeys(serviceEmail)));
 
                 // Verify service key still exists after removal attempt (protection worked)
                 allKeys = pgpContext.GetPublicKeysInfo();
@@ -408,7 +408,7 @@ namespace SecurityManagementTests
 
                 // Try to remove the service key - this should be blocked by protection
                 var serviceAccount = new Account { Email = new EmailAddress("backup@test") };
-                Assert.DoesNotThrow(new global::System.Action(() => manager.RemovePgpKeys(serviceAccount)));
+                Assert.DoesNotThrow(new System.Action(() => manager.RemovePgpKeys(serviceAccount)));
 
                 // Verify service key still exists after removal attempt (protection worked)
                 allKeys = pgpContext.GetPublicKeysInfo();

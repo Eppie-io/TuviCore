@@ -40,7 +40,7 @@ namespace SecurityManagementTests
         [Test]
         public void EncodeNullThrows()
         {
-            global::System.Action act = () => _codec.Encode(null);
+            System.Action act = () => _codec.Encode(null);
 
             Assert.Throws<ArgumentNullException>(act);
         }
@@ -48,7 +48,7 @@ namespace SecurityManagementTests
         [Test]
         public void DecodeNullThrows()
         {
-            global::System.Action act = () => _codec.Decode(null);
+            System.Action act = () => _codec.Decode(null);
 
             Assert.Throws<ArgumentNullException>(act);
         }
@@ -69,7 +69,7 @@ namespace SecurityManagementTests
         {
             const string invalid = "abc";
 
-            global::System.Action act = () => _codec.Decode(invalid);
+            System.Action act = () => _codec.Decode(invalid);
 
             Assert.Throws<ArgumentException>(act);
         }
@@ -80,7 +80,7 @@ namespace SecurityManagementTests
             const string valid = "agwaxxb4zchc8digxdxryn5fzs5s2r32swwajipn4bewski276k2c";
             var mutated = string.Concat("z", valid.AsSpan(1));
 
-            Assert.Throws<FormatException>(new global::System.Action(() => _codec.Decode(mutated)));
+            Assert.Throws<FormatException>(new System.Action(() => _codec.Decode(mutated)));
         }
     }
 }

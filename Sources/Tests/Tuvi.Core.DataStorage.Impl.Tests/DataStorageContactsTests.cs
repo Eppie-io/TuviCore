@@ -98,7 +98,7 @@ namespace Tuvi.Core.DataStorage.Tests
             var contact = new Contact { FullName = "Contact Name" };
 
             // Act + Assert
-            var ex = Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            var ex = Assert.CatchAsync<DataBaseException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.AddContactAsync(contact, default).ConfigureAwait(false)));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.Message, Does.Contain("invalid").IgnoreCase);
@@ -107,7 +107,7 @@ namespace Tuvi.Core.DataStorage.Tests
             contact.Email = new EmailAddress("contact@address1.io");
 
             // Act + Assert
-            Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.AddContactAsync(contact, default).ConfigureAwait(false)));
 
             var exists = await db.ExistsContactWithEmailAddressAsync(contact.Email, default).ConfigureAwait(false);
@@ -182,7 +182,7 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(existsAfterAdd, Is.True);
 
             // Act + Assert
-            var dupEx = Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            var dupEx = Assert.CatchAsync<DataBaseException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(false)));
             Assert.That(dupEx, Is.Not.Null);
 
@@ -322,7 +322,7 @@ namespace Tuvi.Core.DataStorage.Tests
             await db.AddContactAsync(TestData.Contact, default).ConfigureAwait(false);
 
             // Act + Assert
-            Assert.CatchAsync<DataBaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.CatchAsync<DataBaseException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.GetContactAsync(new EmailAddress("unknown@mail.box"), default).ConfigureAwait(false)));
         }
 
@@ -523,7 +523,7 @@ namespace Tuvi.Core.DataStorage.Tests
             cts.Cancel();
 
             // Act + Assert
-            Assert.CatchAsync<OperationCanceledException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.CatchAsync<OperationCanceledException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         10,
                         lastContact: null,
@@ -901,7 +901,7 @@ namespace Tuvi.Core.DataStorage.Tests
             using var db = await OpenDataStorageAsync().ConfigureAwait(false);
 
             // Act + Assert
-            Assert.CatchAsync<ArgumentOutOfRangeException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.CatchAsync<ArgumentOutOfRangeException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         count: 0,
                         lastContact: null,
@@ -909,7 +909,7 @@ namespace Tuvi.Core.DataStorage.Tests
                         cancellationToken: CancellationToken.None)
                     .ConfigureAwait(false)));
 
-            Assert.CatchAsync<ArgumentOutOfRangeException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.CatchAsync<ArgumentOutOfRangeException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await db.GetContactsAsync(
                         count: -1,
                         lastContact: null,

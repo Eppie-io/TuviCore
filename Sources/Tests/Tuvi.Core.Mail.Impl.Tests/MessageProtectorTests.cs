@@ -307,7 +307,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var emails = new List<EmailAddress>();
                 var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
-                Assert.DoesNotThrowAsync(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                Assert.DoesNotThrowAsync(new System.Func<System.Threading.Tasks.Task>(async () =>
                     await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false)));
 
                 publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -385,7 +385,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
             // When null context is passed, ArgumentNullException should be thrown
-            Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+            Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                 await nullContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false)));
         }
 
@@ -397,7 +397,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
                 // When null emails are passed, ArgumentNullException should be thrown
-                Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                     await pgpContext.TryToAddDecPublicKeysAsync(null, publicKeyServiceMock.Object, default).ConfigureAwait(false)));
             }
         }
@@ -410,7 +410,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var emails = new List<EmailAddress>();
 
                 // When null publicKeyService is passed, ArgumentNullException should be thrown
-                Assert.ThrowsAsync<ArgumentNullException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () =>
+                Assert.ThrowsAsync<ArgumentNullException>(new System.Func<System.Threading.Tasks.Task>(async () =>
                     await pgpContext.TryToAddDecPublicKeysAsync(emails, null, default).ConfigureAwait(false)));
             }
         }

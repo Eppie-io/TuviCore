@@ -158,7 +158,7 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test")
                 , decStorageClient.Object);
 
-            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true)));
+            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(new System.Func<System.Threading.Tasks.Task>(async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true)));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
                 decStorageClient.Object);
 
-            Assert.ThrowsAsync<ConnectionException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await core.AddAccountAsync(account, default).ConfigureAwait(true)));
+            Assert.ThrowsAsync<ConnectionException>(new System.Func<System.Threading.Tasks.Task>(async () => await core.AddAccountAsync(account, default).ConfigureAwait(true)));
         }
 
         [Test]
@@ -244,31 +244,31 @@ namespace Tuvi.Core.Tests
             var credentialsManager = new Mock<ICredentialsManager>();
             var securityManagerMock = InitMockSecurityManager();
 
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, null, null, null, null, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, null, null, null, null, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, dataStorageMock.Object, null, null, null, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, securityManagerMock.Object, null, null, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, backupManager.Object, null, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, credentialsManager.Object, null, null);
             }));
-            Assert.Throws<ArgumentNullException>(new global::System.Action(() =>
+            Assert.Throws<ArgumentNullException>(new System.Action(() =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, null, null, null);
             }));
@@ -435,7 +435,7 @@ namespace Tuvi.Core.Tests
             Assert.That(updated, Is.False);
 
             cts.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(new global::System.Func<global::System.Threading.Tasks.Task>(async () => await serverTask.ConfigureAwait(true)));
+            Assert.ThrowsAsync<OperationCanceledException>(new System.Func<System.Threading.Tasks.Task>(async () => await serverTask.ConfigureAwait(true)));
         }
     }
 }
