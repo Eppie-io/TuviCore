@@ -247,43 +247,58 @@ namespace Tuvi.Core.Tests
             var backupManager = new Mock<IBackupManager>();
             var credentialsManager = new Mock<ICredentialsManager>();
             var securityManagerMock = InitMockSecurityManager();
+            var decStorageClientMock = new Mock<IDecStorageClient>();
+            var implementationDetailsProvider = new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test");
+
+            backupManager
+                .Setup(x => x.SetBackupDetails(It.Is<IBackupDetailsProvider>(p => p == null)))
+                .Throws(new ArgumentNullException("backupDetails"));
+
+            securityManagerMock
+                .Setup(x => x.SetKeyDerivationDetails(It.Is<IKeyDerivationDetailsProvider>(p => p == null)))
+                .Throws(new ArgumentNullException("keyDerivationDetailsProvider"));
 
             Action nullMailServerTester = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, null, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullMailBoxFactory = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, null, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullDataStorage = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, dataStorageMock.Object, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, null, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullSecurityManager = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, securityManagerMock.Object, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, dataStorageMock.Object, null, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullBackupManager = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, backupManager.Object, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, dataStorageMock.Object, securityManagerMock.Object, null, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullCredentialsManager = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, credentialsManager.Object, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, null, implementationDetailsProvider, decStorageClientMock.Object);
             };
             Action nullImplementationDetails = () =>
             {
-                core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, null, null, null);
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, null, decStorageClientMock.Object);
+            };
+            Action nullDecStorageClient = () =>
+            {
+                core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, mailServerTesterMock.Object, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, null);
             };
 
-            Assert.Throws<ArgumentNullException>(nullMailServerTester);
-            Assert.Throws<ArgumentNullException>(nullMailBoxFactory);
-            Assert.Throws<ArgumentNullException>(nullDataStorage);
-            Assert.Throws<ArgumentNullException>(nullSecurityManager);
-            Assert.Throws<ArgumentNullException>(nullBackupManager);
-            Assert.Throws<ArgumentNullException>(nullCredentialsManager);
-            Assert.Throws<ArgumentNullException>(nullImplementationDetails);
+            Assert.That(Assert.Throws<ArgumentNullException>(nullMailServerTester)!.ParamName, Is.EqualTo("mailServerTester"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullMailBoxFactory)!.ParamName, Is.EqualTo("mailBoxFactory"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullDataStorage)!.ParamName, Is.EqualTo("dataStorage"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullSecurityManager)!.ParamName, Is.EqualTo("securityManager"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullBackupManager)!.ParamName, Is.EqualTo("backupManager"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullCredentialsManager)!.ParamName, Is.EqualTo("credentialsManager"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullImplementationDetails)!.ParamName, Is.EqualTo("backupDetails"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullDecStorageClient)!.ParamName, Is.EqualTo("decStorageClient"));
         }
 
         class TestServer

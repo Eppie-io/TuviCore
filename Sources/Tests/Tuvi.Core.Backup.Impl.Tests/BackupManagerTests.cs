@@ -103,7 +103,7 @@ namespace BackupTests
             // The InvalidOperationException is wrapped in BackupParsingException during parsing
             Func<Task> act = () => BackupManager.RestoreBackupAsync(inputStream);
 
-            Assert.ThrowsAsync<Tuvi.Core.Entities.Exceptions.BackupParsingException>(act);
+            Assert.ThrowsAsync<BackupParsingException>(act);
         }
 
         [Test]
