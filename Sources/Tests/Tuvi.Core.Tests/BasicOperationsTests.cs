@@ -467,7 +467,7 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>());
+            Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: true, default);
 
             Assert.DoesNotThrowAsync(act);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);

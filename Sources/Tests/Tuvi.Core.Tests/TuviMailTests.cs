@@ -158,7 +158,7 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test")
                 , decStorageClient.Object);
 
-            Func<Task> act = async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true);
+            Func<Task> act = () => core.AddAccountAsync(account, default);
 
             Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(act);
         }
@@ -250,14 +250,6 @@ namespace Tuvi.Core.Tests
             var decStorageClientMock = new Mock<IDecStorageClient>();
             var implementationDetailsProvider = new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test");
 
-            backupManager
-                .Setup(x => x.SetBackupDetails(It.Is<IBackupDetailsProvider>(p => p == null)))
-                .Throws(new ArgumentNullException("backupDetails"));
-
-            securityManagerMock
-                .Setup(x => x.SetKeyDerivationDetails(It.Is<IKeyDerivationDetailsProvider>(p => p == null)))
-                .Throws(new ArgumentNullException("keyDerivationDetailsProvider"));
-
             Action nullMailServerTester = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, dataStorageMock.Object, securityManagerMock.Object, backupManager.Object, credentialsManager.Object, implementationDetailsProvider, decStorageClientMock.Object);
@@ -297,7 +289,7 @@ namespace Tuvi.Core.Tests
             Assert.That(Assert.Throws<ArgumentNullException>(nullSecurityManager)!.ParamName, Is.EqualTo("securityManager"));
             Assert.That(Assert.Throws<ArgumentNullException>(nullBackupManager)!.ParamName, Is.EqualTo("backupManager"));
             Assert.That(Assert.Throws<ArgumentNullException>(nullCredentialsManager)!.ParamName, Is.EqualTo("credentialsManager"));
-            Assert.That(Assert.Throws<ArgumentNullException>(nullImplementationDetails)!.ParamName, Is.EqualTo("backupDetails"));
+            Assert.That(Assert.Throws<ArgumentNullException>(nullImplementationDetails)!.ParamName, Is.EqualTo("implementationDetailsProvider"));
             Assert.That(Assert.Throws<ArgumentNullException>(nullDecStorageClient)!.ParamName, Is.EqualTo("decStorageClient"));
         }
 
