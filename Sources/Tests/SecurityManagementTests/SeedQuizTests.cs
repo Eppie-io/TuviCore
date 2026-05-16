@@ -53,22 +53,23 @@ namespace SecurityManagementTests
             var cancelationToken = tokenSource.Token;
             tokenSource.CancelAfter(5000);
 
-            Action testDelegate = new Action(
-                () =>
+            Action testDelegate = () =>
+            {
+                int[] task;
+                for (int i = 0; i < testSeed.Length; i++)
                 {
-                    int[] task;
-                    for (int i = 0; i < testSeed.Length; i++)
+                    do
                     {
-                        do
-                        {
-                            task = quiz.GenerateTask();
-                            cancelationToken.ThrowIfCancellationRequested();
-                        }
-                        while (task.Contains(i) == false);
+                        task = quiz.GenerateTask();
+                        cancelationToken.ThrowIfCancellationRequested();
                     }
-                });
+                    while (task.Contains(i) == false);
+                }
+            };
 
-            Assert.DoesNotThrow(() => Task.Run(testDelegate, cancelationToken).Wait());
+            Action act = () => Task.Run(testDelegate, cancelationToken).Wait();
+
+            Assert.DoesNotThrow(act);
         }
 
         [Test]

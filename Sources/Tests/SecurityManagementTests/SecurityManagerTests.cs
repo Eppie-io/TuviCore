@@ -133,7 +133,9 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.DoesNotThrowAsync(() => manager.CreateSeedPhraseAsync());
+                Func<Task> createSeedPhrase = () => manager.CreateSeedPhraseAsync();
+
+                Assert.DoesNotThrowAsync(createSeedPhrase);
                 manager.StartAsync(Password).Wait();
 
                 Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
@@ -186,8 +188,11 @@ namespace SecurityManagementTests
             using (var storage = GetStorage())
             {
                 ISecurityManager manager = GetSecurityManager(storage);
-                Assert.ThrowsAsync<DataBasePasswordException>(() => manager.StartAsync(Password));
-                Assert.DoesNotThrowAsync(() => manager.StartAsync(NewPassword));
+                Func<Task> startWithOldPassword = () => manager.StartAsync(Password);
+                Func<Task> startWithNewPassword = () => manager.StartAsync(NewPassword);
+
+                Assert.ThrowsAsync<DataBasePasswordException>(startWithOldPassword);
+                Assert.DoesNotThrowAsync(startWithNewPassword);
             }
         }
 
@@ -208,7 +213,9 @@ namespace SecurityManagementTests
                 Assert.That(keyString, Is.Not.Null);
                 Assert.That(keyString, Is.Not.Empty);
                 Assert.That(keyString, Is.EqualTo("agd5r3j32csbqxy5j9tqs5xwqvh48rfht9ursj3vbamnjycbbseup"));
-                Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
+                Action act = () => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString);
+
+                Assert.DoesNotThrow(act);
             }
         }
 
@@ -227,7 +234,9 @@ namespace SecurityManagementTests
 
                 Assert.That(accountIndex, Is.Zero);
                 Assert.That(keyString, Is.EqualTo("aewcimjjec6kjyk5nv8vy3tvsdwkpbzbyexhswmg3vyemmmk9mce4"));
-                Assert.DoesNotThrow(() => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString));
+                Action act = () => PublicKeyService.CreateDefault(PublicKeyService.NoOpNameResolver).Decode(keyString);
+
+                Assert.DoesNotThrow(act);
             }
         }
 
@@ -324,7 +333,9 @@ namespace SecurityManagementTests
             {
                 ISecurityManager manager = GetSecurityManager(storage);
 
-                Assert.Throws<ArgumentNullException>(() => manager.RemovePgpKeys((EmailAddress)null));
+                Action act = () => manager.RemovePgpKeys((EmailAddress)null);
+
+                Assert.Throws<ArgumentNullException>(act);
             }
         }
 
@@ -364,7 +375,9 @@ namespace SecurityManagementTests
 
                 // Try to remove the service key - this should be blocked by protection
                 var serviceEmail = new EmailAddress("backup@test");
-                Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceEmail));
+                Action act = () => manager.RemovePgpKeys(serviceEmail);
+
+                Assert.DoesNotThrow(act);
 
                 // Verify service key still exists after removal attempt (protection worked)
                 allKeys = pgpContext.GetPublicKeysInfo();
@@ -408,7 +421,9 @@ namespace SecurityManagementTests
 
                 // Try to remove the service key - this should be blocked by protection
                 var serviceAccount = new Account { Email = new EmailAddress("backup@test") };
-                Assert.DoesNotThrow(() => manager.RemovePgpKeys(serviceAccount));
+                Action act = () => manager.RemovePgpKeys(serviceAccount);
+
+                Assert.DoesNotThrow(act);
 
                 // Verify service key still exists after removal attempt (protection worked)
                 allKeys = pgpContext.GetPublicKeysInfo();

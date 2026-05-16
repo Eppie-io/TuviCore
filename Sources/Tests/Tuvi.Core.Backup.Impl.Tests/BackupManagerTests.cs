@@ -70,7 +70,9 @@ namespace BackupTests
         public void SetBackupDetailsWithNullThrowsArgumentNullException()
         {
             // Arrange & Act & Assert
-            Assert.Throws<ArgumentNullException>(() => BackupManager.SetBackupDetails(null));
+            Action act = () => BackupManager.SetBackupDetails(null);
+
+            Assert.Throws<ArgumentNullException>(act);
         }
 
         [Test]
@@ -84,8 +86,9 @@ namespace BackupTests
             // Act & Assert
             // BackupFactory is not set because SetBackupDetails was not called
             // This causes ArgumentNullException in BackupManager.CreateBackupAsync when it tries to use accounts
-            Assert.ThrowsAsync<ArgumentNullException>(
-                () => BackupManager.CreateBackupAsync(outputStream));
+            Func<Task> act = () => BackupManager.CreateBackupAsync(outputStream);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -98,8 +101,9 @@ namespace BackupTests
 
             // Act & Assert
             // The InvalidOperationException is wrapped in BackupParsingException during parsing
-            Assert.ThrowsAsync<Tuvi.Core.Entities.Exceptions.BackupParsingException>(
-                () => BackupManager.RestoreBackupAsync(inputStream));
+            Func<Task> act = () => BackupManager.RestoreBackupAsync(inputStream);
+
+            Assert.ThrowsAsync<BackupParsingException>(act);
         }
 
         [Test]
@@ -214,7 +218,9 @@ namespace BackupTests
 
             // Act
             using var backup = new MemoryStream(backupData);
-            Assert.ThrowsAsync<BackupVersionMismatchException>(() => BackupManager.RestoreBackupAsync(backup, CancellationToken.None));
+            Func<Task> act = () => BackupManager.RestoreBackupAsync(backup, CancellationToken.None);
+
+            Assert.ThrowsAsync<BackupVersionMismatchException>(act);
             Assert.That(accountRestoredCalled, Is.False);
         }
 

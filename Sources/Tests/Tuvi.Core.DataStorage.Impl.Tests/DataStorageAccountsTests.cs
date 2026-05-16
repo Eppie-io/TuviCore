@@ -93,7 +93,9 @@ namespace Tuvi.Core.DataStorage.Tests
                     await db.AddAccountAsync(TestData.Account).ConfigureAwait(true);
                 }
 
-                Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(() => db.AddAccountAsync(TestData.Account));
+                Func<Task> act = () => db.AddAccountAsync(TestData.Account);
+
+                Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(act);
             }
         }
 

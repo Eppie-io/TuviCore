@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------- //
+﻿// ---------------------------------------------------------------------------- //
 //                                                                              //
 //   Copyright 2026 Eppie (https://eppie.io)                                    //
 //                                                                              //
@@ -130,8 +130,9 @@ namespace Tuvi.Core.Tests
             var testFolder = new Folder("TestFolder", FolderAttributes.None);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.DeleteFolderAsync(null, testFolder).ConfigureAwait(false));
+            Func<Task> act = async () => await core.DeleteFolderAsync(null, testFolder).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -171,8 +172,9 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, null).ConfigureAwait(false));
+            Func<Task> act = async () => await core.DeleteFolderAsync(accountsList[0].Email, null).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -289,8 +291,9 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.DeleteFolderAsync(protonAccount.Email, testFolder).ConfigureAwait(false));
+            Func<Task> act = async () => await core.DeleteFolderAsync(protonAccount.Email, testFolder).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<NotSupportedException>(act);
         }
 
         [Test]
@@ -346,8 +349,9 @@ namespace Tuvi.Core.Tests
                 decStorageClient.Object);
 
             // Act & Assert
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await core.DeleteFolderAsync(decAccount.Email, testFolder).ConfigureAwait(false));
+            Func<Task> act = async () => await core.DeleteFolderAsync(decAccount.Email, testFolder).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<NotSupportedException>(act);
         }
 
         [Test]
@@ -396,20 +400,21 @@ namespace Tuvi.Core.Tests
             var allFolder = new Folder("All", FolderAttributes.All);
 
             // Act & Assert
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, inboxFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, sentFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, trashFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, draftFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, junkFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, importantFolder).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await core.DeleteFolderAsync(accountsList[0].Email, allFolder).ConfigureAwait(false));
+            Func<Task> inbox = async () => await core.DeleteFolderAsync(accountsList[0].Email, inboxFolder).ConfigureAwait(false);
+            Func<Task> sent = async () => await core.DeleteFolderAsync(accountsList[0].Email, sentFolder).ConfigureAwait(false);
+            Func<Task> trash = async () => await core.DeleteFolderAsync(accountsList[0].Email, trashFolder).ConfigureAwait(false);
+            Func<Task> draft = async () => await core.DeleteFolderAsync(accountsList[0].Email, draftFolder).ConfigureAwait(false);
+            Func<Task> junk = async () => await core.DeleteFolderAsync(accountsList[0].Email, junkFolder).ConfigureAwait(false);
+            Func<Task> important = async () => await core.DeleteFolderAsync(accountsList[0].Email, importantFolder).ConfigureAwait(false);
+            Func<Task> all = async () => await core.DeleteFolderAsync(accountsList[0].Email, allFolder).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<InvalidOperationException>(inbox);
+            Assert.ThrowsAsync<InvalidOperationException>(sent);
+            Assert.ThrowsAsync<InvalidOperationException>(trash);
+            Assert.ThrowsAsync<InvalidOperationException>(draft);
+            Assert.ThrowsAsync<InvalidOperationException>(junk);
+            Assert.ThrowsAsync<InvalidOperationException>(important);
+            Assert.ThrowsAsync<InvalidOperationException>(all);
         }
     }
 }

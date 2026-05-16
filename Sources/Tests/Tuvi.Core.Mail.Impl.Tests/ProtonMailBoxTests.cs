@@ -542,11 +542,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
             await storage.AddOrUpdateMessagesAsync(accountId, messages, default).ConfigureAwait(true);
 
             // Expect DataBaseException wrapping SQLiteException "too many SQL variables"
-            Assert.DoesNotThrowAsync(async () =>
+            Func<Task> act = async () =>
             {
                 // count = 0 => request all labeled messages
                 await storage.GetMessagesAsync(accountId, label, 0, true, 0).ConfigureAwait(true);
-            });
+            };
+
+            Assert.DoesNotThrowAsync(act);
         }
 
         [Test]
@@ -575,11 +577,13 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             // Should no longer throw DataBaseException (chunked internally)
             List<Proton.Message> byIds = null;
-            Assert.DoesNotThrowAsync(async () =>
+            Func<Task> act = async () =>
             {
                 var res = await storage.GetMessagesAsync(accountId, ids, default).ConfigureAwait(true);
                 byIds = res.ToList();
-            });
+            };
+
+            Assert.DoesNotThrowAsync(act);
             Assert.That(byIds.Count, Is.EqualTo(messageCount));
             // Order should correspond to input ids order
             for (int i = 0; i < ids.Count; i++)
