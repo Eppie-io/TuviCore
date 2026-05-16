@@ -128,7 +128,7 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 storage.CreateAsync(Password).Wait();
                 storage.InitializeMasterKeyAsync(GenerateRandomMasterKey()).Wait();
-                Assert.That(storage.GetPgpSecretKeysAsync().Result, Is.Null, "Key hasn't to exist.");
+                Assert.That(storage.GetPgpSecretKeysAsync().Result, Is.Null, "Key shouldn't exist.");
 
                 var randomKeyData = GenerateRandomPgpSecretKeyBundleData();
                 storage.SavePgpSecretKeys(randomKeyData);
