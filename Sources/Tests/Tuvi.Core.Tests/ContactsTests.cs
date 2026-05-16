@@ -430,7 +430,9 @@ namespace Tuvi.Core.Tests
                 avatar[i] = (byte)v;
             }
 
-            Assert.DoesNotThrowAsync(async () => await core.SetContactAvatarAsync(contact.Email, avatar, avatarWidth: 16, avatarHeight: 16).ConfigureAwait(true));
+            Func<Task> act = async () => await core.SetContactAvatarAsync(contact.Email, avatar, avatarWidth: 16, avatarHeight: 16).ConfigureAwait(true);
+
+            Assert.DoesNotThrowAsync(act);
 
             var contacts = (await core.GetContactsAsync().ConfigureAwait(true)).ToList();
 

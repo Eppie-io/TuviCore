@@ -158,7 +158,9 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test")
                 , decStorageClient.Object);
 
-            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true));
+            Func<Task> act = async () => await core.AddAccountAsync(account, It.IsAny<CancellationToken>()).ConfigureAwait(true);
+
+            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(act);
         }
 
         [Test]
@@ -190,7 +192,9 @@ namespace Tuvi.Core.Tests
                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
                 decStorageClient.Object);
 
-            Assert.ThrowsAsync<ConnectionException>(async () => await core.AddAccountAsync(account, default).ConfigureAwait(true));
+            Func<Task> act = async () => await core.AddAccountAsync(account, default).ConfigureAwait(true);
+
+            Assert.ThrowsAsync<ConnectionException>(act);
         }
 
         [Test]
@@ -244,34 +248,42 @@ namespace Tuvi.Core.Tests
             var credentialsManager = new Mock<ICredentialsManager>();
             var securityManagerMock = InitMockSecurityManager();
 
-            Assert.Throws<ArgumentNullException>(() =>
+            Action nullMailServerTester = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(mailBoxFactoryMock.Object, null, null, null, null, null, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullMailBoxFactory = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, mailServerTesterMock.Object, null, null, null, null, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullDataStorage = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, dataStorageMock.Object, null, null, null, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullSecurityManager = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, securityManagerMock.Object, null, null, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullBackupManager = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, backupManager.Object, null, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullCredentialsManager = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, credentialsManager.Object, null, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
+            };
+            Action nullImplementationDetails = () =>
             {
                 core = TuviCoreCreator.CreateTuviMailCore(null, null, null, null, null, null, null, null);
-            });
+            };
+
+            Assert.Throws<ArgumentNullException>(nullMailServerTester);
+            Assert.Throws<ArgumentNullException>(nullMailBoxFactory);
+            Assert.Throws<ArgumentNullException>(nullDataStorage);
+            Assert.Throws<ArgumentNullException>(nullSecurityManager);
+            Assert.Throws<ArgumentNullException>(nullBackupManager);
+            Assert.Throws<ArgumentNullException>(nullCredentialsManager);
+            Assert.Throws<ArgumentNullException>(nullImplementationDetails);
         }
 
         class TestServer
@@ -435,7 +447,9 @@ namespace Tuvi.Core.Tests
             Assert.That(updated, Is.False);
 
             cts.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await serverTask.ConfigureAwait(true));
+            Func<Task> act = async () => await serverTask.ConfigureAwait(true);
+
+            Assert.ThrowsAsync<OperationCanceledException>(act);
         }
     }
 }

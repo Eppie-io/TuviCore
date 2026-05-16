@@ -16,6 +16,7 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -135,7 +136,9 @@ namespace BackupTests
                 var version = await parser.GetVersionAsync().ConfigureAwait(true);
                 Assert.That(TestData.ProtocolVersion, Is.EqualTo(version));
 
-                Assert.ThrowsAsync<BackupDeserializationException>(() => parser.GetAccountsAsync());
+                Func<Task> act = () => parser.GetAccountsAsync();
+
+                Assert.ThrowsAsync<BackupDeserializationException>(act);
             }
         }
 
@@ -174,7 +177,9 @@ namespace BackupTests
                 using var backupData = new MemoryStream(brokenBackupData);
                 IBackupParser parser = BackupSerializationFactory.CreateBackupParser();
 
-                Assert.ThrowsAsync<BackupParsingException>(() => parser.ParseBackupAsync(backupData));
+                Func<Task> act = () => parser.ParseBackupAsync(backupData);
+
+                Assert.ThrowsAsync<BackupParsingException>(act);
             }).ConfigureAwait(true);
         }
 

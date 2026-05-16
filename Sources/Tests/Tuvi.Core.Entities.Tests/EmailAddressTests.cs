@@ -49,7 +49,9 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void ConstructorNullAddressThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new EmailAddress(null));
+            Action act = () => _ = new EmailAddress(null);
+
+            Assert.Throws<ArgumentNullException>(act);
         }
 
         [Test]
@@ -385,7 +387,9 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void CreateDecentralizedAddressUnsupportedThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address"));
+            Action act = () => EmailAddress.CreateDecentralizedAddress(NetworkType.Unsupported, "address");
+
+            Assert.Throws<ArgumentException>(act);
         }
 
         [Test]
@@ -414,15 +418,17 @@ namespace Tuvi.Core.Entities.Test
         [Test]
         public void CreateDecentralizedAddressWithEmptyAddressThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() =>
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, ""));
+            Action act = () => EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "");
+
+            Assert.Throws<ArgumentException>(act);
         }
 
         [Test]
         public void CreateDecentralizedAddressWithWhitespaceAddressThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() =>
-                EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   "));
+            Action act = () => EmailAddress.CreateDecentralizedAddress(NetworkType.Bitcoin, "   ");
+
+            Assert.Throws<ArgumentException>(act);
         }
 
         [Test]
@@ -520,7 +526,9 @@ namespace Tuvi.Core.Entities.Test
             const string NewHybridAddressPubKey = "aaaaaaahijkmnpqrstuvwxyz23456789abcdefghijkmnpqrstuvw";
             var email = new EmailAddress($"user+{HybridAddressPubKey}@domain.com", "User");
 
-            Assert.Throws<NotSupportedException>(() => email.MakeHybrid(NewHybridAddressPubKey));
+            Action act = () => email.MakeHybrid(NewHybridAddressPubKey);
+
+            Assert.Throws<NotSupportedException>(act);
         }
 
         [Test]

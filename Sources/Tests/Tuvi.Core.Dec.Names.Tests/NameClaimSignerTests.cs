@@ -150,7 +150,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (publicKey, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1(string.Empty, publicKey, privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1(string.Empty, publicKey, privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -163,7 +163,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (publicKey, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1(null, publicKey, privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1(null, publicKey, privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -176,7 +176,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (publicKey, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1("   ", publicKey, privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1("   ", publicKey, privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -189,7 +189,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (_, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1("name", string.Empty, privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1("name", string.Empty, privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -202,7 +202,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (_, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1("name", null, privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1("name", null, privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -215,7 +215,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var (_, privateKey, _) = GenerateKeyMaterial();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1("name", "   ", privateKey);
+            Action act = () => NameClaimSigner.SignClaimV1("name", "   ", privateKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
@@ -229,7 +229,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             const string publicKey = "pub";
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1(name, publicKey, null);
+            Action act = () => NameClaimSigner.SignClaimV1(name, publicKey, null);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentNullException>());
@@ -243,7 +243,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             var nonSecpKey = GenerateNonSecp256k1PrivateKey();
 
             // Act
-            TestDelegate act = () => NameClaimSigner.SignClaimV1("name", publicKey, nonSecpKey);
+            Action act = () => NameClaimSigner.SignClaimV1("name", publicKey, nonSecpKey);
 
             // Assert
             Assert.That(act, Throws.TypeOf<ArgumentException>());
