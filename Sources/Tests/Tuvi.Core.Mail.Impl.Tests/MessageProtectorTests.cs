@@ -307,8 +307,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var emails = new List<EmailAddress>();
                 var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
-                Assert.DoesNotThrowAsync(async () =>
-                    await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+                Func<Task> act = async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                Assert.DoesNotThrowAsync(act);
 
                 publicKeyServiceMock.Verify(x => x.GetEncodedByEmailAsync(It.IsAny<EmailAddress>(), It.IsAny<CancellationToken>()), Times.Never);
             }
@@ -385,8 +387,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
             // When null context is passed, ArgumentNullException should be thrown
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await nullContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+            Func<Task> act = async () =>
+                await nullContext.TryToAddDecPublicKeysAsync(emails, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -397,8 +401,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var publicKeyServiceMock = new Mock<IPublicKeyService>();
 
                 // When null emails are passed, ArgumentNullException should be thrown
-                Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                    await pgpContext.TryToAddDecPublicKeysAsync(null, publicKeyServiceMock.Object, default).ConfigureAwait(false));
+                Func<Task> act = async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(null, publicKeyServiceMock.Object, default).ConfigureAwait(false);
+
+                Assert.ThrowsAsync<ArgumentNullException>(act);
             }
         }
 
@@ -410,8 +416,10 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 var emails = new List<EmailAddress>();
 
                 // When null publicKeyService is passed, ArgumentNullException should be thrown
-                Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                    await pgpContext.TryToAddDecPublicKeysAsync(emails, null, default).ConfigureAwait(false));
+                Func<Task> act = async () =>
+                    await pgpContext.TryToAddDecPublicKeysAsync(emails, null, default).ConfigureAwait(false);
+
+                Assert.ThrowsAsync<ArgumentNullException>(act);
             }
         }
 

@@ -16,6 +16,7 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -379,7 +380,9 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 await db.OpenAsync(Password).ConfigureAwait(true);
 
-                Assert.DoesNotThrowAsync(async () => await db.DeleteAIAgentAsync(123456).ConfigureAwait(true));
+                Func<Task> act = async () => await db.DeleteAIAgentAsync(123456).ConfigureAwait(true);
+
+                Assert.DoesNotThrowAsync(act);
             }
         }
 
@@ -599,7 +602,9 @@ namespace Tuvi.Core.DataStorage.Tests
                 await db.AddAIAgentAsync(a1).ConfigureAwait(true);
 
                 var a2 = CreateAgent("duplicate-name");
-                Assert.DoesNotThrowAsync(async () => await db.AddAIAgentAsync(a2).ConfigureAwait(true));
+                Func<Task> act = async () => await db.AddAIAgentAsync(a2).ConfigureAwait(true);
+
+                Assert.DoesNotThrowAsync(act);
 
                 var agents = await db.GetAIAgentsAsync().ConfigureAwait(true);
                 var dupes = agents.Where(x => x.Name == "duplicate-name").ToList();

@@ -34,7 +34,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [Test]
         public void ConstructorNullPublicKeyThrowsArgumentNullException()
         {
-            var ex = Assert.Throws<ArgumentNullException>(() => new MailboxId(null));
+            Action act = () => _ = new MailboxId(null);
+
+            var ex = Assert.Throws<ArgumentNullException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 
@@ -42,14 +44,18 @@ namespace Tuvi.Core.Mail.Impl.Tests
         [TestCase("   ")]
         public void ConstructorEmptyOrWhitespacePublicKeyThrowsArgumentException(string publicKey)
         {
-            var ex = Assert.Throws<ArgumentException>(() => new MailboxId(publicKey));
+            Action act = () => _ = new MailboxId(publicKey);
+
+            var ex = Assert.Throws<ArgumentException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 
         [TestCase("abc")]
         public void ConstructorRejectsInvalidLength(string publicKey)
         {
-            var ex = Assert.Throws<ArgumentException>(() => new MailboxId(publicKey));
+            Action act = () => _ = new MailboxId(publicKey);
+
+            var ex = Assert.Throws<ArgumentException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 
@@ -58,12 +64,16 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             // Boundary check: Length - 1
             string tooShort = ValidBase32E[..(ExpectedKeyLength - 1)];
-            var ex1 = Assert.Throws<ArgumentException>(() => new MailboxId(tooShort));
+            Action tooShortAct = () => _ = new MailboxId(tooShort);
+
+            var ex1 = Assert.Throws<ArgumentException>(tooShortAct);
             Assert.That(ex1.ParamName, Is.EqualTo("publicKey"));
 
             // Boundary check: Length + 1
             string tooLong = ValidBase32E + "a";
-            var ex2 = Assert.Throws<ArgumentException>(() => new MailboxId(tooLong));
+            Action tooLongAct = () => _ = new MailboxId(tooLong);
+
+            var ex2 = Assert.Throws<ArgumentException>(tooLongAct);
             Assert.That(ex2.ParamName, Is.EqualTo("publicKey"));
         }
 
@@ -78,7 +88,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             // Keep length at ExpectedKeyLength to ensure rejection is due to invalid char, not length.
             string invalidKey = string.Concat(ValidBase32E.AsSpan(0, ExpectedKeyLength - 1), invalidChar);
-            var ex = Assert.Throws<ArgumentException>(() => new MailboxId(invalidKey));
+            Action act = () => _ = new MailboxId(invalidKey);
+
+            var ex = Assert.Throws<ArgumentException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 
@@ -87,7 +99,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
         {
             // Keep length same as valid key (53) to ensure rejection is due to whitespace, not length.
             string keyWithWhitespace = string.Concat(ValidBase32E.AsSpan(0, 1), " ", ValidBase32E.AsSpan(2));
-            var ex = Assert.Throws<ArgumentException>(() => _ = new MailboxId(keyWithWhitespace));
+            Action act = () => _ = new MailboxId(keyWithWhitespace);
+
+            var ex = Assert.Throws<ArgumentException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 
@@ -97,7 +111,9 @@ namespace Tuvi.Core.Mail.Impl.Tests
             // Whitespace inside
             // Keep length same as valid key (53) to ensure rejection is due to invalid char, not length.
             string innerSpace = ValidBase32E.Remove(10, 1).Insert(10, " ");
-            var ex = Assert.Throws<ArgumentException>(() => new MailboxId(innerSpace));
+            Action act = () => _ = new MailboxId(innerSpace);
+
+            var ex = Assert.Throws<ArgumentException>(act);
             Assert.That(ex.ParamName, Is.EqualTo("publicKey"));
         }
 

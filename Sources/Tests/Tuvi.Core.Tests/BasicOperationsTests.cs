@@ -409,7 +409,9 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, false, false, default); });
+            Func<Task> act = () => core.SendMessageAsync(null, false, false, default);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -425,7 +427,9 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, false, false, default); });
+            Func<Task> act = () => core.SendMessageAsync(message, false, false, default);
+
+            Assert.DoesNotThrowAsync(act);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), default), Times.Once);
 
             // TODO: uncomment this and fix
@@ -443,7 +447,9 @@ namespace Tuvi.Core.Tests
             using var core = CreateCore(dataStorage, mailBox.Object);
             await core.AddAccountAsync(account).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return core.SendMessageAsync(null, encrypt: true, sign: true, default); });
+            Func<Task> act = () => core.SendMessageAsync(null, encrypt: true, sign: true, default);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -461,7 +467,9 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: true, It.IsAny<CancellationToken>()); });
+            Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: true, default);
+
+            Assert.DoesNotThrowAsync(act);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -475,7 +483,9 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: false, sign: true, default); });
+            Func<Task> act = () => accountService.SendMessageAsync(null, encrypt: false, sign: true, default);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -493,7 +503,9 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: false, sign: true, default); });
+            Func<Task> act = () => core.SendMessageAsync(message, encrypt: false, sign: true, default);
+
+            Assert.DoesNotThrowAsync(act);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -507,7 +519,9 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ArgumentNullException>(() => { return accountService.SendMessageAsync(null, encrypt: true, sign: false, default); });
+            Func<Task> act = () => accountService.SendMessageAsync(null, encrypt: true, sign: false, default);
+
+            Assert.ThrowsAsync<ArgumentNullException>(act);
         }
 
         [Test]
@@ -524,7 +538,9 @@ namespace Tuvi.Core.Tests
             var message = CreateMessage(0);
             message.From.Add(account.Email);
 
-            Assert.DoesNotThrowAsync(() => { return core.SendMessageAsync(message, encrypt: true, sign: false, default); });
+            Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: false, default);
+
+            Assert.DoesNotThrowAsync(act);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -547,7 +563,9 @@ namespace Tuvi.Core.Tests
             await dataStorage.AddAccountAsync(account).ConfigureAwait(true);
             var accountService = await core.GetAccountServiceAsync(account.Email, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true));
+            Func<Task> act = async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true);
+
+            Assert.DoesNotThrowAsync(act);
         }
 
         [Test]
@@ -569,7 +587,9 @@ namespace Tuvi.Core.Tests
                                                                new List<Message>() { message1000 },
                                                                default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true));
+            Func<Task> act = async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true);
+
+            Assert.DoesNotThrowAsync(act);
             var storedMessages = await core.GetAllEarlierMessagesAsync(100, null, default).ConfigureAwait(true);
             Assert.That(storedMessages.Count, Is.EqualTo(2));
             Assert.That(storedMessages[0].Id, Is.EqualTo(1000));

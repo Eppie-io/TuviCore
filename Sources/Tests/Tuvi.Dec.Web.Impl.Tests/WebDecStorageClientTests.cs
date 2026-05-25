@@ -113,7 +113,9 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false));
+            Func<Task> act = async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentException>(act);
         }
 
         [Test]
@@ -121,7 +123,9 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false));
+            Func<Task> act = async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentException>(act);
         }
 
         [Test]
@@ -129,7 +133,9 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.GetAddressByNameAsync("", _ct).ConfigureAwait(false));
+            Func<Task> act = async () => await client.GetAddressByNameAsync("", _ct).ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ArgumentException>(act);
         }
 
         [Test]
@@ -170,7 +176,9 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
                 Content = new StringContent(string.Empty)
             });
 
-            Assert.DoesNotThrowAsync(async () => await client.GetAddressByNameAsync("unknown", _ct).ConfigureAwait(false));
+            Func<Task> act = async () => await client.GetAddressByNameAsync("unknown", _ct).ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(act);
         }
 
         [Test]

@@ -126,6 +126,10 @@ namespace Tuvi.Core.Impl
             {
                 throw new ArgumentNullException(nameof(credentialsManager));
             }
+            if (implementationDetailsProvider is null)
+            {
+                throw new ArgumentNullException(nameof(implementationDetailsProvider));
+            }
             if (decStorageClient is null)
             {
                 throw new ArgumentNullException(nameof(decStorageClient));
