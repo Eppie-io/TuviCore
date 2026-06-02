@@ -31,20 +31,19 @@ namespace Tuvi
     internal class MailBoxFactory : IMailBoxFactory
     {
         private readonly IDataStorage _dataStorage;
-        private IDataStorage DataStorage => _dataStorage;
-
         private readonly ICredentialsManager _credentialsManager;
-        private ICredentialsManager CredentialsManager => _credentialsManager;
-
+        private readonly IProtonMailBoxFactory _protonMailBoxFactory;
         private readonly IDecStorageClient _decClient;
         private readonly IPublicKeyService _publicKeyService;
+        private IStorage ProtonStorage => _dataStorage as IStorage;
 
-        public MailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService)
+        public MailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService, IProtonMailBoxFactory protonMailBoxFactory)
         {
             _dataStorage = dataStorage ?? throw new ArgumentNullException(nameof(dataStorage));
             _credentialsManager = credentialsManager ?? throw new ArgumentNullException(nameof(credentialsManager));
             _decClient = decClient ?? throw new ArgumentNullException(nameof(decClient));
             _publicKeyService = publicKeyService ?? throw new ArgumentNullException(nameof(publicKeyService));
+            _protonMailBoxFactory = protonMailBoxFactory ?? throw new ArgumentNullException(nameof(protonMailBoxFactory));
         }
 
         public IMailBox CreateMailBox(Account account)
@@ -52,16 +51,16 @@ namespace Tuvi
             var type = account.Type;
             if (type == MailBoxType.Hybrid || type == MailBoxType.Dec)
             {
-                return Tuvi.Core.Dec.Impl.MailBoxCreator.Create(account, DataStorage, _decClient, _publicKeyService);
+                return Tuvi.Core.Dec.Impl.MailBoxCreator.Create(account, _dataStorage, _decClient, _publicKeyService);
             }
-            var credentialsProvider = CredentialsManager.CreateCredentialsProvider(account);
+            var credentialsProvider = _credentialsManager.CreateCredentialsProvider(account);
             if (type == MailBoxType.Proton)
             {
-                return Proton.MailBoxCreator.Create(account, credentialsProvider, DataStorage as IStorage);
+                return _protonMailBoxFactory.CreateMailBox(account, credentialsProvider, ProtonStorage);
             }
 
-            var outgoingCredentialsProvider = CredentialsManager.CreateOutgoingCredentialsProvider(account);
-            var incomingCredentialsProvider = CredentialsManager.CreateIncomingCredentialsProvider(account);
+            var outgoingCredentialsProvider = _credentialsManager.CreateOutgoingCredentialsProvider(account);
+            var incomingCredentialsProvider = _credentialsManager.CreateIncomingCredentialsProvider(account);
             return Tuvi.Core.Mail.Impl.MailBoxCreator.Create(account, outgoingCredentialsProvider, incomingCredentialsProvider);
         }
     }

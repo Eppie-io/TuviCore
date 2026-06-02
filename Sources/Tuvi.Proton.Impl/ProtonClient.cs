@@ -753,11 +753,12 @@ namespace Tuvi.Proton.Impl
                                                               TwoFactorCodeProvider twoFactorProvider,
                                                               HumanVerifier humanVerifier,
                                                               Func<Session, CancellationToken, Task> refreshCallback,
+                                                              ProtonConfiguration configuration,
                                                               CancellationToken cancellationToken)
         {
             try
             {
-                var client = new Client(httpClientCreator, refreshCallback);
+                var client = new Client(httpClientCreator, refreshCallback, configuration);
                 await client.LoginAsync(userName, password, twoFactorProvider, humanVerifier, cancellationToken).ConfigureAwait(false);
 
                 return client;
@@ -840,11 +841,11 @@ namespace Tuvi.Proton.Impl
             }
         }
 
-        public static async Task<Client> CreateFromRefreshAsync(Func<HttpClient> httpClientCreator, string uid, string refresh, Func<Session, CancellationToken, Task> refreshCallback, CancellationToken cancellationToken)
+        public static async Task<Client> CreateFromRefreshAsync(Func<HttpClient> httpClientCreator, string uid, string refresh, Func<Session, CancellationToken, Task> refreshCallback, ProtonConfiguration configuration, CancellationToken cancellationToken)
         {
             try
             {
-                var client = new Client(httpClientCreator, refreshCallback);
+                var client = new Client(httpClientCreator, refreshCallback, configuration);
                 await client.RestoreSessionAsync(uid, refresh, cancellationToken).ConfigureAwait(false);
                 return client;
             }
@@ -854,7 +855,7 @@ namespace Tuvi.Proton.Impl
             }
         }
 
-        private Client(Func<HttpClient> httpClientCreator, Func<Session, CancellationToken, Task> refreshCallback)
+        private Client(Func<HttpClient> httpClientCreator, Func<Session, CancellationToken, Task> refreshCallback, ProtonConfiguration configuration)
         {
             _httpClient = httpClientCreator();
             _refreshCallback = refreshCallback;
@@ -862,8 +863,10 @@ namespace Tuvi.Proton.Impl
                 httpClient: _httpClient,
                 host: ProtonHost)
             {
-                AppVersion = "Other",
-                RedirectUri = new Uri("https://protonmail.ch")
+                AppVersion = configuration.AppVersion,
+                UserAgent = configuration.UserAgent,
+                ClientSecret = configuration.ClientSecret,
+                RedirectUri = configuration.RedirectUri
             };
         }
 

@@ -31,13 +31,15 @@ using Tuvi.Core.Impl.SecurityManagement;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Mail.Impl;
 using Tuvi.Core.Utils;
+using Tuvi.Proton;
+using Tuvi.Proton.Impl;
 using TuviPgpLib;
 
 namespace ComponentBuilder
 {
     public static class Components
     {
-        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher, ILoggerFactory loggerFactory = null)
+        public static ITuviMail CreateTuviMailCore(string filePath, ImplementationDetailsProvider implementationDetailsProvider, ITokenRefresher tokenRefresher, ProtonConfiguration protonConfiguration, ILoggerFactory loggerFactory = null)
         {
             if (loggerFactory != null)
             {
@@ -51,16 +53,34 @@ namespace ComponentBuilder
             var backupProtector = securityManager.GetBackupProtector();
             var backupManager = GetBackupManager(dataStorage, backupProtector, new JsonUtf8SerializationFactory(backupProtector), securityManager);
             var credentialsManager = GetCredentialsManager(dataStorage, tokenRefresher);
-            var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService);
+            var protonMailBoxFactory = GetProtonMailBoxFactory(protonConfiguration);
+            var mailBoxFactory = GetMailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService, protonMailBoxFactory);
             var mailServerTester = GetMailServerTester();
 
-            return TuviCoreCreator.CreateTuviMailCore(mailBoxFactory, mailServerTester, dataStorage, securityManager, backupManager, credentialsManager, implementationDetailsProvider, decClient);
+            return TuviCoreCreator.CreateTuviMailCore(mailBoxFactory,
+                                                      mailServerTester,
+                                                      dataStorage,
+                                                      securityManager,
+                                                      backupManager,
+                                                      credentialsManager,
+                                                      implementationDetailsProvider,
+                                                      decClient);
         }
 
         private static IDecStorageClient GetDecClient()
         {
             //return DecStorageBuilder.CreateWebClient(new System.Uri("http://localhost:7071/api"));
             return DecStorageBuilder.CreateWebClient(new System.Uri("https://testnet2.eppie.io/api"));
+        }
+
+        private static IProtonMailBoxFactory GetProtonMailBoxFactory(ProtonConfiguration protonConfiguration)
+        {
+            return new ProtonHelper(protonConfiguration);
+        }
+
+        public static IProtonLoginHelper GetProtonLoginHelper(ProtonConfiguration protonConfiguration)
+        {
+            return new ProtonHelper(protonConfiguration);
         }
 
         private static ISecurityManager GetSecurityManager(IDataStorage dataStorage, IDecStorageClient decClient, IPublicKeyService publicKeyService)
@@ -89,9 +109,9 @@ namespace ComponentBuilder
             internal static readonly System.Net.Http.HttpClient Instance = new System.Net.Http.HttpClient();
         }
 
-        private static IMailBoxFactory GetMailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService)
+        private static IMailBoxFactory GetMailBoxFactory(IDataStorage dataStorage, ICredentialsManager credentialsManager, IDecStorageClient decClient, IPublicKeyService publicKeyService, IProtonMailBoxFactory protonMailBoxFactory)
         {
-            return new Tuvi.MailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService);
+            return new Tuvi.MailBoxFactory(dataStorage, credentialsManager, decClient, publicKeyService, protonMailBoxFactory);
         }
 
         private static IMailServerTester GetMailServerTester()

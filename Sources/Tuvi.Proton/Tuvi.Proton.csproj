@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tuvi.Core.Entities\Tuvi.Core.Entities.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj" />
   </ItemGroup>
 
 </Project>

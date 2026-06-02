@@ -46,24 +46,20 @@ using Tuvi.Core.Entities;
 using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
 using Tuvi.Proton.Client;
-using Tuvi.Proton.Impl;
 using TuviSRPLib;
 
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Tests")]
 [assembly: InternalsVisibleTo("Tuvi.Core.Mail.Impl.Tests")]
-namespace Tuvi.Proton
+namespace Tuvi.Proton.Impl
 {
-    public delegate Task<(bool completed, string code)> TwoFactorCodeProvider(Exception previousAttemptException, CancellationToken cancellationToken);
-    public delegate Task<(bool completed, string password)> MailboxPasswordProvider(Exception previousAttemptException, CancellationToken cancellationToken);
-    public delegate Task<(bool completed, string verificationType, string token)> HumanVerifier(Uri verifierUrl, Exception previousAttemptException, CancellationToken cancellationToken);
-
-    public static class ClientAuth
+    internal static class ClientAuth
     {
         public static async Task<(string, string, string)> LoginFullAsync(string userName,
                                                                           string password,
                                                                           TwoFactorCodeProvider twoFactorCodeProvider,
                                                                           MailboxPasswordProvider mailboxPasswordProvider,
                                                                           HumanVerifier humanVerifier,
+                                                                          ProtonConfiguration configuration,
                                                                           CancellationToken cancellationToken)
         {
             Debug.Assert(twoFactorCodeProvider != null);
@@ -75,8 +71,8 @@ namespace Tuvi.Proton
                                                                        twoFactorCodeProvider,
                                                                        humanVerifier,
                                                                        null,
-                                                                       cancellationToken)
-                                          .ConfigureAwait(false))
+                                                                       configuration,
+                                                                       cancellationToken).ConfigureAwait(false))
             {
                 var userTask = client.GetUserAsync(cancellationToken);
                 var saltsTask = client.GetSaltsAsync(cancellationToken);
@@ -155,16 +151,15 @@ namespace Tuvi.Proton
         }
     }
 
-    public static class MailBoxCreator
+    internal static class MailBoxCreator
     {
-        public static IMailBox Create(Account account, ICredentialsProvider credentialsProvider, IStorage storage)
+        internal static IMailBox Create(Account account, ICredentialsProvider credentialsProvider, IStorage storage, ProtonConfiguration configuration)
         {
-            return new ProtonMailBox(() => new HttpClient(), account, credentialsProvider, storage);
-
+            return new ProtonMailBox(() => new HttpClient(), account, credentialsProvider, storage, configuration);
         }
-        internal static IMailBox Create(Func<HttpClient> httpClientCreator, Account account, ICredentialsProvider credentialsProvider, IStorage storage)
+        internal static IMailBox Create(Func<HttpClient> httpClientCreator, Account account, ICredentialsProvider credentialsProvider, IStorage storage, ProtonConfiguration configuration)
         {
-            return new ProtonMailBox(httpClientCreator, account, credentialsProvider, storage);
+            return new ProtonMailBox(httpClientCreator, account, credentialsProvider, storage, configuration);
         }
     }
 
@@ -179,9 +174,9 @@ namespace Tuvi.Proton
             folder.Attributes = GetFolderAttributes(label.ID);
             return folder;
         }
-        public static Message ToLocalMessage(this MessageMetadata metadata)
+        public static Tuvi.Proton.Message ToLocalMessage(this MessageMetadata metadata)
         {
-            var message = new Message()
+            var message = new Tuvi.Proton.Message()
             {
                 Subject = metadata.Subject,
                 MessageId = metadata.ID,
@@ -199,7 +194,7 @@ namespace Tuvi.Proton
             return message;
         }
 
-        public static Core.Entities.Message ToCoreMessage(this Message message)
+        public static Core.Entities.Message ToCoreMessage(this Tuvi.Proton.Message message)
         {
             var coreMessage = new Core.Entities.Message()
             {
@@ -399,6 +394,7 @@ namespace Tuvi.Proton
     internal class ProtonMailBox : IMailBox
     {
         private readonly Func<HttpClient> _httpClientCreator;
+        private readonly ProtonConfiguration _configuration;
         private readonly Account _account;
         private readonly ICredentialsProvider _credentialsProvider;
         private readonly IStorage _storage;
@@ -410,12 +406,13 @@ namespace Tuvi.Proton
         private bool _isDisposed;
         private ConcurrentDictionary<string, string> _folderToLabelMap = new ConcurrentDictionary<string, string>();
 
-        public ProtonMailBox(Func<HttpClient> httpClientCreator, Account account, ICredentialsProvider credentialsProvider, IStorage storage)
+        public ProtonMailBox(Func<HttpClient> httpClientCreator, Account account, ICredentialsProvider credentialsProvider, IStorage storage, ProtonConfiguration configuration)
         {
             Debug.Assert(storage != null);
             _httpClientCreator = httpClientCreator;
             _account = account;
             _credentialsProvider = credentialsProvider;
+            _configuration = configuration;
             _storage = storage;
         }
 
@@ -439,7 +436,7 @@ namespace Tuvi.Proton
         {
             var draftMessage = await CreateDraftAsync(message, cancellationToken).ConfigureAwait(false);
             var localMessage = draftMessage.ToLocalMessage();
-            await _storage.AddOrUpdateMessagesAsync(message.Folder.AccountId, new List<Message>() { localMessage }, cancellationToken).ConfigureAwait(false);
+            await _storage.AddOrUpdateMessagesAsync(message.Folder.AccountId, new List<Tuvi.Proton.Message>() { localMessage }, cancellationToken).ConfigureAwait(false);
             return localMessage.ToCoreMessage();
         }
 
@@ -969,7 +966,7 @@ namespace Tuvi.Proton
             var client = await GetClientAsync(cancellationToken).ConfigureAwait(false);
             await action(client, storedMessageIDs).ConfigureAwait(false);
 
-            async Task<Message> GetMessageAsync(Core.Entities.Message message)
+            async Task<Tuvi.Proton.Message> GetMessageAsync(Core.Entities.Message message)
             {
                 var labelID = await GetMessageLabelIdAsync(message.Folder, cancellationToken).ConfigureAwait(false);
                 return await _storage.GetMessageAsync(message.Folder.AccountId, labelID, message.Id, cancellationToken).ConfigureAwait(false);
@@ -1027,7 +1024,7 @@ namespace Tuvi.Proton
                     throw new AuthenticationException("Proton: there is no authentication data");
                 }
 
-                var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, cancellationToken)
+                var client = await Impl.Client.CreateFromRefreshAsync(_httpClientCreator, authData.UserId, authData.RefreshToken, OnRefreshAsync, _configuration, cancellationToken)
                                               .ConfigureAwait(false);
 
                 try
