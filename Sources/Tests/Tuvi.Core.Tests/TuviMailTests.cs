@@ -394,7 +394,10 @@ namespace Tuvi.Core.Tests
 
             string dbPath = Path.Combine(Environment.CurrentDirectory, nameof(CoreAccountOperationTest1) + ".db");
             File.Delete(dbPath);
-            using ITuviMail core = ComponentBuilder.Components.CreateTuviMailCore(dbPath, new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"), tokenRefresher.Object);
+            using ITuviMail core = ComponentBuilder.Components.CreateTuviMailCore(dbPath,
+                                                                                  new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
+                                                                                  tokenRefresher.Object,
+                                                                                  new Proton.ProtonConfiguration());
 
             bool created = false;
             bool deleted = false;
