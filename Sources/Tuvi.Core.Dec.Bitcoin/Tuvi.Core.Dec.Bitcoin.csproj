@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="NBitcoin" Version="10.0.4" />
-    <PackageReference Include="System.Text.Json" Version="10.0.8" />
+    <PackageReference Include="System.Text.Json" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>
