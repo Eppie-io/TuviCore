@@ -17,6 +17,7 @@
 // ---------------------------------------------------------------------------- //
 
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Sec;
@@ -31,6 +32,61 @@ namespace Tuvi.Core.Dec.Names.Tests
     [TestFixture]
     public sealed class NameClaimVerifierTests
     {
+        private readonly record struct UseCase(string Description, string HexSuffix);
+
+        private static IEnumerable<TestCaseData> TrailingSignatureDataCases()
+        {
+            yield return CreateTrailingSignatureDataCase("single zero byte", new byte[] { 0x00 });
+            yield return CreateTrailingSignatureDataCase("single ff byte", new byte[] { 0xFF });
+            yield return CreateTrailingSignatureDataCase("single sequence tag byte", new byte[] { 0x30 });
+            yield return CreateTrailingSignatureDataCase("single integer tag byte", new byte[] { 0x02 });
+            yield return CreateTrailingSignatureDataCase("two zero bytes", new byte[] { 0x00, 0x00 });
+            yield return CreateTrailingSignatureDataCase("alternating bytes", new byte[] { 0xAA, 0x55 });
+            yield return CreateTrailingSignatureDataCase("deadbe suffix", new byte[] { 0xDE, 0xAD, 0xBE });
+            yield return CreateTrailingSignatureDataCase("incrementing bytes", new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            yield return CreateTrailingSignatureDataCase("sequence-like bytes", new byte[] { 0x30, 0x00, 0x00, 0x00 });
+            yield return CreateTrailingSignatureDataCase("descending bytes", new byte[] { 0xFF, 0xEE, 0xDD, 0xCC, 0xBB });
+            yield return CreateTrailingSignatureDataCase("empty sequence object", new byte[] { 0x30, 0x00 });
+            yield return CreateTrailingSignatureDataCase("null object", new byte[] { 0x05, 0x00 });
+            yield return CreateTrailingSignatureDataCase("oid object", new byte[] { 0x06, 0x01, 0x2A });
+            yield return CreateTrailingSignatureDataCase("empty set object", new byte[] { 0x31, 0x00 });
+            yield return CreateTrailingSignatureDataCase("truncated sequence header", new byte[] { 0x30, 0x01 });
+            yield return CreateTrailingSignatureDataCase("truncated integer long length", new byte[] { 0x02, 0x81, 0x01 });
+            yield return CreateTrailingSignatureDataCase("truncated sequence long length", new byte[] { 0x30, 0x81, 0xFF });
+            yield return CreateTrailingSignatureDataCase("eight zero bytes", new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+            yield return CreateTrailingSignatureDataCase("alternating ff and zero bytes", new byte[] { 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00 });
+            yield return CreateTrailingSignatureDataCase("mixed pseudo-random bytes", new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF });
+            yield return CreateTrailingSignatureDataCase("thirty two zero bytes", new byte[32]);
+            yield return CreateTrailingSignatureDataCase("sixty four ff bytes", CreateFilledBytes(64, 0xFF));
+            yield return CreateTrailingSignatureDataCase("two hundred fifty six incrementing bytes", CreateIncrementingBytes(256));
+        }
+
+        private static TestCaseData CreateTrailingSignatureDataCase(string description, byte[] trailingData)
+        {
+            var useCase = new UseCase(description, Convert.ToHexString(trailingData));
+            return new TestCaseData(useCase.Description, useCase.HexSuffix)
+                .SetName($"{nameof(VerifyClaimV1SignatureReturnsFalseOnSignatureWithTrailingData)}_{description.Replace(' ', '_')}");
+        }
+
+        private static byte[] CreateFilledBytes(int length, byte value)
+        {
+            var bytes = new byte[length];
+            Array.Fill(bytes, value);
+            return bytes;
+        }
+
+        private static byte[] CreateIncrementingBytes(int length)
+        {
+            var bytes = new byte[length];
+
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = (byte)i;
+            }
+
+            return bytes;
+        }
+
         private static (string PublicKeyBase32E, ECPrivateKeyParameters PrivateKey) GenerateKeyMaterial()
         {
             var curve = SecNamedCurves.GetByName("secp256k1");
@@ -67,6 +123,100 @@ namespace Tuvi.Core.Dec.Names.Tests
 
             // Act
             var result = NameClaimVerifier.VerifyClaimV1Signature(n, pk, sig);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithREqualToCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(curve.N), new DerInteger(1));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithSEqualToCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(1), new DerInteger(curve.N));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithNegativeRReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var seq = new DerSequence(new DerInteger(-1), new DerInteger(1));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithNegativeSReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var seq = new DerSequence(new DerInteger(1), new DerInteger(-1));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithRGreaterThanCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(curve.N.Add(Org.BouncyCastle.Math.BigInteger.One)), new DerInteger(1));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithSGreaterThanCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(1), new DerInteger(curve.N.Add(Org.BouncyCastle.Math.BigInteger.One)));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
 
             // Assert
             Assert.That(result, Is.False);
@@ -349,19 +499,69 @@ namespace Tuvi.Core.Dec.Names.Tests
             Assert.That(result, Is.False);
         }
 
-        [Test]
-        public void VerifyClaimV1SignatureReturnsFalseOnPaddedBase64Signature()
+        [TestCase("=")]
+        [TestCase("==")]
+        [TestCase("===")]
+        [TestCase("A")]
+        [TestCase("AA")]
+        [TestCase("AA=")]
+        [TestCase("=AAA")]
+        [TestCase("==BB")]
+        [TestCase("AA+")]
+        [TestCase("AA++")]
+        [TestCase("AAA+")]
+        [TestCase("+AAA")]
+        [TestCase("++BB")]
+        public void VerifyClaimV1SignatureReturnsFalseOnPaddedBase64Signature(string appendedData)
         {
             // Arrange
             var (pub, priv) = GenerateKeyMaterial();
             var signature = NameClaimSigner.SignClaimV1("name", pub, priv);
-            var paddedSignature = signature + "AA==";
+            var paddedSignature = signature + appendedData;
 
             // Act
             var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, paddedSignature);
 
             // Assert
             Assert.That(result, Is.False);
+        }
+
+        [TestCase("AA==")]
+        [TestCase("AAA=")]
+        [TestCase("AAAA")]
+        [TestCase("BBBB")]
+        public void VerifyClaimV1SignatureReturnsFalseOnAppendedValidBase64Block(string appendedData)
+        {
+            // Arrange
+            var (pub, priv) = GenerateKeyMaterial();
+            var signature = NameClaimSigner.SignClaimV1("name", pub, priv);
+            var paddedSignature = signature + appendedData;
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, paddedSignature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [TestCaseSource(nameof(TrailingSignatureDataCases))]
+        public void VerifyClaimV1SignatureReturnsFalseOnSignatureWithTrailingData(string description, string hexSuffix)
+        {
+            // Arrange
+            var (pub, priv) = GenerateKeyMaterial();
+            var signature = NameClaimSigner.SignClaimV1("name", pub, priv);
+            var der = Convert.FromBase64String(signature);
+            var trailingData = Convert.FromHexString(hexSuffix);
+            var malformedSignature = new byte[der.Length + trailingData.Length];
+            Buffer.BlockCopy(der, 0, malformedSignature, 0, der.Length);
+            Buffer.BlockCopy(trailingData, 0, malformedSignature, der.Length, trailingData.Length);
+            var malformedSignatureBase64 = Convert.ToBase64String(malformedSignature);
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, malformedSignatureBase64);
+
+            // Assert
+            Assert.That(result, Is.False, $"Trailing data use case '{description}' should be rejected.");
         }
 
         [Test]
