@@ -129,6 +129,38 @@ namespace Tuvi.Core.Dec.Names.Tests
         }
 
         [Test]
+        public void VerifyClaimV1SignatureWithREqualToCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(curve.N), new DerInteger(1));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void VerifyClaimV1SignatureWithSEqualToCurveOrderReturnsFalse()
+        {
+            // Arrange
+            var (pub, _) = GenerateKeyMaterial();
+            var curve = SecNamedCurves.GetByName("secp256k1");
+            var seq = new DerSequence(new DerInteger(1), new DerInteger(curve.N));
+            var signature = Convert.ToBase64String(seq.GetDerEncoded());
+
+            // Act
+            var result = NameClaimVerifier.VerifyClaimV1Signature("name", pub, signature);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
         public void VerifyClaimV1SignatureWithNegativeRReturnsFalse()
         {
             // Arrange

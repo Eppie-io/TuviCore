@@ -79,8 +79,8 @@ namespace Tuvi.Core.Dec.Names
                     return false;
                 }
 
-                r = ((DerInteger)seq[0]).PositiveValue;
-                s = ((DerInteger)seq[1]).PositiveValue;
+                r = ((DerInteger)seq[0]).Value;
+                s = ((DerInteger)seq[1]).Value;
             }
             catch (Exception ex) when (ex is ArgumentException || ex is InvalidCastException || ex is System.IO.EndOfStreamException || ex is System.IO.IOException)
             {
@@ -106,6 +106,11 @@ namespace Tuvi.Core.Dec.Names
                 pub = new ECPublicKeyParameters(q, domain);
             }
             catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
+            {
+                return false;
+            }
+
+            if (r.CompareTo(curveParams.N) >= 0 || s.CompareTo(curveParams.N) >= 0)
             {
                 return false;
             }
