@@ -82,7 +82,7 @@ namespace Tuvi.Core.Dec.Names
                 r = ((DerInteger)seq[0]).PositiveValue;
                 s = ((DerInteger)seq[1]).PositiveValue;
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is InvalidCastException || ex is System.IO.EndOfStreamException)
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidCastException || ex is System.IO.EndOfStreamException || ex is System.IO.IOException)
             {
                 return false;
             }
