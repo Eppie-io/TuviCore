@@ -20,8 +20,6 @@
     <WarningLevel>9999</WarningLevel>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj" />
-  </ItemGroup>
+  <Import Project="..\Tuvi.Core.Web.BackupService.Shared\Tuvi.Core.Web.BackupService.Shared.projitems" Label="Shared" />
 
 </Project>

@@ -31,5 +31,7 @@
     <ProjectReference Include="..\Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj" />
     <ProjectReference Include="..\Tuvi.Core\Tuvi.Core.csproj" />
   </ItemGroup>
+
+  <Import Project="..\Tuvi.Core.Web.BackupService.Shared\Tuvi.Core.Web.BackupService.Shared.projitems" Label="Shared" />
   
 </Project>
