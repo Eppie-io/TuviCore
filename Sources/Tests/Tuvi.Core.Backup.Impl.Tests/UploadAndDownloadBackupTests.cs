@@ -19,12 +19,12 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using BackupServiceClientLibrary;
 using NUnit.Framework;
 using Org.BouncyCastle.Bcpg.OpenPgp;
 using SecurityManagementTests;
 using Tuvi.Core.Backup.Impl;
 using Tuvi.Core.Web.BackupService;
+using Tuvi.Core.Web.BackupService.Client;
 using TuviPgpLibImpl;
 
 namespace BackupTests

@@ -33,10 +33,10 @@
     <ProjectReference Include="..\Tuvi.Core.Dec.Names\Tuvi.Core.Dec.Names.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Dec.Ethereum\Tuvi.Core.Dec.Ethereum.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Dec\Tuvi.Core.Dec.csproj" />
-    <ProjectReference Include="..\Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Web.BackupService\Tuvi.Core.Web.BackupService.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Backup\Tuvi.Core.Backup.csproj" />
     <ProjectReference Include="..\Tuvi.Core.DataStorage\Tuvi.Core.DataStorage.csproj" />
+    <ProjectReference Include="..\Tuvi.Core.Web.BackupService.Client\Tuvi.Core.Web.BackupService.Client.csproj" />
     <ProjectReference Include="..\Tuvi.Core\Tuvi.Core.csproj" />
     <ProjectReference Include="..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj" />
   </ItemGroup>

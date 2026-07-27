@@ -27,9 +27,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\gitmodules\TuviPgpLib\TuviPgpLibImpl\TuviPgpLibImpl.csproj" />
-    <ProjectReference Include="..\..\Tuvi.Core.Web.BackupServiceClient\Tuvi.Core.Web.BackupServiceClient.csproj" />
     <ProjectReference Include="..\..\Tuvi.Core.Backup.Impl\Tuvi.Core.Backup.Impl.csproj" />
     <ProjectReference Include="..\..\Tests\SecurityManagementTests\SecurityManagement.Test.csproj" />
+    <ProjectReference Include="..\..\Tuvi.Core.Web.BackupService.Client\Tuvi.Core.Web.BackupService.Client.csproj" />
   </ItemGroup>
 
 </Project>
