@@ -26,8 +26,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      project: Sources/Tuvi.Core.sln
-      test-project: Sources/Tuvi.Core.sln
+      project: Sources/Tuvi.Core.slnx
+      test-project: Sources/Tuvi.Core.slnx
  
     steps:
     - name: Support longpaths
