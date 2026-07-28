@@ -24,7 +24,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BackupServiceClientLibrary;
 using Microsoft.Extensions.Logging;
 using Tuvi.Core.DataStorage;
 using Tuvi.Core.Dec;
@@ -34,6 +33,7 @@ using Tuvi.Core.Logging;
 using Tuvi.Core.Mail;
 using Tuvi.Core.Utils;
 using Tuvi.Core.Web.BackupService;
+using Tuvi.Core.Web.BackupService.Client;
 
 namespace Tuvi.Core.Impl
 {

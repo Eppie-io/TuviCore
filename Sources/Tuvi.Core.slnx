@@ -1,0 +1,54 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="ComponentBuilder/ComponentBuilder.csproj" />
+    <Project Path="Tuvi.Core.Backup.Impl/Tuvi.Core.Backup.Impl.csproj" />
+    <Project Path="Tuvi.Core.Backup/Tuvi.Core.Backup.csproj" />
+    <Project Path="Tuvi.Core.DataStorage.Impl/Tuvi.Core.DataStorage.Impl.csproj" />
+    <Project Path="Tuvi.Core.DataStorage/Tuvi.Core.DataStorage.csproj" />
+    <Project Path="Tuvi.Core.Dec.Bitcoin/Tuvi.Core.Dec.Bitcoin.csproj" />
+    <Project Path="Tuvi.Core.Dec.Ethereum/Tuvi.Core.Dec.Ethereum.csproj" />
+    <Project Path="Tuvi.Core.Dec.Impl/Tuvi.Core.Dec.Impl.csproj" />
+    <Project Path="Tuvi.Core.Dec.Names/Tuvi.Core.Dec.Names.csproj" />
+    <Project Path="Tuvi.Core.Dec.Web.Impl/Tuvi.Core.Dec.Web.Impl.csproj" />
+    <Project Path="Tuvi.Core.Dec/Tuvi.Core.Dec.csproj" />
+    <Project Path="Tuvi.Core.Entities/Tuvi.Core.Entities.csproj" />
+    <Project Path="Tuvi.Core.Impl/Tuvi.Core.Impl.csproj" />
+    <Project Path="Tuvi.Core.Logging/Tuvi.Core.Logging.csproj" />
+    <Project Path="Tuvi.Core.Mail.Impl/Tuvi.Core.Mail.Impl.csproj" />
+    <Project Path="Tuvi.Core.Mail/Tuvi.Core.Mail.csproj" />
+    <Project Path="Tuvi.Core.Web.BackupService.Client/Tuvi.Core.Web.BackupService.Client.csproj" />
+    <Project Path="Tuvi.Core.Web.BackupService.Shared/Tuvi.Core.Web.BackupService.Shared.shproj" />
+    <Project Path="Tuvi.Core.Web.BackupService/Tuvi.Core.Web.BackupService.csproj" />
+    <Project Path="Tuvi.Core/Tuvi.Core.csproj" />
+    <Project Path="Tuvi.Proton.Impl/Tuvi.Proton.Impl.csproj" />
+    <Project Path="Tuvi.Proton/Tuvi.Proton.csproj" />
+  </Folder>
+  <Folder Name="/Modules/">
+    <Project Path="../gitmodules/proton-cs-client/gitmodules/TuviAuthProtonLib/gitmodules/TuviRestClientLib/source/TuviRestClientLib/TuviRestClientLib.csproj" />
+    <Project Path="../gitmodules/proton-cs-client/gitmodules/TuviAuthProtonLib/gitmodules/TuviSRPLib/TuviSRPLib/ProtonBase64Lib/ProtonBase64Lib.csproj" />
+    <Project Path="../gitmodules/proton-cs-client/gitmodules/TuviAuthProtonLib/gitmodules/TuviSRPLib/TuviSRPLib/TuviSRPLib/TuviSRPLib.csproj" />
+    <Project Path="../gitmodules/proton-cs-client/gitmodules/TuviAuthProtonLib/source/TuviAuthProtonLib/TuviAuthProtonLib.csproj" />
+    <Project Path="../gitmodules/proton-cs-client/gitmodules/TuviAuthProtonLib/source/TuviProtonPrimitiveLib/TuviProtonPrimitiveLib.csproj" />
+    <Project Path="../gitmodules/proton-cs-client/source/proton-cs-client/proton-cs-client.csproj" />
+    <Project Path="../gitmodules/TuviBase32EConverterLib/TuviBytesToEmailConverterLib/TuviBase32EConverterLib/TuviBase32EConverterLib.csproj" />
+    <Project Path="../gitmodules/TuviPgpLib/gitmodules/TuviKeyDerivationLib/KeyDerivationInterface/KeyDerivation.csproj" />
+    <Project Path="../gitmodules/TuviPgpLib/gitmodules/TuviKeyDerivationLib/KeyDerivationLib/KeyDerivationLib.csproj" />
+    <Project Path="../gitmodules/TuviPgpLib/TuviPgpLib/TuviPgpLib.csproj" />
+    <Project Path="../gitmodules/TuviPgpLib/TuviPgpLibImpl/TuviPgpLibImpl.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/SecurityManagementTests/SecurityManagement.Test.csproj" />
+    <Project Path="Tests/Tuvi.Core.Backup.Impl.Tests/Tuvi.Core.Backup.Impl.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.DataStorage.Impl.Tests/Tuvi.Core.DataStorage.Impl.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Dec.Bitcoin.Tests/Tuvi.Core.Dec.Bitcoin.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Dec.Ethereum.Tests/Tuvi.Core.Dec.Ethereum.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Dec.Names.Tests/Tuvi.Core.Dec.Names.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Entities.Tests/Tuvi.Core.Entities.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Mail.Impl.Tests/Tuvi.Core.Mail.Impl.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Core.Tests/Tuvi.Core.Tests.csproj" />
+    <Project Path="Tests/Tuvi.Dec.Web.Impl.Tests/Tuvi.Dec.Web.Impl.Tests.csproj" />
+  </Folder>
+</Solution>

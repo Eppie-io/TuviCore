@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Tuvi.Core.Web.BackupService;
 
-namespace BackupServiceClientLibrary
+namespace Tuvi.Core.Web.BackupService.Client
 {
     /// <summary>
     /// The class contains helper functions for sending and receiving backups.
