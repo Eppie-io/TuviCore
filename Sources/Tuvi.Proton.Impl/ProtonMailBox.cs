@@ -344,7 +344,7 @@ namespace Tuvi.Proton.Impl
             var masterKeyGen = GeneratorUtilities.GetKeyPairGenerator("Ed25519");
             masterKeyGen.Init(new Ed25519KeyGenerationParameters(random));
             // temporary keypair for master key
-            var masterKeyPair = new PgpKeyPair(PublicKeyAlgorithmTag.EdDsa, masterKeyGen.GenerateKeyPair(), privateKey.PublicKeyPacket.GetTime());
+            var masterKeyPair = new PgpKeyPair(PublicKeyAlgorithmTag.EdDsa_Legacy, masterKeyGen.GenerateKeyPair(), privateKey.PublicKeyPacket.GetTime());
             var keyPair = new PgpKeyPair(publicKey, privateKey);
 
             var keyRingGen = new PgpKeyRingGenerator(PgpSignature.PositiveCertification,
