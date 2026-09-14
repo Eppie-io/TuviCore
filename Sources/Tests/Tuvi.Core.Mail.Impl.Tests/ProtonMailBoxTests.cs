@@ -106,7 +106,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Ed25519KeyPairGenerator dhKp = new Ed25519KeyPairGenerator();
             dhKp.Init(new Ed25519KeyGenerationParameters(random));
 
-            return new PgpKeyPair(PublicKeyAlgorithmTag.EdDsa, dhKp.GenerateKeyPair(), DateTime.UtcNow);
+            return new PgpKeyPair(PublicKeyAlgorithmTag.EdDsa_Legacy, dhKp.GenerateKeyPair(), DateTime.UtcNow);
         }
 
         private static byte[] Join(byte[] array1, byte[] array2)
