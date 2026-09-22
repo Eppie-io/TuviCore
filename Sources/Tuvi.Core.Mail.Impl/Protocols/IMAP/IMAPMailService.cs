@@ -32,7 +32,15 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
     class IMAPLogger : IProtocolLogger
     {
-        public IMAPLogger() { }
+        private readonly ILogger _logger;
+        private bool _suppressClientData;
+
+        public IMAPLogger() : this(LoggingExtension.Log<IMAPLogger>()) { }
+
+        internal IMAPLogger(ILogger logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
         public IAuthenticationSecretDetector AuthenticationSecretDetector { get; set; }
 
         public void Dispose()
@@ -42,17 +50,88 @@ namespace Tuvi.Core.Mail.Impl.Protocols.IMAP
 
         public void LogClient(byte[] buffer, int offset, int count)
         {
-            this.Log().LogTrace("IMAP Client: {Data}", Encoding.ASCII.GetString(buffer, offset, count));
+            if (buffer is null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+            if (offset < 0 || offset > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+            if (count < 0 || count > buffer.Length - offset)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            var detector = AuthenticationSecretDetector;
+            if (count == 0 || _suppressClientData || detector is null)
+            {
+                return;
+            }
+
+            bool traceEnabled = _logger.IsEnabled(LogLevel.Trace);
+            var text = traceEnabled ? new StringBuilder() : null;
+            int end = offset + count;
+            while (offset < end)
+            {
+                int lineEnd = offset;
+                while (lineEnd < end && buffer[lineEnd++] != (byte)'\n') { }
+
+                IList<AuthenticationSecret> secrets;
+                try
+                {
+                    secrets = detector.DetectSecrets(buffer, offset, lineEnd - offset);
+                }
+#pragma warning disable CA1031 // A failed detector must suppress payloads for this logger's lifetime.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    _suppressClientData = true;
+                    return;
+                }
+
+                if (secrets is null)
+                {
+                    _suppressClientData = true;
+                    return;
+                }
+                int cursor = offset;
+                foreach (var secret in secrets)
+                {
+                    if (secret.StartIndex < cursor || secret.StartIndex > lineEnd ||
+                        secret.Length < 0 || secret.Length > lineEnd - secret.StartIndex)
+                    {
+                        _suppressClientData = true;
+                        return;
+                    }
+                    if (traceEnabled)
+                    {
+                        text.Append(Encoding.ASCII.GetString(buffer, cursor, secret.StartIndex - cursor));
+                        text.Append("********");
+                    }
+                    cursor = secret.StartIndex + secret.Length;
+                }
+                if (traceEnabled)
+                {
+                    text.Append(Encoding.ASCII.GetString(buffer, cursor, lineEnd - cursor));
+                }
+                offset = lineEnd;
+            }
+
+            if (traceEnabled)
+            {
+                _logger.LogTrace("IMAP Client: {Data}", text.ToString());
+            }
         }
 
         public void LogConnect(Uri uri)
         {
-            this.Log().LogTrace("IMAP connect: {URI}", uri);
+            _logger.LogTrace("IMAP connect: {URI}", uri);
         }
 
         public void LogServer(byte[] buffer, int offset, int count)
         {
-            this.Log().LogTrace("IMAP Server: {Data}", Encoding.ASCII.GetString(buffer, offset, count));
+            _logger.LogTrace("IMAP Server: {Data}", Encoding.ASCII.GetString(buffer, offset, count));
         }
     }
 
