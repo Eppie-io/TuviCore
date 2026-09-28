@@ -172,15 +172,12 @@ namespace BackupTests
         {
             var brokenBackupData = new byte[] { 8, 5, 2, 0 };
 
-            await Task.Run(async () =>
-            {
-                using var backupData = new MemoryStream(brokenBackupData);
-                IBackupParser parser = BackupSerializationFactory.CreateBackupParser();
+            using var backupData = new MemoryStream(brokenBackupData);
+            IBackupParser parser = BackupSerializationFactory.CreateBackupParser();
 
-                Func<Task> act = () => parser.ParseBackupAsync(backupData);
+            Func<Task> act = () => parser.ParseBackupAsync(backupData);
 
-                await Assert.ThrowsAsync<BackupParsingException>(act).ConfigureAwait(false);
-            }).ConfigureAwait(true);
+            await Assert.ThrowsAsync<BackupParsingException>(act).ConfigureAwait(false);
         }
 
         [Test]

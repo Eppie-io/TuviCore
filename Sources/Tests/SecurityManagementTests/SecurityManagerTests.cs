@@ -136,9 +136,9 @@ namespace SecurityManagementTests
                 Func<Task> createSeedPhrase = () => manager.CreateSeedPhraseAsync();
 
                 await Assert.DoesNotThrowAsync(createSeedPhrase).ConfigureAwait(false);
-                manager.StartAsync(Password).Wait();
+                await manager.StartAsync(Password).ConfigureAwait(false);
 
-                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+                Assert.That(await manager.IsSeedPhraseInitializedAsync().ConfigureAwait(false), Is.True);
             }
         }
 
