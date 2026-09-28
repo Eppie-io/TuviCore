@@ -536,7 +536,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Func<Task> act = async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
 
             client.Verify(x => x.PutAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -690,7 +690,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Func<Task> act = async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -757,7 +757,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var inbox = await receiver.GetDefaultInboxFolderAsync(default).ConfigureAwait(true);
             Func<Task> act = async () => await receiver.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<DecException>(act);
+            await Assert.ThrowsAsync<DecException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -855,7 +855,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Assert.That(inbox, Is.Not.Null);
             Func<Task> act = async () => await mailBox.SendMessageAsync(message, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             var messages = await mailBox.GetMessagesAsync(inbox, 100, default).ConfigureAwait(true);
@@ -901,7 +901,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             message.Folder = sent;
             Func<Task> act = async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             await CheckReceiverMessageAsync(receiverAddress, message, client, receiverStorage, index2).ConfigureAwait(true);
@@ -933,8 +933,8 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Func<Task> firstMessage = async () => await sender.SendMessageAsync(message1, default).ConfigureAwait(true);
             Func<Task> secondMessage = async () => await sender.SendMessageAsync(message2, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(firstMessage);
-            Assert.DoesNotThrowAsync(secondMessage);
+            await Assert.DoesNotThrowAsync(firstMessage).ConfigureAwait(false);
+            await Assert.DoesNotThrowAsync(secondMessage).ConfigureAwait(false);
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
 
             using var receiver = CreateDecMailBox(receiverAddress, client.Object, receiverStorage, index2);
@@ -993,7 +993,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
 
             Func<Task> act = async () => await sender.SendMessageAsync(message, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             client.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
             await CheckReceiverMessageAsync(receiverAddress1, message, client, receiverStorage1.Object, index2).ConfigureAwait(true);
@@ -1047,17 +1047,17 @@ namespace Tuvi.Core.Mail.Impl.Tests
             var messageToSign = message.ShallowCopy();
             Func<Task> signMessage = async () => messageToSign = await messageProtector.SignAsync(messageToSign, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(signMessage);
+            await Assert.DoesNotThrowAsync(signMessage).ConfigureAwait(false);
 
             var messageToSignAndEncrypt = message.ShallowCopy();
             Func<Task> signAndEncryptMessage = async () => messageToSignAndEncrypt = await messageProtector.SignAndEncryptAsync(messageToSignAndEncrypt, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(signAndEncryptMessage);
+            await Assert.DoesNotThrowAsync(signAndEncryptMessage).ConfigureAwait(false);
 
             var messageToEncrypt = message.ShallowCopy();
             Func<Task> encryptMessage = async () => messageToEncrypt = await messageProtector.EncryptAsync(messageToEncrypt, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(encryptMessage);
+            await Assert.DoesNotThrowAsync(encryptMessage).ConfigureAwait(false);
 
             using var pgpContext2 = await TemporalKeyStorage.GetTemporalContextAsync(storage).ConfigureAwait(true);
             var messageProtector2 = MessageProtectorCreator.GetMessageProtector(pgpContext2, _publicKeyService);
@@ -1068,12 +1068,12 @@ namespace Tuvi.Core.Mail.Impl.Tests
             Func<Task> verifyEncryptedMessageWithoutSecret = () => messageProtector2.TryVerifyAndDecryptAsync(messageToEncrypt);
             Func<Task> verifyEncryptedMessage = () => messageProtector.TryVerifyAndDecryptAsync(messageToEncrypt);
 
-            Assert.DoesNotThrowAsync(verifySignedMessage);
-            Assert.DoesNotThrowAsync(verifySignedMessage); // we do the same test two times intentionally
-            Assert.ThrowsAsync<NoSecretKeyException>(verifySignedAndEncryptedMessageWithoutSecret);
-            Assert.DoesNotThrowAsync(verifySignedAndEncryptedMessage);
-            Assert.ThrowsAsync<NoSecretKeyException>(verifyEncryptedMessageWithoutSecret);
-            Assert.DoesNotThrowAsync(verifyEncryptedMessage);
+            await Assert.DoesNotThrowAsync(verifySignedMessage).ConfigureAwait(false);
+            await Assert.DoesNotThrowAsync(verifySignedMessage).ConfigureAwait(false); // we do the same test two times intentionally
+            await Assert.ThrowsAsync<NoSecretKeyException>(verifySignedAndEncryptedMessageWithoutSecret).ConfigureAwait(false);
+            await Assert.DoesNotThrowAsync(verifySignedAndEncryptedMessage).ConfigureAwait(false);
+            await Assert.ThrowsAsync<NoSecretKeyException>(verifyEncryptedMessageWithoutSecret).ConfigureAwait(false);
+            await Assert.DoesNotThrowAsync(verifyEncryptedMessage).ConfigureAwait(false);
         }
 
         private static Account CreateAccount(string addressType, EmailAddress address, int accountIndex)

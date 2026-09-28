@@ -104,7 +104,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void CreateFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
+        public async Task CreateFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
         {
             // Arrange
             var securityManagerMock = InitMockSecurityManager();
@@ -128,11 +128,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.CreateFolderAsync(null, "TestFolder").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void CreateFolderAsyncEmptyFolderNameShouldThrowArgumentException()
+        public async Task CreateFolderAsyncEmptyFolderNameShouldThrowArgumentException()
         {
             // Arrange
             var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
@@ -171,8 +171,8 @@ namespace Tuvi.Core.Tests
             Func<Task> emptyFolderName = async () => await core.CreateFolderAsync(accountsList[0].Email, "").ConfigureAwait(false);
             Func<Task> whitespaceFolderName = async () => await core.CreateFolderAsync(accountsList[0].Email, "   ").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(emptyFolderName);
-            Assert.ThrowsAsync<ArgumentException>(whitespaceFolderName);
+            await Assert.ThrowsAsync<ArgumentException>(emptyFolderName).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentException>(whitespaceFolderName).ConfigureAwait(false);
         }
 
         [Test]
@@ -235,7 +235,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void CreateFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
+        public async Task CreateFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var protonAccount = new Account
@@ -287,11 +287,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.CreateFolderAsync(protonAccount.Email, "TestFolder").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void CreateFolderAsyncDecAccountShouldThrowNotSupportedException()
+        public async Task CreateFolderAsyncDecAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var decAccount = new Account
@@ -343,7 +343,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.CreateFolderAsync(decAccount.Email, "TestFolder").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
     }
 }

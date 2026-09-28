@@ -156,20 +156,20 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(DatabaseFileExists(), Is.True);
             Func<Task> openStorage = async () => storage = await OpenDataStorageAsync().ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(openStorage);
+            await Assert.DoesNotThrowAsync(openStorage).ConfigureAwait(false);
             Assert.DoesNotThrow(disposeStorage);
             Assert.That(DatabaseFileExists(), Is.True);
-            Assert.DoesNotThrowAsync(openStorage);
+            await Assert.DoesNotThrowAsync(openStorage).ConfigureAwait(false);
             Func<Task> resetStorage = () => storage.ResetAsync();
 
-            Assert.DoesNotThrowAsync(resetStorage);
+            await Assert.DoesNotThrowAsync(resetStorage).ConfigureAwait(false);
             Assert.That(DatabaseFileExists(), Is.False);
             Assert.DoesNotThrow(disposeStorage);
             Func<Task> createStorage = async () => storage = await CreateDataStorageAsync().ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(createStorage);
+            await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
             Assert.That(DatabaseFileExists(), Is.True);
-            Assert.DoesNotThrowAsync(resetStorage);
+            await Assert.DoesNotThrowAsync(resetStorage).ConfigureAwait(false);
             Assert.That(DatabaseFileExists(), Is.False);
             Assert.DoesNotThrow(disposeStorage);
             Assert.That(DatabaseFileExists(), Is.False);

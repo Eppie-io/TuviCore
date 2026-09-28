@@ -78,7 +78,7 @@ namespace BackupTests
         [Test]
         [Category("Integration")]
         [Category("BackupManager")]
-        public void CreateBackupWithoutSetBackupDetailsThrowsException()
+        public async Task CreateBackupWithoutSetBackupDetailsThrowsException()
         {
             // Arrange
             using var outputStream = new MemoryStream();
@@ -88,13 +88,13 @@ namespace BackupTests
             // This causes ArgumentNullException in BackupManager.CreateBackupAsync when it tries to use accounts
             Func<Task> act = () => BackupManager.CreateBackupAsync(outputStream);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
         [Category("Integration")]
         [Category("BackupManager")]
-        public void RestoreBackupWithoutSetBackupDetailsThrowsException()
+        public async Task RestoreBackupWithoutSetBackupDetailsThrowsException()
         {
             // Arrange
             using var inputStream = new MemoryStream();
@@ -103,7 +103,7 @@ namespace BackupTests
             // The InvalidOperationException is wrapped in BackupParsingException during parsing
             Func<Task> act = () => BackupManager.RestoreBackupAsync(inputStream);
 
-            Assert.ThrowsAsync<BackupParsingException>(act);
+            await Assert.ThrowsAsync<BackupParsingException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -220,7 +220,7 @@ namespace BackupTests
             using var backup = new MemoryStream(backupData);
             Func<Task> act = () => BackupManager.RestoreBackupAsync(backup, CancellationToken.None);
 
-            Assert.ThrowsAsync<BackupVersionMismatchException>(act);
+            await Assert.ThrowsAsync<BackupVersionMismatchException>(act).ConfigureAwait(false);
             Assert.That(accountRestoredCalled, Is.False);
         }
 

@@ -160,7 +160,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnNullName()
+        public async Task SignNameClaimAsyncThrowsOnNullName()
         {
             // Arrange
             using var storage = GetStorage();
@@ -171,11 +171,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync(null, account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnEmptyName()
+        public async Task SignNameClaimAsyncThrowsOnEmptyName()
         {
             // Arrange
             using var storage = GetStorage();
@@ -186,11 +186,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync(string.Empty, account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnWhitespaceName()
+        public async Task SignNameClaimAsyncThrowsOnWhitespaceName()
         {
             // Arrange
             using var storage = GetStorage();
@@ -201,11 +201,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("   ", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnNullAccount()
+        public async Task SignNameClaimAsyncThrowsOnNullAccount()
         {
             // Arrange
             using var storage = GetStorage();
@@ -215,11 +215,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", null).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnBitcoinAccount()
+        public async Task SignNameClaimAsyncThrowsOnBitcoinAccount()
         {
             // Arrange
             using var storage = GetStorage();
@@ -230,11 +230,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnEthereumAccount()
+        public async Task SignNameClaimAsyncThrowsOnEthereumAccount()
         {
             // Arrange
             using var storage = GetStorage();
@@ -245,11 +245,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnTraditionalAccount()
+        public async Task SignNameClaimAsyncThrowsOnTraditionalAccount()
         {
             // Arrange
             using var storage = GetStorage();
@@ -260,11 +260,11 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void SignNameClaimAsyncThrowsOnUninitializedDecentralizedAccountIndex()
+        public async Task SignNameClaimAsyncThrowsOnUninitializedDecentralizedAccountIndex()
         {
             // Arrange
             using var storage = GetStorage();
@@ -281,7 +281,7 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<InvalidOperationException>(act);
+            await Assert.ThrowsAsync<InvalidOperationException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -362,7 +362,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void SignNameClaimAsyncRespectsCancellationToken()
+        public async Task SignNameClaimAsyncRespectsCancellationToken()
         {
             // Arrange
             using var storage = GetStorage();
@@ -375,7 +375,7 @@ namespace SecurityManagementTests
             Func<Task> act = async () => await manager.SignNameClaimAsync("testname", account, cts.Token).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<OperationCanceledException>(act);
+            await Assert.ThrowsAsync<OperationCanceledException>(act).ConfigureAwait(false);
         }
 
         [Test]

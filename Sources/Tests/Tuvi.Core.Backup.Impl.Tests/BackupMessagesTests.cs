@@ -255,7 +255,7 @@ namespace BackupTests
             // Assert
             Func<Task> act = () => parser.GetMessagesAsync();
 
-            Assert.ThrowsAsync<BackupDeserializationException>(act);
+            await Assert.ThrowsAsync<BackupDeserializationException>(act).ConfigureAwait(false);
         }
 
         [Test]

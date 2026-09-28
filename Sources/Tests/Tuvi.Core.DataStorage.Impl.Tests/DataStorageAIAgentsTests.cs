@@ -382,7 +382,7 @@ namespace Tuvi.Core.DataStorage.Tests
 
                 Func<Task> act = async () => await db.DeleteAIAgentAsync(123456).ConfigureAwait(true);
 
-                Assert.DoesNotThrowAsync(act);
+                await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             }
         }
 
@@ -604,7 +604,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 var a2 = CreateAgent("duplicate-name");
                 Func<Task> act = async () => await db.AddAIAgentAsync(a2).ConfigureAwait(true);
 
-                Assert.DoesNotThrowAsync(act);
+                await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
 
                 var agents = await db.GetAIAgentsAsync().ConfigureAwait(true);
                 var dupes = agents.Where(x => x.Name == "duplicate-name").ToList();

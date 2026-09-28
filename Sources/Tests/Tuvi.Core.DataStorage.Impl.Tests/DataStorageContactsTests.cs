@@ -100,7 +100,7 @@ namespace Tuvi.Core.DataStorage.Tests
             // Act + Assert
             Func<Task> addContactWithoutEmail = async () => await db.AddContactAsync(contact, default).ConfigureAwait(false);
 
-            var ex = Assert.CatchAsync<DataBaseException>(addContactWithoutEmail);
+            var ex = await Assert.CatchAsync<DataBaseException>(addContactWithoutEmail).ConfigureAwait(false);
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.Message, Does.Contain("invalid").IgnoreCase);
 
@@ -110,7 +110,7 @@ namespace Tuvi.Core.DataStorage.Tests
             // Act + Assert
             Func<Task> addContact = async () => await db.AddContactAsync(contact, default).ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(addContact);
+            await Assert.DoesNotThrowAsync(addContact).ConfigureAwait(false);
 
             var exists = await db.ExistsContactWithEmailAddressAsync(contact.Email, default).ConfigureAwait(false);
             Assert.That(exists, Is.True);
@@ -186,7 +186,7 @@ namespace Tuvi.Core.DataStorage.Tests
             // Act + Assert
             Func<Task> addDuplicateContact = async () => await db.AddContactAsync(TestData.ContactWithAvatar, default).ConfigureAwait(false);
 
-            var dupEx = Assert.CatchAsync<DataBaseException>(addDuplicateContact);
+            var dupEx = await Assert.CatchAsync<DataBaseException>(addDuplicateContact).ConfigureAwait(false);
             Assert.That(dupEx, Is.Not.Null);
 
             // Act
@@ -327,7 +327,7 @@ namespace Tuvi.Core.DataStorage.Tests
             // Act + Assert
             Func<Task> act = async () => await db.GetContactAsync(new EmailAddress("unknown@mail.box"), default).ConfigureAwait(false);
 
-            Assert.CatchAsync<DataBaseException>(act);
+            await Assert.CatchAsync<DataBaseException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -535,7 +535,7 @@ namespace Tuvi.Core.DataStorage.Tests
                         cancellationToken: cts.Token)
                     .ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(act);
+            await Assert.CatchAsync<OperationCanceledException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -923,8 +923,8 @@ namespace Tuvi.Core.DataStorage.Tests
                         cancellationToken: CancellationToken.None)
                     .ConfigureAwait(false);
 
-            Assert.CatchAsync<ArgumentOutOfRangeException>(zeroCount);
-            Assert.CatchAsync<ArgumentOutOfRangeException>(negativeCount);
+            await Assert.CatchAsync<ArgumentOutOfRangeException>(zeroCount).ConfigureAwait(false);
+            await Assert.CatchAsync<ArgumentOutOfRangeException>(negativeCount).ConfigureAwait(false);
         }
 
         [Test]

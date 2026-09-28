@@ -127,7 +127,7 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void MasterKeyInitializedAfterStart()
+        public async Task MasterKeyInitializedAfterStart()
         {
             using (var storage = GetStorage())
             {
@@ -135,10 +135,10 @@ namespace SecurityManagementTests
 
                 Func<Task> createSeedPhrase = () => manager.CreateSeedPhraseAsync();
 
-                Assert.DoesNotThrowAsync(createSeedPhrase);
-                manager.StartAsync(Password).Wait();
+                await Assert.DoesNotThrowAsync(createSeedPhrase).ConfigureAwait(false);
+                await manager.StartAsync(Password).ConfigureAwait(false);
 
-                Assert.That(manager.IsSeedPhraseInitializedAsync().Result, Is.True);
+                Assert.That(await manager.IsSeedPhraseInitializedAsync().ConfigureAwait(false), Is.True);
             }
         }
 
@@ -191,8 +191,8 @@ namespace SecurityManagementTests
                 Func<Task> startWithOldPassword = () => manager.StartAsync(Password);
                 Func<Task> startWithNewPassword = () => manager.StartAsync(NewPassword);
 
-                Assert.ThrowsAsync<DataBasePasswordException>(startWithOldPassword);
-                Assert.DoesNotThrowAsync(startWithNewPassword);
+                await Assert.ThrowsAsync<DataBasePasswordException>(startWithOldPassword).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(startWithNewPassword).ConfigureAwait(false);
             }
         }
 

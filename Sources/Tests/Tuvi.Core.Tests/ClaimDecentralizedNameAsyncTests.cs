@@ -107,7 +107,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnNullName()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnNullName()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -119,11 +119,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync(null!, account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnEmptyName()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnEmptyName()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -135,11 +135,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync(string.Empty, account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnWhitespaceName()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnWhitespaceName()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -151,11 +151,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("   ", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnNullAccount()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnNullAccount()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -166,11 +166,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", null!).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnBitcoinNetwork()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnBitcoinNetwork()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -182,11 +182,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnEthereumNetwork()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnEthereumNetwork()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -198,11 +198,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsOnTraditionalAccount()
+        public async Task ClaimDecentralizedNameAsyncThrowsOnTraditionalAccount()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -214,11 +214,11 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimDecentralizedNameAsyncThrowsWhenDisposed()
+        public async Task ClaimDecentralizedNameAsyncThrowsWhenDisposed()
         {
             // Arrange
             var securityManagerMock = CreateMockSecurityManager();
@@ -231,7 +231,7 @@ namespace Tuvi.Core.Tests
             Func<Task> act = async () => await core.ClaimDecentralizedNameAsync("testname", account).ConfigureAwait(false);
 
             // Assert
-            Assert.ThrowsAsync<ObjectDisposedException>(act);
+            await Assert.ThrowsAsync<ObjectDisposedException>(act).ConfigureAwait(false);
         }
 
         [Test]

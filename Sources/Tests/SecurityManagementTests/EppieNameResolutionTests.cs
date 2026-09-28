@@ -48,23 +48,23 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void ThrowsWhenNameNotFound()
+        public async Task ThrowsWhenNameNotFound()
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => null));
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "unknown");
             Func<Task> act = () => service.GetEncodedByEmailAsync(email, default);
 
-            Assert.ThrowsAsync<NoPublicKeyException>(act);
+            await Assert.ThrowsAsync<NoPublicKeyException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ThrowsWhenResolvedValueInvalid()
+        public async Task ThrowsWhenResolvedValueInvalid()
         {
             var service = PublicKeyService.CreateDefault(new FakeNameResolver(_ => "invalid_key"));
             var email = EmailAddress.CreateDecentralizedAddress(NetworkType.Eppie, "alias");
             Func<Task> act = () => service.GetEncodedByEmailAsync(email, default);
 
-            Assert.ThrowsAsync<NoPublicKeyException>(act);
+            await Assert.ThrowsAsync<NoPublicKeyException>(act).ConfigureAwait(false);
         }
 
         [Test]

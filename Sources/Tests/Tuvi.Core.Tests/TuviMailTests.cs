@@ -130,7 +130,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void AddTwoSameAccounts()
+        public async Task AddTwoSameAccounts()
         {
             var securityManagerMock = InitMockSecurityManager();
             var mailBoxFactoryMock = new Mock<IMailBoxFactory>();
@@ -160,11 +160,11 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.AddAccountAsync(account, default);
 
-            Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(act);
+            await Assert.ThrowsAsync<AccountAlreadyExistInDatabaseException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void AddAccountWithIncorrectData()
+        public async Task AddAccountWithIncorrectData()
         {
             var securityManagerMock = InitMockSecurityManager();
             var mailBoxFactoryMock = new Mock<IMailBoxFactory>();
@@ -194,7 +194,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = async () => await core.AddAccountAsync(account, default).ConfigureAwait(true);
 
-            Assert.ThrowsAsync<ConnectionException>(act);
+            await Assert.ThrowsAsync<ConnectionException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -459,7 +459,7 @@ namespace Tuvi.Core.Tests
             cts.Cancel();
             Func<Task> act = async () => await serverTask.ConfigureAwait(true);
 
-            Assert.ThrowsAsync<OperationCanceledException>(act);
+            await Assert.ThrowsAsync<OperationCanceledException>(act).ConfigureAwait(false);
         }
     }
 }

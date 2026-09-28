@@ -548,7 +548,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 await storage.GetMessagesAsync(accountId, label, 0, true, 0).ConfigureAwait(true);
             };
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -583,7 +583,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
                 byIds = res.ToList();
             };
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             Assert.That(byIds.Count, Is.EqualTo(messageCount));
             // Order should correspond to input ids order
             for (int i = 0; i < ids.Count; i++)

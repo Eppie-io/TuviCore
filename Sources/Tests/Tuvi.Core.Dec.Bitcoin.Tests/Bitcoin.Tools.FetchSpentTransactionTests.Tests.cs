@@ -147,7 +147,7 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
         }
 
         [Test]
-        public void FetchSpentTransactionAsyncCancelsWhenTokenIsTriggered()
+        public async Task FetchSpentTransactionAsyncCancelsWhenTokenIsTriggered()
         {
             var handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
@@ -162,8 +162,8 @@ namespace Tuvi.Core.Dec.Bitcoin.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(() =>
-                 BitcoinToolsImpl.FetchSpentTransactionAsync(BitcoinNetworkConfig.TestNet4, Address2, httpClient, cts.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(() =>
+                 BitcoinToolsImpl.FetchSpentTransactionAsync(BitcoinNetworkConfig.TestNet4, Address2, httpClient, cts.Token)).ConfigureAwait(false);
         }
     }
 

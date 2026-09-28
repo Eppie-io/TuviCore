@@ -109,33 +109,33 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         }
 
         [Test]
-        public void ClaimNameAsyncThrowsOnEmptyName()
+        public async Task ClaimNameAsyncThrowsOnEmptyName()
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
             Func<Task> act = async () => await client.ClaimNameAsync("", "ADDR", "sig", _ct).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ClaimNameAsyncThrowsOnEmptyAddress()
+        public async Task ClaimNameAsyncThrowsOnEmptyAddress()
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
             Func<Task> act = async () => await client.ClaimNameAsync("name", "", "sig", _ct).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void GetAddressByNameAsyncThrowsOnEmptyName()
+        public async Task GetAddressByNameAsyncThrowsOnEmptyName()
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
             Func<Task> act = async () => await client.GetAddressByNameAsync("", _ct).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(act);
+            await Assert.ThrowsAsync<ArgumentException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -169,7 +169,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
         }
 
         [Test]
-        public void GetAddressByNameAsyncNotFoundReturnsEmptyString()
+        public async Task GetAddressByNameAsyncNotFoundReturnsEmptyString()
         {
             using var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -178,7 +178,7 @@ namespace Tuvi.Core.Dec.Web.Impl.Tests
 
             Func<Task> act = async () => await client.GetAddressByNameAsync("unknown", _ct).ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
         }
 
         [Test]
