@@ -75,36 +75,36 @@ namespace Tuvi.Core.Mail.Impl.Tests
         }
 
         [Test]
-        public void ConnectWithIncorrectServerAddressTest()
+        public async Task ConnectWithIncorrectServerAddressTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", ServerPort, credentialsProviderMock.Object);
             Func<Task> act = async () => await service.ConnectAsync(default).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ConnectionException>(act);
+            await Assert.ThrowsAsync<ConnectionException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ConnectWithIncorrectPortNumberTest()
+        public async Task ConnectWithIncorrectPortNumberTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, ServerAddress, 54321, credentialsProviderMock.Object);
             Func<Task> act = async () => await service.ConnectAsync(default).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ConnectionException>(act);
+            await Assert.ThrowsAsync<ConnectionException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void ConnectWithIncorrectAddressNameAndPortNumberTest()
+        public async Task ConnectWithIncorrectAddressNameAndPortNumberTest()
         {
             var imapClientMock = CreateClientMockForConnectTests();
             var credentialsProviderMock = new Mock<ICredentialsProvider>();
             using var service = new IMAPMailService(imapClientMock.Object, "mail.test.com.mail.test", 54321, credentialsProviderMock.Object);
             Func<Task> act = async () => await service.ConnectAsync(default).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ConnectionException>(act);
+            await Assert.ThrowsAsync<ConnectionException>(act).ConfigureAwait(false);
         }
 
 

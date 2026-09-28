@@ -250,7 +250,7 @@ namespace Tuvi.Core.DataStorage.Impl.Tests.FolderRenameTests
             Func<Task> act = async () =>
                 await db.UpdateFolderPathAsync(account.Email, "Ghost", "Buster").ConfigureAwait(true);
 
-            Assert.ThrowsAsync<DataBaseException>(act);
+            await Assert.ThrowsAsync<DataBaseException>(act).ConfigureAwait(false);
         }
 
         [TestCaseSource(nameof(PrefixCollisionCases))]

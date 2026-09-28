@@ -411,7 +411,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(null, false, false, default);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -429,7 +429,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(message, false, false, default);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), default), Times.Once);
 
             // TODO: uncomment this and fix
@@ -449,7 +449,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(null, encrypt: true, sign: true, default);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -469,7 +469,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: true, default);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAndEncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -485,7 +485,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => accountService.SendMessageAsync(null, encrypt: false, sign: true, default);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -505,7 +505,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(message, encrypt: false, sign: true, default);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.SignAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -521,7 +521,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => accountService.SendMessageAsync(null, encrypt: true, sign: false, default);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -540,7 +540,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = () => core.SendMessageAsync(message, encrypt: true, sign: false, default);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             mailBox.Verify(x => x.SendMessageAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
             messageProtector.Verify(x => x.EncryptAsync(It.IsNotNull<Message>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -565,7 +565,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Tuvi.Core.Tests
 
             Func<Task> act = async () => await accountService.SynchronizeAsync(true, default).ConfigureAwait(true);
 
-            Assert.DoesNotThrowAsync(act);
+            await Assert.DoesNotThrowAsync(act).ConfigureAwait(false);
             var storedMessages = await core.GetAllEarlierMessagesAsync(100, null, default).ConfigureAwait(true);
             Assert.That(storedMessages.Count, Is.EqualTo(2));
             Assert.That(storedMessages[0].Id, Is.EqualTo(1000));

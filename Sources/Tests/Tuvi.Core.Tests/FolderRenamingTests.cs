@@ -151,7 +151,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void RenameFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
+        public async Task RenameFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -164,11 +164,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(null, testFolder, "NewName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void RenameFolderAsyncNullFolderShouldThrowArgumentNullException()
+        public async Task RenameFolderAsyncNullFolderShouldThrowArgumentNullException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -179,11 +179,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(account.Email, null, "NewName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void RenameFolderAsyncEmptyNameShouldThrowArgumentException()
+        public async Task RenameFolderAsyncEmptyNameShouldThrowArgumentException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -197,12 +197,12 @@ namespace Tuvi.Core.Tests
             Func<Task> emptyName = async () => await core.RenameFolderAsync(account.Email, testFolder, "").ConfigureAwait(false);
             Func<Task> whitespaceName = async () => await core.RenameFolderAsync(account.Email, testFolder, "   ").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(emptyName);
-            Assert.ThrowsAsync<ArgumentException>(whitespaceName);
+            await Assert.ThrowsAsync<ArgumentException>(emptyName).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentException>(whitespaceName).ConfigureAwait(false);
         }
 
         [Test]
-        public void RenameFolderAsyncSpecialFolderShouldThrowInvalidOperationException()
+        public async Task RenameFolderAsyncSpecialFolderShouldThrowInvalidOperationException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -215,11 +215,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(account.Email, inboxFolder, "NewName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(act);
+            await Assert.ThrowsAsync<InvalidOperationException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void RenameFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
+        public async Task RenameFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var protonAccount = new Account
@@ -245,7 +245,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(protonAccount.Email, testFolder, "NewName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
 
             _dataStorageMock.Verify(d => d.UpdateFolderPathAsync(
                 protonAccount.Email,
@@ -258,7 +258,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void RenameFolderAsyncDecAccountShouldThrowNotSupportedException()
+        public async Task RenameFolderAsyncDecAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var decAccount = new Account
@@ -284,7 +284,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(decAccount.Email, testFolder, "NewName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
 
             _dataStorageMock.Verify(d => d.UpdateFolderPathAsync(
                 decAccount.Email,
@@ -297,7 +297,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void RenameFolderAsyncAccountNotFoundShouldThrowException()
+        public async Task RenameFolderAsyncAccountNotFoundShouldThrowException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -314,13 +314,13 @@ namespace Tuvi.Core.Tests
             // Since specific exception type is not known in this context, catch generic Exception.
             Func<Task> act = async () => await core.RenameFolderAsync(account.Email, testFolder, "NewName").ConfigureAwait(false);
 
-            Assert.CatchAsync<Exception>(act);
+            await Assert.CatchAsync<Exception>(act).ConfigureAwait(false);
 
             _mailBoxMock.Verify(m => m.RenameFolderAsync(It.IsAny<Folder>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
-        public void RenameFolderAsyncSameNameShouldThrowInvalidOperationException()
+        public async Task RenameFolderAsyncSameNameShouldThrowInvalidOperationException()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -338,7 +338,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(account.Email, testFolder, "SameName").ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(act);
+            await Assert.ThrowsAsync<InvalidOperationException>(act).ConfigureAwait(false);
 
             // Verify MailBox.RenameFolderAsync is never called
             _mailBoxMock.Verify(m => m.RenameFolderAsync(
@@ -357,7 +357,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void RenameFolderAsyncStorageFailureShouldThrowIOExceptionAndNotUpdateLocal()
+        public async Task RenameFolderAsyncStorageFailureShouldThrowIOExceptionAndNotUpdateLocal()
         {
             // Arrange
             var account = TestAccountInfo.GetAccount();
@@ -378,7 +378,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.RenameFolderAsync(account.Email, testFolder, "NewFolderName").ConfigureAwait(false);
 
-            var ex = Assert.CatchAsync<IOException>(act);
+            var ex = await Assert.CatchAsync<IOException>(act).ConfigureAwait(false);
 
             // Verify exception message
             Assert.That(ex.Message, Is.EqualTo("Connection failed"));

@@ -220,7 +220,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             msg.Folder = sentFolder;
 
             Func<Task> act = () => box.SendMessageAsync(msg, default);
-            Assert.ThrowsAsync<NoPublicKeyException>(act);
+            await Assert.ThrowsAsync<NoPublicKeyException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -348,7 +348,7 @@ namespace Tuvi.Core.Mail.Impl.Tests
             msg.Folder = sentFolder;
 
             Func<Task> act = () => senderBox.SendMessageAsync(msg, default);
-            Assert.ThrowsAsync<NoPublicKeyException>(act);
+            await Assert.ThrowsAsync<NoPublicKeyException>(act).ConfigureAwait(false);
             Assert.That(resolver.CallCount, Is.GreaterThanOrEqualTo(1));
         }
 

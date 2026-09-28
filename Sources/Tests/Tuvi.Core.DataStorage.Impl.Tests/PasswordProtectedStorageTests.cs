@@ -36,79 +36,79 @@ namespace Tuvi.Core.DataStorage.Tests
         }
 
         [Test]
-        public void StorageNotExist()
+        public async Task StorageNotExist()
         {
             using (var storage = GetDataStorage())
             {
                 Func<Task> openStorage = () => storage.OpenAsync(Password);
                 Func<Task> createStorage = () => storage.CreateAsync(Password);
 
-                Assert.ThrowsAsync<DataBaseNotCreatedException>(openStorage);
-                Assert.DoesNotThrowAsync(createStorage);
+                await Assert.ThrowsAsync<DataBaseNotCreatedException>(openStorage).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void StorageExist()
+        public async Task StorageExist()
         {
             using (var storage = GetDataStorage())
             {
                 Func<Task> createStorage = () => storage.CreateAsync(Password);
                 Func<Task> openStorage = () => storage.OpenAsync(Password);
 
-                Assert.DoesNotThrowAsync(createStorage);
-                Assert.ThrowsAsync<DataBaseAlreadyExistsException>(createStorage);
-                Assert.DoesNotThrowAsync(openStorage);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
+                await Assert.ThrowsAsync<DataBaseAlreadyExistsException>(createStorage).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openStorage).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void OpenAndSetPassword()
+        public async Task OpenAndSetPassword()
         {
             using (var storage = GetDataStorage())
             {
                 Func<Task> createStorage = () => storage.CreateAsync(Password);
                 Func<Task> openStorage = () => storage.OpenAsync(Password);
 
-                Assert.DoesNotThrowAsync(createStorage);
-                Assert.DoesNotThrowAsync(openStorage);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openStorage).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void OpenWithCorrectPassword()
+        public async Task OpenWithCorrectPassword()
         {
-            OpenAndSetPassword();
+            await OpenAndSetPassword().ConfigureAwait(false);
 
             using (var storage = GetDataStorage())
             {
                 Func<Task> openStorage = () => storage.OpenAsync(Password);
 
-                Assert.DoesNotThrowAsync(openStorage);
+                await Assert.DoesNotThrowAsync(openStorage).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void OpenWithIncorrectPassword()
+        public async Task OpenWithIncorrectPassword()
         {
-            OpenAndSetPassword();
+            await OpenAndSetPassword().ConfigureAwait(false);
 
             using (var storage = GetDataStorage())
             {
                 Func<Task> openStorage = () => storage.OpenAsync(IncorrectPassword);
 
-                Assert.ThrowsAsync<DataBasePasswordException>(openStorage);
+                await Assert.ThrowsAsync<DataBasePasswordException>(openStorage).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void ChangePassword()
+        public async Task ChangePassword()
         {
             using (var storage = GetDataStorage())
             {
                 Func<Task> createStorage = () => storage.CreateAsync(Password);
 
-                Assert.DoesNotThrowAsync(createStorage);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
             }
 
 
@@ -116,14 +116,14 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 Func<Task> changePassword = () => storage.ChangePasswordAsync(Password, NewPassword);
 
-                Assert.DoesNotThrowAsync(changePassword);
+                await Assert.DoesNotThrowAsync(changePassword).ConfigureAwait(false);
             }
 
             using (var storage = GetDataStorage())
             {
                 Func<Task> openWithNewPassword = () => storage.OpenAsync(NewPassword);
 
-                Assert.DoesNotThrowAsync(openWithNewPassword);
+                await Assert.DoesNotThrowAsync(openWithNewPassword).ConfigureAwait(false);
             }
 
             using (var storage = GetDataStorage())
@@ -131,8 +131,8 @@ namespace Tuvi.Core.DataStorage.Tests
                 Func<Task> openWithOldPassword = () => storage.OpenAsync(Password);
                 Func<Task> openWithNewPassword = () => storage.OpenAsync(NewPassword);
 
-                Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword);
-                Assert.DoesNotThrowAsync(openWithNewPassword);
+                await Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openWithNewPassword).ConfigureAwait(false);
             }
         }
 
@@ -148,7 +148,7 @@ namespace Tuvi.Core.DataStorage.Tests
         }
 
         [Test]
-        public void MultiplePasswordChange()
+        public async Task MultiplePasswordChange()
         {
             const string NewPassword1 = "newPass1";
             const string NewPassword2 = "newPass2";
@@ -158,14 +158,14 @@ namespace Tuvi.Core.DataStorage.Tests
             {
                 Func<Task> createStorage = () => storage.CreateAsync(Password);
 
-                Assert.DoesNotThrowAsync(createStorage);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
             }
 
             using (var storage = GetDataStorage())
             {
                 Func<Task> changeToNewPassword1 = () => storage.ChangePasswordAsync(Password, NewPassword1);
 
-                Assert.DoesNotThrowAsync(changeToNewPassword1);
+                await Assert.DoesNotThrowAsync(changeToNewPassword1).ConfigureAwait(false);
             }
 
             using (var storage = GetDataStorage())
@@ -174,9 +174,9 @@ namespace Tuvi.Core.DataStorage.Tests
                 Func<Task> openWithNewPassword1 = () => storage.OpenAsync(NewPassword1);
                 Func<Task> changeToNewPassword2 = () => storage.ChangePasswordAsync(NewPassword1, NewPassword2);
 
-                Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword);
-                Assert.DoesNotThrowAsync(openWithNewPassword1);
-                Assert.DoesNotThrowAsync(changeToNewPassword2);
+                await Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openWithNewPassword1).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(changeToNewPassword2).ConfigureAwait(false);
             }
 
             using (var storage = GetDataStorage())
@@ -186,15 +186,15 @@ namespace Tuvi.Core.DataStorage.Tests
                 Func<Task> openWithNewPassword2 = () => storage.OpenAsync(NewPassword2);
                 Func<Task> changeToNewPassword3 = () => storage.ChangePasswordAsync(NewPassword2, NewPassword3);
 
-                Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword);
-                Assert.ThrowsAsync<DataBasePasswordException>(openWithNewPassword1);
-                Assert.DoesNotThrowAsync(openWithNewPassword2);
-                Assert.DoesNotThrowAsync(changeToNewPassword3);
+                await Assert.ThrowsAsync<DataBasePasswordException>(openWithOldPassword).ConfigureAwait(false);
+                await Assert.ThrowsAsync<DataBasePasswordException>(openWithNewPassword1).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openWithNewPassword2).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(changeToNewPassword3).ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void MultiplePasswordChangeWithReset()
+        public async Task MultiplePasswordChangeWithReset()
         {
             const string NewPassword1 = "newPass1";
             const string NewPassword2 = "newPass2";
@@ -211,14 +211,14 @@ namespace Tuvi.Core.DataStorage.Tests
                 Func<Task> openWithNewPassword3 = () => storage.OpenAsync(NewPassword3);
                 Func<Task> resetStorage = () => storage.ResetAsync();
 
-                Assert.DoesNotThrowAsync(createStorage);
-                Assert.DoesNotThrowAsync(openWithPassword);
-                Assert.DoesNotThrowAsync(changeToNewPassword1);
-                Assert.DoesNotThrowAsync(changeToNewPassword2);
-                Assert.DoesNotThrowAsync(changeToNewPassword3);
+                await Assert.DoesNotThrowAsync(createStorage).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openWithPassword).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(changeToNewPassword1).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(changeToNewPassword2).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(changeToNewPassword3).ConfigureAwait(false);
 
-                Assert.DoesNotThrowAsync(openWithNewPassword3);
-                Assert.DoesNotThrowAsync(resetStorage);
+                await Assert.DoesNotThrowAsync(openWithNewPassword3).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(resetStorage).ConfigureAwait(false);
 
                 // Verify storage file removed and can be recreated again after reset
                 Assert.That(DatabaseFileExists(), Is.False);
@@ -229,9 +229,9 @@ namespace Tuvi.Core.DataStorage.Tests
                 Func<Task> openWithNewPassword3 = () => storage.OpenAsync(NewPassword3);
                 Func<Task> createWithNewPassword3 = () => storage.CreateAsync(NewPassword3);
 
-                Assert.ThrowsAsync<DataBaseNotCreatedException>(openWithNewPassword3);
-                Assert.DoesNotThrowAsync(createWithNewPassword3);
-                Assert.DoesNotThrowAsync(openWithNewPassword3);
+                await Assert.ThrowsAsync<DataBaseNotCreatedException>(openWithNewPassword3).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(createWithNewPassword3).ConfigureAwait(false);
+                await Assert.DoesNotThrowAsync(openWithNewPassword3).ConfigureAwait(false);
             }
         }
     }

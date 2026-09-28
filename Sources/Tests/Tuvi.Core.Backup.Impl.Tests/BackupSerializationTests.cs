@@ -138,7 +138,7 @@ namespace BackupTests
 
                 Func<Task> act = () => parser.GetAccountsAsync();
 
-                Assert.ThrowsAsync<BackupDeserializationException>(act);
+                await Assert.ThrowsAsync<BackupDeserializationException>(act).ConfigureAwait(false);
             }
         }
 
@@ -172,14 +172,14 @@ namespace BackupTests
         {
             var brokenBackupData = new byte[] { 8, 5, 2, 0 };
 
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 using var backupData = new MemoryStream(brokenBackupData);
                 IBackupParser parser = BackupSerializationFactory.CreateBackupParser();
 
                 Func<Task> act = () => parser.ParseBackupAsync(backupData);
 
-                Assert.ThrowsAsync<BackupParsingException>(act);
+                await Assert.ThrowsAsync<BackupParsingException>(act).ConfigureAwait(false);
             }).ConfigureAwait(true);
         }
 

@@ -144,13 +144,13 @@ namespace SecurityManagementTests
         }
 
         [Test]
-        public void ResolveEmailNullThrows()
+        public async Task ResolveEmailNullThrows()
         {
             Func<Task> act1 = () => _svc.GetEncodedByEmailAsync(null, default);
             Func<Task> act2 = () => _svc.GetByEmailAsync(null, default);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act1);
-            Assert.ThrowsAsync<ArgumentNullException>(act2);
+            await Assert.ThrowsAsync<ArgumentNullException>(act1).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentNullException>(act2).ConfigureAwait(false);
         }
     }
 }

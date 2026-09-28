@@ -106,7 +106,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void DeleteFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
+        public async Task DeleteFolderAsyncNullAccountEmailShouldThrowArgumentNullException()
         {
             // Arrange
             var securityManagerMock = InitMockSecurityManager();
@@ -132,11 +132,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.DeleteFolderAsync(null, testFolder).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void DeleteFolderAsyncNullFolderShouldThrowArgumentNullException()
+        public async Task DeleteFolderAsyncNullFolderShouldThrowArgumentNullException()
         {
             // Arrange
             var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
@@ -174,7 +174,7 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.DeleteFolderAsync(accountsList[0].Email, null).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(act);
+            await Assert.ThrowsAsync<ArgumentNullException>(act).ConfigureAwait(false);
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public void DeleteFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
+        public async Task DeleteFolderAsyncProtonMailAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var protonAccount = new Account
@@ -293,11 +293,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.DeleteFolderAsync(protonAccount.Email, testFolder).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void DeleteFolderAsyncDecAccountShouldThrowNotSupportedException()
+        public async Task DeleteFolderAsyncDecAccountShouldThrowNotSupportedException()
         {
             // Arrange
             var decAccount = new Account
@@ -351,11 +351,11 @@ namespace Tuvi.Core.Tests
             // Act & Assert
             Func<Task> act = async () => await core.DeleteFolderAsync(decAccount.Email, testFolder).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<NotSupportedException>(act);
+            await Assert.ThrowsAsync<NotSupportedException>(act).ConfigureAwait(false);
         }
 
         [Test]
-        public void DeleteFolderAsyncSpecialFolderShouldThrowInvalidOperationException()
+        public async Task DeleteFolderAsyncSpecialFolderShouldThrowInvalidOperationException()
         {
             // Arrange
             var accountsList = new List<Account>() { TestAccountInfo.GetAccount() };
@@ -408,13 +408,13 @@ namespace Tuvi.Core.Tests
             Func<Task> important = async () => await core.DeleteFolderAsync(accountsList[0].Email, importantFolder).ConfigureAwait(false);
             Func<Task> all = async () => await core.DeleteFolderAsync(accountsList[0].Email, allFolder).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(inbox);
-            Assert.ThrowsAsync<InvalidOperationException>(sent);
-            Assert.ThrowsAsync<InvalidOperationException>(trash);
-            Assert.ThrowsAsync<InvalidOperationException>(draft);
-            Assert.ThrowsAsync<InvalidOperationException>(junk);
-            Assert.ThrowsAsync<InvalidOperationException>(important);
-            Assert.ThrowsAsync<InvalidOperationException>(all);
+            await Assert.ThrowsAsync<InvalidOperationException>(inbox).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(sent).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(trash).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(draft).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(junk).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(important).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(all).ConfigureAwait(false);
         }
     }
 }
