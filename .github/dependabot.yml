@@ -13,8 +13,14 @@ updates:
       prefix: "build"
       include: "scope"
     ignore:
-      - dependency-name: "Microsoft.AspNetCore.Http.Features"
-        versions: ["5.*"]                     # This package [version 5] has been deprecated
+      # UWP (.NET Native) can't use MimeKit version higher than 4.17
+      # This should be removed after migrating Eppie(UWP app) from .NET Native to modern .NET
+      - dependency-name: "MimeKit"
+        versions: [">= 4.18.0"]
+      # UWP (.NET Native) can't use MailKit version higher than 4.17
+      # This should be removed after migrating Eppie(UWP app) from .NET Native to modern .NET
+      - dependency-name: "MailKit"
+        versions: [">= 4.18.0"]
     groups:
       Microsoft:
         patterns:
