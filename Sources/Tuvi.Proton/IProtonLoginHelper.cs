@@ -35,6 +35,12 @@ namespace Tuvi.Proton
         public string ClientSecret { get; set; }
     }
 
+    public interface IHumanVerificationData
+    {
+        string HumanVerificationType { get; }
+        string Token { get; }
+    }
+
     public interface IProtonLoginHelper
     {
         Task<ProtonCredentials> LoginAsync(string userName,
@@ -43,5 +49,14 @@ namespace Tuvi.Proton
                                            MailboxPasswordProvider mailboxPasswordProvider,
                                            HumanVerifier humanVerifier,
                                            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Tries to deserialize the human verification response from JSON.
+        /// Only the CAPTCHA type is supported. If the response is not of this type, the method returns false.
+        /// </summary>
+        /// <param name="json">The JSON string to deserialize.</param>
+        /// <param name="data">The deserialized human verification data. data.Token can be null or empty.</param>
+        /// <returns>True if deserialization was successful; otherwise, false.</returns>
+        bool TryDeserializeHumanVerificationResponse(string json, out IHumanVerificationData data);
     }
 }
