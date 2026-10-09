@@ -35,6 +35,12 @@ namespace Tuvi.Proton
         public string ClientSecret { get; set; }
     }
 
+    public interface IHumanVerificationData
+    {
+        string HumanVerificationType { get; }
+        string Token { get; }
+    }
+
     public interface IProtonLoginHelper
     {
         Task<ProtonCredentials> LoginAsync(string userName,
@@ -43,5 +49,7 @@ namespace Tuvi.Proton
                                            MailboxPasswordProvider mailboxPasswordProvider,
                                            HumanVerifier humanVerifier,
                                            CancellationToken cancellationToken);
+
+        bool TryDeserializeHumanVerificationResponse(string json, out IHumanVerificationData data);
     }
 }

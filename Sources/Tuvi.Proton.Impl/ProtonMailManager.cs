@@ -16,6 +16,9 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
+using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Tuvi.Core.Entities;
@@ -58,6 +61,52 @@ namespace Tuvi.Proton.Impl
                 RefreshToken = refreshToken,
                 SaltedPassword = saltedKeyPass
             };
+        }
+
+        public bool TryDeserializeHumanVerificationResponse(string json, out IHumanVerificationData data)
+        {
+            data = null;
+            if (HumanVerificationCaptchaResponse.TryDeserialize(json, out var captchaResponse) && captchaResponse.IsCaptcha())
+            {
+                data = captchaResponse;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    internal class HumanVerificationCaptchaResponse : IHumanVerificationData
+    {
+        public string HumanVerificationType => "captcha";
+        private const string PostMessageCaptchaTypeKey = "pm_captcha";
+
+        [JsonPropertyName("type")]
+        public string PostMessageType { get; set; }
+
+        [JsonPropertyName("token")]
+        public string Token { get; set; }
+
+        public bool IsCaptcha()
+        {
+            return !string.IsNullOrEmpty(PostMessageType) && PostMessageType == PostMessageCaptchaTypeKey;
+        }
+
+        public static bool TryDeserialize(string json, out HumanVerificationCaptchaResponse response)
+        {
+            response = null;
+            try
+            {
+                response = JsonSerializer.Deserialize<HumanVerificationCaptchaResponse>(json);
+                return true;
+            }
+            catch (ArgumentNullException)
+            { }
+            catch (JsonException)
+            { }
+            catch (NotSupportedException)
+            { }
+
+            return false;
         }
     }
 }
