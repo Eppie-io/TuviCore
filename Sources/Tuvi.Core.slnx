@@ -38,6 +38,8 @@
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/SecurityManagementTests/SecurityManagement.Test.csproj" />
