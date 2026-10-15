@@ -21,8 +21,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MimeKit" Version="4.17.0" />
-    <PackageReference Include="System.Text.Json" Version="10.0.13" />
+    <PackageReference Include="MimeKit" />
+    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
   <ItemGroup>
