@@ -24,4 +24,10 @@
     <PackageVersion Include="System.Data.HashFunction.CityHash" Version="2.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.14" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!--  Update transitive packages containing known high severity vulnerabilities here.  -->
+    <!-- From The `MimeKit` package -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+  </ItemGroup>
 </Project>
