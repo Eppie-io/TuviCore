@@ -24,6 +24,7 @@ using Org.BouncyCastle.Asn1.Sec;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
 using Tuvi.Base32EConverterLib;
 
@@ -134,7 +135,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
             var curve = SecNamedCurves.GetByName("secp256k1");
-            var seq = new DerSequence(new DerInteger(curve.N), new DerInteger(1));
+            var seq = new DerSequence(new DerInteger(curve.N), new DerInteger(BigInteger.One));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -150,7 +151,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
             var curve = SecNamedCurves.GetByName("secp256k1");
-            var seq = new DerSequence(new DerInteger(1), new DerInteger(curve.N));
+            var seq = new DerSequence(new DerInteger(BigInteger.One), new DerInteger(curve.N));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -165,7 +166,7 @@ namespace Tuvi.Core.Dec.Names.Tests
         {
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
-            var seq = new DerSequence(new DerInteger(-1), new DerInteger(1));
+            var seq = new DerSequence(new DerInteger(BigInteger.One.Negate()), new DerInteger(BigInteger.One));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -180,7 +181,7 @@ namespace Tuvi.Core.Dec.Names.Tests
         {
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
-            var seq = new DerSequence(new DerInteger(1), new DerInteger(-1));
+            var seq = new DerSequence(new DerInteger(BigInteger.One), new DerInteger(BigInteger.One.Negate()));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -196,7 +197,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
             var curve = SecNamedCurves.GetByName("secp256k1");
-            var seq = new DerSequence(new DerInteger(curve.N.Add(Org.BouncyCastle.Math.BigInteger.One)), new DerInteger(1));
+            var seq = new DerSequence(new DerInteger(curve.N.Add(BigInteger.One)), new DerInteger(BigInteger.One));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -212,7 +213,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
             var curve = SecNamedCurves.GetByName("secp256k1");
-            var seq = new DerSequence(new DerInteger(1), new DerInteger(curve.N.Add(Org.BouncyCastle.Math.BigInteger.One)));
+            var seq = new DerSequence(new DerInteger(BigInteger.One), new DerInteger(curve.N.Add(BigInteger.One)));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -258,7 +259,7 @@ namespace Tuvi.Core.Dec.Names.Tests
             // Arrange
             const string name = "name";
             const string publicKey = "pub";
-            var seq = new DerSequence(new DerInteger(1));
+            var seq = new DerSequence(new DerInteger(BigInteger.One));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -411,7 +412,7 @@ namespace Tuvi.Core.Dec.Names.Tests
         {
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
-            var seq = new DerSequence(new DerInteger(0), new DerInteger(1));
+            var seq = new DerSequence(new DerInteger(BigInteger.Zero), new DerInteger(BigInteger.One));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -426,7 +427,7 @@ namespace Tuvi.Core.Dec.Names.Tests
         {
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
-            var seq = new DerSequence(new DerInteger(1), new DerInteger(0));
+            var seq = new DerSequence(new DerInteger(BigInteger.One), new DerInteger(BigInteger.Zero));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
@@ -489,7 +490,7 @@ namespace Tuvi.Core.Dec.Names.Tests
         {
             // Arrange
             var (pub, _) = GenerateKeyMaterial();
-            var seq = new DerSequence(new DerInteger(1), new DerInteger(2), new DerInteger(3));
+            var seq = new DerSequence(new DerInteger(BigInteger.One), new DerInteger(BigInteger.Two), new DerInteger(BigInteger.Three));
             var signature = Convert.ToBase64String(seq.GetDerEncoded());
 
             // Act
