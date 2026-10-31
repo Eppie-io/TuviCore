@@ -94,13 +94,13 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task InitializeMasterKeyAsync(MasterKey masterKey, CancellationToken cancellationToken)
         {
-            return DoCancellableTaskAsync(async (ct) =>
+            return ExecuteDatabaseAsync((connection, ct) =>
             {
                 try
                 {
                     const string fileName = nameof(MasterKey);
-                    await Database.InsertAsync(new Files { Key = fileName, Name = fileName, Data = masterKey.ToByteBuffer() })
-                                  .ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    connection.Insert(new Files { Key = fileName, Name = fileName, Data = masterKey.ToByteBuffer() });
                 }
                 catch (SQLite.SQLiteException exp)
                 {
@@ -126,11 +126,12 @@ namespace Tuvi.Core.DataStorage.Impl
 
         private Task<Files> GetFilesAsync(string fileName, CancellationToken cancellationToken)
         {
-            return DoCancellableTaskAsync(async (ct) =>
+            return ExecuteDatabaseAsync((connection, ct) =>
             {
                 try
                 {
-                    return await Database.FindAsync<Files>(x => x.Name == fileName).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    return connection.Find<Files>(x => x.Name == fileName);
                 }
                 catch (SQLite.SQLiteException exp)
                 {
@@ -143,7 +144,7 @@ namespace Tuvi.Core.DataStorage.Impl
         {
             try
             {
-                Database.GetConnection().InsertOrReplace(new Files { Key = fileName, Name = fileName, Data = data });
+                ExecuteDatabase(connection => connection.InsertOrReplace(new Files { Key = fileName, Name = fileName, Data = data }));
             }
             catch (SQLite.SQLiteException exp)
             {
