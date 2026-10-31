@@ -242,9 +242,17 @@ namespace Tuvi.Core.DataStorage.Impl
 
         }
 
-        ~DataStorage()
+        protected override void InvalidateCaches()
         {
-            Dispose(false);
+            base.InvalidateCaches();
+            lock (_emailAddressDataCache)
+            {
+                _emailAddressDataCache.Clear();
+            }
+            lock (_emailAddressesCache2)
+            {
+                _emailAddressesCache2.Clear();
+            }
         }
 
         public void RaiseContactAddedEvent(Contact contact)
@@ -362,16 +370,15 @@ namespace Tuvi.Core.DataStorage.Impl
             }
         }
 
-        public async Task AddAccountAsync(Account accountData, CancellationToken cancellationToken)
+        public Task AddAccountAsync(Account accountData, CancellationToken cancellationToken)
         {
-            if (await ExistsAccountWithEmailAddressAsync(accountData.Email, cancellationToken).ConfigureAwait(false))
-            {
-                throw new AccountAlreadyExistInDatabaseException();
-            }
-
-            await WriteDatabaseAsync((db, ct) =>
+            return WriteDatabaseAsync((db, ct) =>
             {
                 var connection = db.Connection;
+                if (ExistsAccountWithEmailAddress(connection, accountData.Email))
+                {
+                    throw new AccountAlreadyExistInDatabaseException();
+                }
                 connection.Insert(accountData);
                 int accountId = GetLastRowId(connection);
 
@@ -383,7 +390,7 @@ namespace Tuvi.Core.DataStorage.Impl
                     connection.Update(accountData);
                 }
 
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         private int InsertOrUpdateEmailAddress(SQLiteConnection connection, EmailAddress email)
@@ -806,81 +813,57 @@ namespace Tuvi.Core.DataStorage.Impl
             return new LastMessageData(message.Folder.AccountId, message.Folder.Account, message.Id, message.Date);
         }
 
-        public async Task<List<DecMessage>> GetDecMessagesAsync(EmailAddress email, Folder folder, int count, CancellationToken cancellationToken)
+        public Task<List<DecMessage>> GetDecMessagesAsync(EmailAddress email, Folder folder, int count, CancellationToken cancellationToken)
         {
-            try
+            return ReadDatabaseAsync((connection, ct) =>
             {
                 var path = CreatePath(email, folder.FullName);
-                var query = Database.Table<DecMessage>().Where(x => x.Path == path)
-                                                        .OrderByDescending(x => x.Id);
+                var query = connection.Table<DecMessage>().Where(x => x.Path == path)
+                                                          .OrderByDescending(x => x.Id);
                 if (count != 0)
                 {
                     query = query.Take(count);
                 }
-                return await query.ToListAsync().ConfigureAwait(false);
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                return query.ToList(ct);
+            }, cancellationToken);
         }
 
-        public async Task<DecMessage> GetDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
+        public Task<DecMessage> GetDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
         {
-            try
+            return ReadDatabaseAsync((connection, ct) =>
             {
                 var path = CreatePath(email, folder.FullName);
-
-                return await Database.FindAsync<DecMessage>(x => x.Path == path && x.Id == id).ConfigureAwait(false);
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                return connection.Find<DecMessage>(x => x.Path == path && x.Id == id);
+            }, cancellationToken);
         }
 
         public async Task<DecMessage> UpdateDecMessageAsync(EmailAddress email, DecMessage message, CancellationToken cancellationToken)
         {
-            try
+            await WriteDatabaseAsync((db, ct) =>
             {
                 message.Path = CreatePath(email, message.FolderName);
-
-                await Database.UpdateAsync(message).ConfigureAwait(false);
-
-                return message;
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                db.Connection.Update(message);
+            }, cancellationToken).ConfigureAwait(false);
+            return message;
         }
 
-        public async Task DeleteDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
+        public Task DeleteDecMessageAsync(EmailAddress email, Folder folder, uint id, CancellationToken cancellationToken)
         {
-            try
+            return WriteDatabaseAsync((db, ct) =>
             {
                 var path = CreatePath(email, folder.FullName);
-                var message = await Database.FindAsync<DecMessage>(x => x.Path == path && x.Id == id).ConfigureAwait(false);
-                await Database.DeleteAsync(message).ConfigureAwait(false);
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                var message = db.Connection.Find<DecMessage>(x => x.Path == path && x.Id == id);
+                db.Connection.Delete(message);
+            }, cancellationToken);
         }
 
-        public async Task<bool> IsDecMessageExistsAsync(EmailAddress email, string folder, string hash, CancellationToken cancellationToken)
+        public Task<bool> IsDecMessageExistsAsync(EmailAddress email, string folder, string hash, CancellationToken cancellationToken)
         {
-            try
+            return ReadDatabaseAsync((connection, ct) =>
             {
                 var path = CreatePath(email, folder);
-
-                return await Database.FindAsync<DecMessage>(x => x.Path == path && x.Hash == hash).ConfigureAwait(false) != null;
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                return connection.Find<DecMessage>(x => x.Path == path && x.Hash == hash) != null;
+            }, cancellationToken);
         }
 
         public async Task<DecMessage> AddDecMessageAsync(EmailAddress email, DecMessage message, CancellationToken cancellationToken)
@@ -897,20 +880,20 @@ namespace Tuvi.Core.DataStorage.Impl
             return message;
         }
 
-        public async Task AddMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
+        public Task AddMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
-            string folderPath = message.Folder.FullName;
-            if (await IsMessageExistAsync(accountEmail, folderPath, message.Id, cancellationToken).ConfigureAwait(false))
+            return WriteDatabaseAsync((db, ct) =>
             {
-                throw new MessageAlreadyExistInDatabaseException();
-            }
-
-            await WriteDatabaseAsync((db, ct) =>
-            {
-                message.Path = CreatePath(accountEmail, folderPath);
+                string folderPath = message.Folder.FullName;
+                var path = CreatePath(accountEmail, folderPath);
+                if (db.Connection.Find<Entities.Message>(x => x.Path == path && x.Id == message.Id) != null)
+                {
+                    throw new MessageAlreadyExistInDatabaseException();
+                }
+                message.Path = path;
                 AddMessage(db, accountEmail, folderPath, message, updateUnreadAndTotal, ct);
 
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         private void AddMessage(DbConnection db, EmailAddress accountEmail, string folder, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
@@ -937,6 +920,11 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task UpdateMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
+            return UpdateMessageAsync(accountEmail, message, updateUnreadAndTotal, null, cancellationToken);
+        }
+
+        private Task UpdateMessageAsync(EmailAddress accountEmail, Entities.Message message, bool updateUnreadAndTotal, long? generation, CancellationToken cancellationToken)
+        {
             Debug.Assert(message != null);
             Debug.Assert(message.Pk != 0);
             return WriteDatabaseAsync((db, ct) =>
@@ -961,7 +949,7 @@ namespace Tuvi.Core.DataStorage.Impl
                 UpdateFolderCounters(connection, message, item, updateUnreadAndTotal);
                 UpdateContactsUnreadCount(connection, message, item);
 
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         private static void UpdateMessageTextFields(Message message, Message item)
@@ -979,9 +967,10 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public async Task UpdateMessagesAsync(EmailAddress email, IEnumerable<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             foreach (var message in messages)
             {
-                await UpdateMessageAsync(email, message, updateUnreadAndTotal, cancellationToken).ConfigureAwait(false);
+                await UpdateMessageAsync(email, message, updateUnreadAndTotal, generation, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1010,6 +999,7 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task AddMessageListAsync(EmailAddress email, string folder, IReadOnlyList<Entities.Message> messages, bool updateUnreadAndTotal, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             if (messages.Count == 0)
             {
                 return Task.CompletedTask;
@@ -1037,7 +1027,7 @@ namespace Tuvi.Core.DataStorage.Impl
                         continue;
                     }
                 }
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         private Entities.Message BuildMessage(SQLiteConnection connection, Entities.Message message, CancellationToken cancellationToken)
@@ -1222,17 +1212,13 @@ namespace Tuvi.Core.DataStorage.Impl
             }, cancellationToken);
         }
 
-        public async Task<uint> GetMessagesCountAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
+        public Task<uint> GetMessagesCountAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
         {
-            try
+            return ReadDatabaseAsync((connection, ct) =>
             {
                 var path = CreatePath(email, folder);
-                return (uint)await Database.Table<Entities.Message>().Where(x => x.Path == path).CountAsync().ConfigureAwait(false);
-            }
-            catch (SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
+                return (uint)connection.Table<Entities.Message>().Where(x => x.Path == path).Count();
+            }, cancellationToken);
         }
 
         public Task<Entities.Message> GetLatestMessageAsync(EmailAddress email, string folder, CancellationToken cancellationToken = default)
@@ -1278,6 +1264,15 @@ namespace Tuvi.Core.DataStorage.Impl
                                                                              int count,
                                                                              Entities.Message lastMessage,
                                                                              CancellationToken cancellationToken)
+        {
+            return GetEarlierMessagesInFoldersAsync(folders, count, lastMessage, CaptureDatabaseGeneration(), cancellationToken);
+        }
+
+        private Task<IReadOnlyList<Entities.Message>> GetEarlierMessagesInFoldersAsync(IEnumerable<Folder> folders,
+                                                                                    int count,
+                                                                                    Entities.Message lastMessage,
+                                                                                    long generation,
+                                                                                    CancellationToken cancellationToken)
         {
             var folderIds = folders.Select(x => x.Id).ToList(cancellationToken);
             if (folderIds.Count == 0)
@@ -1382,7 +1377,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?4";
                     messages.Add(BuildMessage(connection, item, ct));
                 }
                 return (IReadOnlyList<Entities.Message>)messages;
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         public async Task<IReadOnlyList<Entities.Message>> GetEarlierMessagesAsync(Folder folder,
@@ -1390,6 +1385,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?4";
                                                                           Entities.Message lastMessage,
                                                                           CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             var folders = new List<Folder>();
             if (folder is null)
             {
@@ -1398,13 +1394,13 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC LIMIT ?4";
                     return connection.Table<Folder>()
                                      .Where(x => x.Attributes == FolderAttributes.Inbox)
                                      .ToList(ct);
-                }, cancellationToken).ConfigureAwait(false));
+                }, cancellationToken, generation).ConfigureAwait(false));
             }
             else
             {
                 folders.Add(folder);
             }
-            return await GetEarlierMessagesInFoldersAsync(folders, count, lastMessage, cancellationToken).ConfigureAwait(false);
+            return await GetEarlierMessagesInFoldersAsync(folders, count, lastMessage, generation, cancellationToken).ConfigureAwait(false);
         }
 
         public Task<IReadOnlyList<Entities.Message>> GetEarlierContactMessagesAsync(EmailAddress contactEmail,
@@ -1665,7 +1661,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task<int> GetUnreadMessagesCountAsync(EmailAddress accountEmail, string folder, CancellationToken cancellationToken)
         {
-            if (_isDisposed)
+            if (IsDisposed)
             {
                 return Task.FromResult(0);
             }
@@ -1958,7 +1954,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task<int> GetContactUnreadMessagesCountAsync(EmailAddress contactEmail, CancellationToken cancellationToken)
         {
-            if (_isDisposed)
+            if (IsDisposed)
             {
                 return Task.FromResult(0);
             }
@@ -1986,87 +1982,81 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
             }, cancellationToken);
         }
 
-        private Task WriteDatabaseAsync(Action<DbConnection, CancellationToken> writeFunc, CancellationToken cancellationToken)
+        private async Task WriteDatabaseAsync(Action<DbConnection, CancellationToken> writeFunc, CancellationToken cancellationToken, long? generation = null)
         {
-            CheckDisposed();
-            return DoCancellableTaskAsync(async (ct) =>
+            var changeContext = new ChangeState(this);
+            await ExecuteDatabaseAsync((connection, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var changeContext = new ChangeState(this);
-                    await Database.RunInTransactionAsync((connection) =>
+                    connection.RunInTransaction(() =>
                     {
-                        CheckDisposed();
                         ct.ThrowIfCancellationRequested();
                         var dbConnection = new DbConnection(connection, changeContext);
                         writeFunc(dbConnection, ct);
-                    }).ConfigureAwait(false);
-                    changeContext.RaiseEvents();
-                }
-                catch (ObjectDisposedException)
-                {
-                    throw;
+                    });
                 }
                 catch (SQLiteException exp)
                 {
                     throw new DataBaseException(exp.Message, exp);
                 }
-            }, cancellationToken);
+                finally
+                {
+                    InvalidateCaches();
+                }
+            }, cancellationToken, generation).ConfigureAwait(false);
+            changeContext.RaiseEvents();
         }
 
-        private Task<T> ReadDatabaseAsync<T>(Func<SQLiteConnection, CancellationToken, T> readFunc, CancellationToken cancellationToken)
+        private Task<T> ReadDatabaseAsync<T>(Func<SQLiteConnection, CancellationToken, T> readFunc, CancellationToken cancellationToken, long? generation = null)
         {
-            CheckDisposed();
-            return DoCancellableTaskAsync(async (ct) =>
+            return ExecuteDatabaseAsync((connection, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    if (Database is null)
-                    {
-                        throw new DataBaseException("Database is not opened");
-                    }
                     T result = default;
-                    await Database.RunInTransactionAsync((connection) =>
+                    connection.RunInTransaction(() =>
                     {
-                        CheckDisposed();
                         ct.ThrowIfCancellationRequested();
                         result = readFunc(connection, ct);
-                    }).ConfigureAwait(false);
+                    });
                     return result;
-                }
-                catch (ObjectDisposedException)
-                {
-                    throw;
                 }
                 catch (SQLiteException exp)
                 {
                     throw new DataBaseException(exp.Message, exp);
                 }
+            }, cancellationToken, generation);
+        }
+
+        public Task<Settings> GetSettingsAsync(CancellationToken cancellationToken)
+        {
+            return ReadDatabaseAsync((connection, ct) =>
+            {
+                var settings = new Settings();
+                foreach (var prop in settings.GetType().GetProperties())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var option = connection.Find<SettingsTable>(x => x.Key == prop.Name);
+                    prop.SetValue(settings, option != null ? option.Value : 0);
+                }
+                return settings;
             }, cancellationToken);
         }
 
-        public async Task<Settings> GetSettingsAsync(CancellationToken cancellationToken)
+        public Task SetSettingsAsync(Settings settings, CancellationToken cancellationToken)
         {
-            var settings = new Settings();
-
-            foreach (var prop in settings.GetType().GetProperties())
+            return WriteDatabaseAsync((db, ct) =>
             {
-                var option = await Database.FindAsync<SettingsTable>(x => x.Key == prop.Name).ConfigureAwait(false);
-                prop.SetValue(settings, option != null ? option.Value : 0);
-            }
-
-            return settings;
-        }
-
-        public async Task SetSettingsAsync(Settings settings, CancellationToken cancellationToken)
-        {
-            foreach (var prop in settings.GetType().GetProperties())
-            {
-                var option = new SettingsTable { Key = prop.Name, Value = (int)prop.GetValue(settings) };
-                await Database.InsertOrReplaceAsync(option).ConfigureAwait(false);
-            }
+                foreach (var prop in settings.GetType().GetProperties())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var option = new SettingsTable { Key = prop.Name, Value = (int)prop.GetValue(settings) };
+                    db.Connection.InsertOrReplace(option);
+                }
+            }, cancellationToken);
         }
 
         public async Task UpdateAccountEmailAsync(EmailAddress prev, EmailAddress email, CancellationToken cancellationToken)
@@ -2095,6 +2085,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task AddOrUpdateMessagesAsync(int accountId, IReadOnlyList<Proton.Message> messages, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             if (messages.Count == 0)
             {
                 return Task.CompletedTask;
@@ -2146,7 +2137,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                         connection.Insert(label, "OR IGNORE");
                     }
                 }
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         public Task<IReadOnlyList<Proton.Message>> GetMessagesAsync(int accountId, string labelId, uint knownId, bool getEarlier, int count, CancellationToken cancellationToken)
@@ -2256,6 +2247,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task AddMessageIDs(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             if (ids.Count == 0)
             {
                 return Task.CompletedTask;
@@ -2270,7 +2262,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     // Use conflict resolution to skip duplicates silently under UNIQUE(AccountId, MessageId)
                     connection.Insert(new ProtonMessageIdV3() { MessageId = id, AccountId = accountId }, "OR IGNORE");
                 }
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         public Task<IReadOnlyList<KeyValuePair<string, uint>>> LoadMessageIDsAsync(int accountId, CancellationToken cancellationToken)
@@ -2287,6 +2279,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
 
         public Task DeleteMessageByMessageIdsAsync(int accountId, IReadOnlyList<string> ids, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             if (ids.Count == 0)
             {
                 return Task.CompletedTask;
@@ -2300,11 +2293,12 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     connection.Table<ProtonMessageIdV3>().Delete(x => x.AccountId == accountId && x.MessageId == id);
                     connection.Table<Proton.Message>().Delete(x => x.AccountId == accountId && x.MessageId == id);
                 }
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         public Task DeleteMessagesByIds(int accountId, IReadOnlyList<uint> ids, string labelId, CancellationToken cancellationToken)
         {
+            long generation = CaptureDatabaseGeneration();
             if (ids.Count == 0)
             {
                 return Task.CompletedTask;
@@ -2318,7 +2312,7 @@ ORDER BY Date DESC, FolderId ASC, Message.Id DESC";
                     ct.ThrowIfCancellationRequested();
                     connection.Table<ProtonMessageLabelV2>().Delete(x => x.AccountId == accountId && x.MessageId == id && x.LabelId == label.Id);
                 }
-            }, cancellationToken);
+            }, cancellationToken, generation);
         }
 
         public Task AddAIAgentAsync(LocalAIAgent agent, CancellationToken cancellationToken = default)

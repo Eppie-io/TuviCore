@@ -16,19 +16,27 @@
 //                                                                              //
 // ---------------------------------------------------------------------------- //
 
-using Tuvi.Core.Entities;
-
 namespace Tuvi.Core.DataStorage.Impl
 {
     public static class DataStorageProvider
     {
 
         /// <summary>
-        /// Create data base to store accounts info and messages 
+        /// Creates a storage instance for accounts, messages and keys.
         /// </summary>
-        /// <param name="path">Path to database file</param>
-        /// <exception cref="DataBaseException"
-        /// <returns>DataStorage</returns>
+        /// <param name="path">Path to the database file.</param>
+        /// <returns>The storage instance that owns the file.</returns>
+        /// <remarks>
+        /// Use one <see cref="IDataStorage"/> per file; cross-process access is unsupported.
+        /// Different files have independent lifecycles.
+        /// <para>
+        /// Reset rejects new database access and waits for the current operation. After
+        /// success, this instance can recreate the database; old composite calls cannot enter it.
+        /// Dispose permanently rejects access and waits for connection close. Rejected
+        /// waiters may finish later; neither operation forcibly interrupts SQL.
+        /// </para>
+        /// Application workflows must coordinate reset separately.
+        /// </remarks>
         public static IDataStorage GetDataStorage(string path)
         {
             var db = new DataStorage(path);

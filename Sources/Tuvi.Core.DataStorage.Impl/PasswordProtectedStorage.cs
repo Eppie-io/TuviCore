@@ -30,67 +30,81 @@ namespace Tuvi.Core.DataStorage.Impl
 {
     internal abstract class PasswordProtectedStorage : IPasswordProtectedStorage, IDisposable
     {
-        private CancellationTokenSource _rootCTS;
-        protected bool _isDisposed;
+        private readonly object _stateLock = new object();
+        private readonly SemaphoreSlim _operationGate = new SemaphoreSlim(1, 1);
+        private int _gateUsers;
+        private long _databaseGeneration;
+        private TaskCompletionSource<bool> _resetCompletion;
+        private TaskCompletionSource<bool> _disposeCompletion;
+        private StorageConnection _database;
 
-        private SemaphoreSlim _cancellableTasksSemaphore = new SemaphoreSlim(1);
-        private int _cancellableTasksCount;
-        private object _databaseLock = new object();
-        protected SQLite.SQLiteAsyncConnection _database;
-        protected SQLite.SQLiteAsyncConnection Database
+        private StorageConnection Database => _database ?? throw new DataBaseException("Database is not opened");
+        protected bool IsDisposed
         {
             get
             {
-                lock (_databaseLock)
-                    return _database;
-            }
-            set
-            {
-                lock (_databaseLock)
-                    _database = value;
+                lock (_stateLock)
+                {
+                    return _disposeCompletion != null;
+                }
             }
         }
         private readonly string Path;
 
         public PasswordProtectedStorage(string filePath)
         {
-            Path = filePath;
-            _rootCTS = new CancellationTokenSource();
+            // One storage instance owns each database file. Its operation gate
+            // protects the connection throughout every admitted operation.
+            Path = System.IO.Path.GetFullPath(filePath);
         }
 
         public Task<bool> IsStorageExistAsync(CancellationToken cancellationToken)
         {
-            return Task.Run(() =>
-            {
-                return IsStorageExist();
-            });
+            return RunOperationAsync(ct => Task.FromResult(IsStorageExist()), cancellationToken);
         }
 
         public Task CreateAsync(string password, CancellationToken cancellationToken)
         {
-            return DoCancellableTaskAsync(async (ct) =>
+            return RunOperationAsync(async (ct) =>
             {
                 if (IsStorageExist())
                 {
                     throw new DataBaseAlreadyExistsException();
                 }
 
-                SQLiteAsyncConnection db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create).ConfigureAwait(false); ;
+                await CloseDatabaseAsync().ConfigureAwait(false);
+                StorageConnection db = null;
+                bool created = false;
                 try
                 {
+                    using (new FileStream(Path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+                    {
+                    }
+                    created = true;
+                    db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create, ct).ConfigureAwait(false);
                     await CreateOrMigrateTablesAsync(db).ConfigureAwait(false);
-                    Database = db;
+                    _database = db;
                 }
-                catch (SQLite.SQLiteException ex)
+                catch (Exception ex)
                 {
-                    await db.CloseAsync().ConfigureAwait(false);
-                    File.Delete(Path);
-                    throw new DataBaseException(ex.Message, ex);
+                    if (db != null)
+                    {
+                        await db.CloseAsync().ConfigureAwait(false);
+                    }
+                    if (created)
+                    {
+                        File.Delete(Path);
+                    }
+                    if (ex is SQLiteException)
+                    {
+                        throw new DataBaseException(ex.Message, ex);
+                    }
+                    throw;
                 }
             }, cancellationToken);
         }
 
-        private static Task CreateOrMigrateTablesAsync(SQLiteAsyncConnection db)
+        private static Task CreateOrMigrateTablesAsync(StorageConnection db)
         {
             return db.RunInTransactionAsync(t =>
             {
@@ -117,22 +131,20 @@ namespace Tuvi.Core.DataStorage.Impl
 
         public Task OpenAsync(string password, CancellationToken cancellationToken)
         {
-            return DoCancellableTaskAsync(async (ct) =>
-            {
-                await OpenImplAsync(password).ConfigureAwait(false);
-            }, cancellationToken);
+            return RunOperationAsync(ct => OpenImplAsync(password, ct), cancellationToken);
         }
 
         public Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
         {
-            return DoCancellableTaskAsync(async (ct) =>
+            return RunOperationAsync(async (ct) =>
             {
-                await OpenImplAsync(currentPassword).ConfigureAwait(false);
+                await OpenImplAsync(currentPassword, ct).ConfigureAwait(false);
 
                 try
                 {
                     newPassword = await GetPasswordHash(newPassword).ConfigureAwait(false);
-                    await Database.ReKeyAsync(newPassword).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    await Database.RunAsync(connection => connection.ReKey(newPassword)).ConfigureAwait(false);
                 }
                 catch (SQLite.SQLiteException exp)
                 {
@@ -141,38 +153,29 @@ namespace Tuvi.Core.DataStorage.Impl
             }, cancellationToken);
         }
 
-        public async Task ResetAsync()
+        public Task ResetAsync()
         {
-            try
+            TaskCompletionSource<bool> completion;
+            lock (_stateLock)
             {
-                await ResetDataStorageAsync().ConfigureAwait(false);
+                CheckDisposed();
+                if (_resetCompletion != null)
+                {
+                    return _resetCompletion.Task;
+                }
+                // Invalidate calls paused between database steps, including
+                // waiters that resume after reset/create has already finished.
+                ++_databaseGeneration;
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _resetCompletion = completion;
+                ++_gateUsers;
             }
-            catch (SQLite.SQLiteException exp)
-            {
-                throw new DataBaseException(exp.Message, exp);
-            }
-        }
-
-        private async Task<bool> IsAlreadyOpenedAsync()
-        {
-            return Database != null &&
-                await IsDataStorageOpenedCorrectlyAsync().ConfigureAwait(false);
-        }
-
-        private static bool IsWasm()
-        {
-            return System.Runtime.InteropServices.RuntimeInformation.OSDescription == "Browser";
+            _ = CompleteCloseAsync(completion, reset: true);
+            return completion.Task;
         }
 
         private static async Task<string> GetPasswordHash(string password)
         {
-            if (IsWasm())
-            {
-                // unfortunately Konscious.Security.Cryptography.Argon2 lib doesn't support WebAssembly for some unknown reason,
-                // so we temporary isolate the password hashing part
-                // TVM-508
-                return password;
-            }
             using (var argon2 = new Argon2i(Encoding.UTF8.GetBytes(password))
             {
                 DegreeOfParallelism = 16,
@@ -187,40 +190,44 @@ namespace Tuvi.Core.DataStorage.Impl
             }
         }
 
-        private async Task OpenImplAsync(string password)
+        private async Task OpenImplAsync(string password, CancellationToken cancellationToken)
         {
             if (!IsStorageExist())
             {
                 throw new DataBaseNotCreatedException();
             }
 
-            // close previous connection (if any) before creating a new one to avoid leaking file handles.
-            var existing = Database;
-            if (existing != null)
-            {
-                await existing.CloseAsync().ConfigureAwait(false);
-                Database = null;
-                SQLiteAsyncConnection.ResetPool();
-            }
+            await CloseDatabaseAsync().ConfigureAwait(false);
 
-            var db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite).ConfigureAwait(false);
+            StorageConnection db = null;
             try
             {
+                db = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite, cancellationToken).ConfigureAwait(false);
+                // A freshly owned physical connection must actually read the
+                // encrypted schema before the password can be accepted.
+                await db.RunAsync(connection => connection.ExecuteScalar<int>("SELECT count(*) FROM sqlite_master")).ConfigureAwait(false);
                 await MigrateAsync(db).ConfigureAwait(false);
-                Database = db;
+                _database = db;
             }
-            catch (SQLite.SQLiteException ex)
+            catch (Exception ex)
             {
-                await db.CloseAsync().ConfigureAwait(false);
-                if (ex.Result == SQLite3.Result.NonDBFile)
+                if (db != null)
                 {
-                    throw new DataBasePasswordException(ex.Message, ex);
+                    await db.CloseAsync().ConfigureAwait(false);
                 }
-                throw new DataBaseMigrationException(ex.Message, ex);
+                if (ex is SQLiteException sqliteException)
+                {
+                    if (sqliteException.Result == SQLite3.Result.NonDBFile)
+                    {
+                        throw new DataBasePasswordException(ex.Message, ex);
+                    }
+                    throw new DataBaseMigrationException(ex.Message, ex);
+                }
+                throw;
             }
         }
 
-        private static async Task MigrateAsync(SQLiteAsyncConnection db)
+        private static async Task MigrateAsync(StorageConnection db)
         {
             // TODO: add version check and manual migration code if needed
             // var version = GetCurrentVersion()
@@ -250,18 +257,18 @@ namespace Tuvi.Core.DataStorage.Impl
             await DataMigration09032026Async(db).ConfigureAwait(false);
         }
 
-        private static async Task DataMigration18052025Async(SQLiteAsyncConnection db)
+        private static async Task DataMigration18052025Async(StorageConnection db)
         {
 #pragma warning disable CS0618 // Only for migration purposes
             // --- Data migration (18.05.2025): LastMessageData.AccountEmailId -> LastMessageData.AccountId ---
             {
-                var lastMessages = await db.Table<LastMessageData>().ToListAsync().ConfigureAwait(false);
+                var lastMessages = await db.RunAsync(connection => connection.Table<LastMessageData>().ToList()).ConfigureAwait(false);
 
                 bool needLmdMigration = lastMessages.Any(lmd => lmd.AccountId == 0 && lmd.AccountEmailId != 0);
 
                 if (needLmdMigration)
                 {
-                    var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                    var accounts = await db.RunAsync(connection => connection.Table<Account>().ToList()).ConfigureAwait(false);
                     foreach (var lmd in lastMessages)
                     {
                         // If AccountId is not set and AccountEmailId is present, migrate the data
@@ -272,7 +279,7 @@ namespace Tuvi.Core.DataStorage.Impl
                             {
                                 lmd.AccountId = account.Id;
                                 lmd.AccountEmailId = 0; // Reset AccountEmailId to avoid future migrations
-                                await db.UpdateAsync(lmd).ConfigureAwait(false);
+                                await db.RunAsync(connection => connection.Update(lmd)).ConfigureAwait(false);
                             }
                         }
                     }
@@ -281,7 +288,7 @@ namespace Tuvi.Core.DataStorage.Impl
 
             // --- Data migration (18.05.2025): Account.EmailId -> Account.Email ---            
             {
-                var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                var accounts = await db.RunAsync(connection => connection.Table<Account>().ToList()).ConfigureAwait(false);
                 bool needMigration = accounts.Any(a => string.IsNullOrEmpty(a.EmailAddress) && a.EmailId != 0);
 
                 if (needMigration)
@@ -291,12 +298,12 @@ namespace Tuvi.Core.DataStorage.Impl
                         // If EmailAddress is not set and EmailId is present, migrate the data
                         if (string.IsNullOrEmpty(account.EmailAddress) && account.EmailId != 0)
                         {
-                            var emailData = await db.FindAsync<EmailAddressData>(account.EmailId).ConfigureAwait(false);
+                            var emailData = await db.RunAsync(connection => connection.Find<EmailAddressData>(account.EmailId)).ConfigureAwait(false);
                             if (emailData != null)
                             {
                                 account.Email = new EmailAddress(emailData.Address, emailData.Name);
                                 account.EmailId = 0; // Reset EmailId to avoid future migrations
-                                await db.UpdateAsync(account).ConfigureAwait(false);
+                                await db.RunAsync(connection => connection.Update(account)).ConfigureAwait(false);
                             }
                         }
                     }
@@ -305,12 +312,12 @@ namespace Tuvi.Core.DataStorage.Impl
 #pragma warning restore CS0618 // Only for migration purposes
         }
 
-        private static async Task DataMigration09032026Async(SQLiteAsyncConnection db)
+        private static async Task DataMigration09032026Async(StorageConnection db)
         {
 #pragma warning disable CS0618 // Only for migration purposes
             // --- Data migration (09.03.2026): legacy named decentralized Eppie accounts ---
             {
-                var accounts = await db.Table<Account>().ToListAsync().ConfigureAwait(false);
+                var accounts = await db.RunAsync(connection => connection.Table<Account>().ToList()).ConfigureAwait(false);
                 bool needMigration = accounts.Any(NeedsLegacyDecentralizedNameMigration);
 
                 if (needMigration)
@@ -319,7 +326,7 @@ namespace Tuvi.Core.DataStorage.Impl
                     {
                         account.DecentralizedName = account.EmailName;
                         account.EmailName = null;
-                        await db.UpdateAsync(account).ConfigureAwait(false);
+                        await db.RunAsync(connection => connection.Update(account)).ConfigureAwait(false);
                     }
                 }
             }
@@ -347,99 +354,142 @@ namespace Tuvi.Core.DataStorage.Impl
 #pragma warning restore CS0618 // Only for migration purposes
         }
 
-        private async Task<bool> IsDataStorageOpenedCorrectlyAsync()
+        // Admission runs on the caller before any wait or Task.Run. SQL callbacks
+        // stay synchronous and materialize their result while the gate is held.
+        protected Task<T> ExecuteDatabaseAsync<T>(Func<SQLiteConnection, CancellationToken, T> operation, CancellationToken cancellationToken, long? generation = null)
+        {
+            return RunOperationAsync(ct => Database.RunAsync(connection => operation(connection, ct)),
+                cancellationToken, generation);
+        }
+
+        protected Task ExecuteDatabaseAsync(Action<SQLiteConnection, CancellationToken> operation, CancellationToken cancellationToken, long? generation = null)
+        {
+            return RunOperationAsync(ct => Database.RunAsync(connection => operation(connection, ct)),
+                cancellationToken, generation);
+        }
+
+        private Task RunOperationAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken, long? generation = null)
+        {
+            return RunOperationAsync(async ct =>
+            {
+                await operation(ct).ConfigureAwait(false);
+                return true;
+            }, cancellationToken, generation);
+        }
+
+        private async Task<TResult> RunOperationAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, CancellationToken cancellationToken, long? generation = null)
+        {
+            long admittedGeneration = RegisterGateUser(generation);
+            return await RunRegisteredOperationAsync(operation, admittedGeneration, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<TResult> RunRegisteredOperationAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, long generation, CancellationToken cancellationToken)
+        {
+            bool entered = false;
+            try
+            {
+                await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                entered = true;
+                CheckOperationAllowed(generation);
+                cancellationToken.ThrowIfCancellationRequested();
+                return await operation(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                UnregisterGateUser(entered);
+            }
+        }
+
+        protected void ExecuteDatabase(Action<SQLiteConnection> operation)
+        {
+            long generation = RegisterGateUser();
+            ExecuteRegisteredDatabase(operation, generation);
+        }
+
+        private void ExecuteRegisteredDatabase(Action<SQLiteConnection> operation, long generation)
+        {
+            bool entered = false;
+            try
+            {
+                _operationGate.Wait();
+                entered = true;
+                CheckOperationAllowed(generation);
+                Database.Run(operation);
+            }
+            finally
+            {
+                UnregisterGateUser(entered);
+            }
+        }
+
+        private long RegisterGateUser(long? generation = null)
+        {
+            lock (_stateLock)
+            {
+                CheckOperationAllowed(generation);
+                ++_gateUsers;
+                return _databaseGeneration;
+            }
+        }
+
+        private void UnregisterGateUser(bool entered)
         {
             try
             {
-                var db = Database;
-                if (db == null)
+                if (entered)
                 {
-                    return false;
-                }
-                var list = await db.Table<Files>().ToListAsync().ConfigureAwait(false);
-
-                return true;
-            }
-            catch (SQLite.SQLiteException)
-            {
-                return false;
-            }
-        }
-
-        private async Task ResetDataStorageAsync()
-        {
-            if (Database != null)
-            {
-                _rootCTS?.Cancel();
-
-                await _cancellableTasksSemaphore.WaitAsync().ConfigureAwait(true);
-                try
-                {
-                    await Database.CloseAsync().ConfigureAwait(false);
-                    Database = null;
-                }
-                finally
-                {
-                    _cancellableTasksSemaphore.Release();
+                    _operationGate.Release();
                 }
             }
-
-            await Task.Run(() => File.Delete(Path)).ConfigureAwait(false);
-        }
-
-        protected async Task DoCancellableTaskAsync(Func<CancellationToken, Task> task, CancellationToken cancellationToken)
-        {
-            _rootCTS.Token.ThrowIfCancellationRequested();
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(_rootCTS.Token, cancellationToken))
+            finally
             {
-                var t = task(cts.Token);
-                if (Interlocked.Increment(ref _cancellableTasksCount) == 1)
+                lock (_stateLock)
                 {
-                    await _cancellableTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
-                }
-                try
-                {
-                    await t.ConfigureAwait(true);
-                }
-                finally
-                {
-                    if (Interlocked.Decrement(ref _cancellableTasksCount) == 0)
+                    // A registered caller can still be paused before Wait. Only
+                    // the last user may dispose, after its own Release has returned.
+                    if (--_gateUsers == 0 && _disposeCompletion != null)
                     {
-                        _cancellableTasksSemaphore.Release();
+                        _operationGate.Dispose();
                     }
                 }
             }
         }
 
-        protected async Task<TResult> DoCancellableTaskAsync<TResult>(Func<CancellationToken, Task<TResult>> task, CancellationToken cancellationToken)
+        // Composite methods retain this value while releasing the gate between
+        // steps. Events get no ambient scope and can start fresh storage calls.
+        protected long CaptureDatabaseGeneration(long? generation = null)
         {
-            _rootCTS.Token.ThrowIfCancellationRequested();
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(_rootCTS.Token, cancellationToken))
+            lock (_stateLock)
             {
-                var t = task(cts.Token);
-                if (Interlocked.Increment(ref _cancellableTasksCount) == 1)
+                CheckOperationAllowed(generation);
+                return _databaseGeneration;
+            }
+        }
+
+        private void CheckOperationAllowed(long? generation = null)
+        {
+            lock (_stateLock)
+            {
+                CheckDisposed();
+                if (_resetCompletion != null)
                 {
-                    await _cancellableTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
+                    throw new DataBaseException("Database is being reset");
                 }
-                try
+                if (generation.HasValue && generation.Value != _databaseGeneration)
                 {
-                    return await t.ConfigureAwait(true);
-                }
-                finally
-                {
-                    if (Interlocked.Decrement(ref _cancellableTasksCount) == 0)
-                    {
-                        _cancellableTasksSemaphore.Release();
-                    }
+                    throw new DataBaseException("Database was reset during the operation");
                 }
             }
         }
 
         protected void CheckDisposed()
         {
-            if (_isDisposed)
+            lock (_stateLock)
             {
-                throw new ObjectDisposedException(nameof(DataStorage));
+                if (_disposeCompletion != null)
+                {
+                    throw new ObjectDisposedException(nameof(DataStorage));
+                }
             }
         }
 
@@ -451,32 +501,99 @@ namespace Tuvi.Core.DataStorage.Impl
 
         protected virtual void Dispose(bool disposing)
         {
-            if (_isDisposed)
+            if (!disposing)
             {
                 return;
             }
-            if (disposing)
+            TaskCompletionSource<bool> completion;
+            bool close;
+            lock (_stateLock)
             {
-                // release managed resource(actually it holds unmanaged resources internally)
-                if (Database != null)
+                close = _disposeCompletion == null;
+                if (close)
                 {
-                    SQLiteAsyncConnection.ResetPool();
+                    _disposeCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    ++_gateUsers;
                 }
-                _rootCTS?.Dispose();
-                _cancellableTasksSemaphore.Dispose();
+                completion = _disposeCompletion;
             }
-            _isDisposed = true;
+            if (close)
+            {
+                _ = CompleteCloseAsync(completion, reset: false);
+            }
+            completion.Task.GetAwaiter().GetResult();
         }
 
-        private async Task<SQLiteAsyncConnection> CreateDBConnectionAsync(string password, SQLiteOpenFlags flags)
+        // Closing rejects new work immediately, then drains the current holder.
+        // Completion is published after releasing the gate and finishing state cleanup.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "All failures are propagated through the shared completion after releasing the gate.")]
+        private async Task CompleteCloseAsync(TaskCompletionSource<bool> completion, bool reset)
+        {
+            Exception failure = null;
+            bool entered = false;
+            try
+            {
+                try
+                {
+                    await _operationGate.WaitAsync().ConfigureAwait(false);
+                    entered = true;
+                    await CloseDatabaseAsync().ConfigureAwait(false);
+                    if (reset)
+                    {
+                        File.Delete(Path);
+                    }
+                }
+                finally
+                {
+                    UnregisterGateUser(entered);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = reset && ex is SQLiteException ? new DataBaseException(ex.Message, ex) : ex;
+            }
+            finally
+            {
+                if (reset)
+                {
+                    lock (_stateLock)
+                    {
+                        _resetCompletion = null;
+                    }
+                }
+            }
+            if (failure == null)
+            {
+                completion.SetResult(true);
+            }
+            else
+            {
+                completion.SetException(failure);
+            }
+        }
+
+        private async Task CloseDatabaseAsync()
+        {
+            var database = _database;
+            _database = null;
+            InvalidateCaches();
+            if (database != null)
+            {
+                await database.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        protected virtual void InvalidateCaches()
+        {
+        }
+
+        private async Task<StorageConnection> CreateDBConnectionAsync(string password, SQLiteOpenFlags flags, CancellationToken cancellationToken)
         {
             var hashedPassword = await GetPasswordHash(password).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             var options = new SQLite.SQLiteConnectionString(Path, flags, storeDateTimeAsTicks: true, key: hashedPassword);
 
-            var db = new SQLite.SQLiteAsyncConnection(options);
-            //db.Trace = true;
-            //db.Tracer = (s) => { Debug.WriteLine(s); };
-            return db;
+            return new StorageConnection(options);
         }
 
         private bool IsStorageExist()
