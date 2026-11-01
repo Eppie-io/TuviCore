@@ -436,8 +436,8 @@ namespace Tuvi.Core.DataStorage.Tests
                 else
                 {
                     await Assert.ThatAsync(async () => await storage.GetDecMessagesAsync(Email, Inbox, 10).WaitAsync(Timeout).ConfigureAwait(false),
-                        Throws.TypeOf<DataBaseException>()).ConfigureAwait(false);
-                    Assert.That(() => storage.SavePgpPublicKeys(new PgpPublicKeyBundle { Data = new byte[] { 1 } }), Throws.TypeOf<DataBaseException>());
+                        Throws.TypeOf<DataBaseResetException>()).ConfigureAwait(false);
+                    Assert.That(() => storage.SavePgpPublicKeys(new PgpPublicKeyBundle { Data = new byte[] { 1 } }), Throws.TypeOf<DataBaseResetException>());
                 }
             }
             finally
@@ -449,7 +449,7 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(held.Subject, Is.EqualTo("subject-original"));
             foreach (var failure in await rejected.ConfigureAwait(false))
             {
-                Assert.That(failure, dispose ? Is.TypeOf<ObjectDisposedException>() : Is.InstanceOf<DataBaseException>(),
+                Assert.That(failure, dispose ? Is.TypeOf<ObjectDisposedException>() : Is.TypeOf<DataBaseResetException>(),
                     "Already queued operations must reject closing without using a destroyed gate or connection.");
                 if (dispose)
                 {
@@ -528,6 +528,102 @@ namespace Tuvi.Core.DataStorage.Tests
             Assert.That(ReadGateUsers(storage), Is.Zero);
             Assert.That(handle.IsClosed, Is.True);
             Assert.That(gate.DisposeCount, Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposeWaitsForResetPausedBeforeFirstWait(bool failReset)
+        {
+            if (failReset && !OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("The failed reset scenario requires Windows file-sharing semantics.");
+            }
+
+            using var gate = new TrackingSemaphore();
+            using var files = new StorageFiles();
+            var storage = files.Storage;
+            TrackGate(storage, gate);
+            var handle = gate.AvailableWaitHandle.SafeWaitHandle;
+            await storage.CreateAsync(Password).WaitAsync(Timeout).ConfigureAwait(false);
+            await storage.AddDecMessageAsync(Email, CreateMessage("original")).WaitAsync(Timeout).ConfigureAwait(false);
+            Task firstDispose = Task.CompletedTask;
+            Task secondDispose = Task.CompletedTask;
+            using (var heldFile = failReset ? new FileStream(files.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite) : null)
+            {
+                var reset = RegisterPausedReset(storage);
+                try
+                {
+                    firstDispose = Task.Run(storage.Dispose);
+                    await WaitForDisposalAsync(storage).ConfigureAwait(false);
+                    var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    secondDispose = Task.Run(() =>
+                    {
+                        secondStarted.SetResult(true);
+                        storage.Dispose();
+                    });
+                    await secondStarted.Task.WaitAsync(Timeout).ConfigureAwait(false);
+                    await Task.WhenAny(Task.WhenAll(firstDispose, secondDispose), Task.Delay(500)).ConfigureAwait(false);
+                    Assert.That(firstDispose.IsCompleted, Is.False, "Dispose must drain a reset admitted before its first wait.");
+                    Assert.That(secondDispose.IsCompleted, Is.False, "Concurrent Dispose must share the same reset barrier.");
+                    Assert.That(ReadGateUsers(storage), Is.EqualTo(2), "The reset and first disposer retain their registrations.");
+                    Assert.That(handle.IsClosed, Is.False);
+                }
+                finally
+                {
+                    var close = GetStorageField(storage, "_operationGate").DeclaringType
+                        .GetMethod("CompleteCloseAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+                    await ((Task)close.Invoke(storage, new object[] { reset, true })).WaitAsync(Timeout).ConfigureAwait(false);
+                    if (failReset)
+                    {
+                        await Assert.ThatAsync(async () => await reset.Task.WaitAsync(Timeout).ConfigureAwait(false),
+                            Throws.InstanceOf<IOException>()).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await reset.Task.WaitAsync(Timeout).ConfigureAwait(false);
+                    }
+                    await Task.WhenAll(firstDispose, secondDispose).WaitAsync(Timeout).ConfigureAwait(false);
+                }
+            }
+
+            await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(storage.Dispose))).WaitAsync(Timeout).ConfigureAwait(false);
+            Assert.That(ReadGateUsers(storage), Is.Zero);
+            Assert.That(handle.IsClosed, Is.True);
+            Assert.That(gate.DisposeCount, Is.EqualTo(1));
+            Assert.That(File.Exists(files.Path), Is.EqualTo(failReset));
+
+            string password = failReset ? Password : NewPassword;
+            using (var replacement = DataStorageProvider.GetDataStorage(files.Path))
+            {
+                if (failReset)
+                {
+                    await replacement.OpenAsync(password).WaitAsync(Timeout).ConfigureAwait(false);
+                    AssertMessage((await replacement.GetDecMessagesAsync(Email, Inbox, 10).WaitAsync(Timeout).ConfigureAwait(false)).Single(), "original");
+                }
+                else
+                {
+                    await replacement.CreateAsync(password).WaitAsync(Timeout).ConfigureAwait(false);
+                }
+                await replacement.SetSettingsAsync(new Settings { EppieAccountCounter = 99 }).WaitAsync(Timeout).ConfigureAwait(false);
+            }
+            using var reopened = DataStorageProvider.GetDataStorage(files.Path);
+            await reopened.OpenAsync(password).WaitAsync(Timeout).ConfigureAwait(false);
+            Assert.That((await reopened.GetSettingsAsync().WaitAsync(Timeout).ConfigureAwait(false)).EppieAccountCounter, Is.EqualTo(99));
+        }
+
+        private static TaskCompletionSource<bool> RegisterPausedReset(IDataStorage storage)
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var stateLock = GetStorageField(storage, "_stateLock").GetValue(storage);
+            lock (stateLock)
+            {
+                var generation = GetStorageField(storage, "_databaseGeneration");
+                generation.SetValue(storage, (long)generation.GetValue(storage) + 1);
+                GetStorageField(storage, "_resetCompletion").SetValue(storage, completion);
+                var users = GetStorageField(storage, "_gateUsers");
+                users.SetValue(storage, (int)users.GetValue(storage) + 1);
+            }
+            return completion;
         }
 
         [Test]
@@ -970,7 +1066,7 @@ namespace Tuvi.Core.DataStorage.Tests
             var actual = await storage.GetMessageListAsync(Email, "Archive", 0).WaitAsync(Timeout).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(failure, Is.InstanceOf<DataBaseException>(), "An old batch must reject the replacement database.");
+                Assert.That(failure, Is.TypeOf<DataBaseResetException>(), "An old batch must reject the replacement database.");
                 Assert.That(actual.Select(x => x.Subject), Is.EquivalentTo(new[] { "new-first", "new-second" }));
                 Assert.That(actual.Select(x => x.TextBody), Is.EquivalentTo(new[] { "body-new-first", "body-new-second" }));
             });
@@ -1007,7 +1103,7 @@ namespace Tuvi.Core.DataStorage.Tests
                 resume.Set();
                 failure = await ObserveClosingFailureAsync(staleRead).ConfigureAwait(false);
             }
-            Assert.That(failure, Is.InstanceOf<DataBaseException>(), "An old read must not return messages from the new database.");
+            Assert.That(failure, Is.TypeOf<DataBaseResetException>(), "An old read must not return messages from the new database.");
             var actual = await storage.GetEarlierMessagesAsync(null, 10, null, CancellationToken.None).WaitAsync(Timeout).ConfigureAwait(false);
             Assert.That(actual, Is.Empty, "The recreated account has no Inbox folders.");
             var message = await storage.GetMessageAsync(Email, "Archive", 1).WaitAsync(Timeout).ConfigureAwait(false);

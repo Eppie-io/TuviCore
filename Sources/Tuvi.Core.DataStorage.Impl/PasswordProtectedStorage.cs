@@ -22,7 +22,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Konscious.Security.Cryptography;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
 using SQLite;
 using Tuvi.Core.Entities;
 
@@ -174,20 +175,38 @@ namespace Tuvi.Core.DataStorage.Impl
             return completion.Task;
         }
 
-        private static async Task<string> GetPasswordHash(string password)
+        private static Task<string> GetPasswordHash(string password)
         {
-            using (var argon2 = new Argon2i(Encoding.UTF8.GetBytes(password))
+            return Task.Run(() =>
             {
-                DegreeOfParallelism = 16,
-                Iterations = 40,
-                MemorySize = 8192,
-            })
-            {
-                var hash = await argon2.GetBytesAsync(32).ConfigureAwait(false);
-
-                // convert bytes to hex string
-                return $"x'{StringHelper.BytesToHex(hash)}'";
-            }
+                byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+                if (passwordBytes.Length == 0)
+                {
+                    throw new ArgumentException("Argon2 needs a password set", nameof(password));
+                }
+                byte[] hash = new byte[32];
+                try
+                {
+                    var parameters = new Argon2Parameters.Builder(Argon2Parameters.Argon2i)
+                        .WithVersion(Argon2Parameters.Version13)
+                        .WithParallelism(16)
+                        .WithIterations(40)
+                        .WithMemoryAsKB(8192)
+                        .WithSalt(Array.Empty<byte>())
+                        .WithSecret(Array.Empty<byte>())
+                        .WithAdditional(Array.Empty<byte>())
+                        .Build();
+                    var generator = new Argon2BytesGenerator(taskFactory: null);
+                    generator.Init(parameters);
+                    generator.GenerateBytes(passwordBytes, hash);
+                    return $"x'{StringHelper.BytesToHex(hash)}'";
+                }
+                finally
+                {
+                    Array.Clear(passwordBytes, 0, passwordBytes.Length);
+                    Array.Clear(hash, 0, hash.Length);
+                }
+            });
         }
 
         private async Task OpenImplAsync(string password, CancellationToken cancellationToken)
@@ -473,11 +492,11 @@ namespace Tuvi.Core.DataStorage.Impl
                 CheckDisposed();
                 if (_resetCompletion != null)
                 {
-                    throw new DataBaseException("Database is being reset");
+                    throw new DataBaseResetException("Database is being reset");
                 }
                 if (generation.HasValue && generation.Value != _databaseGeneration)
                 {
-                    throw new DataBaseException("Database was reset during the operation");
+                    throw new DataBaseResetException("Database was reset during the operation");
                 }
             }
         }
@@ -506,12 +525,14 @@ namespace Tuvi.Core.DataStorage.Impl
                 return;
             }
             TaskCompletionSource<bool> completion;
+            Task pendingReset = null;
             bool close;
             lock (_stateLock)
             {
                 close = _disposeCompletion == null;
                 if (close)
                 {
+                    pendingReset = _resetCompletion?.Task;
                     _disposeCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     ++_gateUsers;
                 }
@@ -519,9 +540,28 @@ namespace Tuvi.Core.DataStorage.Impl
             }
             if (close)
             {
-                _ = CompleteCloseAsync(completion, reset: false);
+                _ = CompleteDisposeAsync(completion, pendingReset);
             }
             completion.Task.GetAwaiter().GetResult();
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Reset reports its own failure; disposal must still close the connection after reset finishes.")]
+        private async Task CompleteDisposeAsync(TaskCompletionSource<bool> completion, Task pendingReset)
+        {
+            if (pendingReset != null)
+            {
+                try
+                {
+                    // A reset can be admitted before it starts waiting for the gate.
+                    // Drain it before disposal releases ownership of the file.
+                    await pendingReset.ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // The ResetAsync caller observes this failure.
+                }
+            }
+            await CompleteCloseAsync(completion, reset: false).ConfigureAwait(false);
         }
 
         // Closing rejects new work immediately, then drains the current holder.

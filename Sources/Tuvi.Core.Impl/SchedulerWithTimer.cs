@@ -107,6 +107,10 @@ namespace Tuvi.Core.Impl
             catch (OperationCanceledException)
             {
             }
+            catch (DataBaseResetException)
+            {
+                // Storage reset interrupted the scheduled action.
+            }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types

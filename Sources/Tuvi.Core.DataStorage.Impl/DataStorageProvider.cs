@@ -32,8 +32,9 @@ namespace Tuvi.Core.DataStorage.Impl
         /// <para>
         /// Reset rejects new database access and waits for the current operation. After
         /// success, this instance can recreate the database; old composite calls cannot enter it.
-        /// Dispose permanently rejects access and waits for connection close. Rejected
-        /// waiters may finish later; neither operation forcibly interrupts SQL.
+        /// Dispose permanently rejects access and waits for an admitted reset and connection close.
+        /// Reset failures are reported by ResetAsync. Rejected waiters may finish later;
+        /// neither operation forcibly interrupts SQL.
         /// </para>
         /// Application workflows must coordinate reset separately.
         /// </remarks>

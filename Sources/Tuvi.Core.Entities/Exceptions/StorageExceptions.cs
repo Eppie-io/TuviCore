@@ -37,6 +37,26 @@ namespace Tuvi.Core.Entities
         }
     }
 
+    /// <summary>
+    /// Database access was interrupted by reset or belongs to a previous database generation.
+    /// </summary>
+    public class DataBaseResetException : DataBaseException
+    {
+        public DataBaseResetException()
+        {
+        }
+
+        public DataBaseResetException(string message)
+            : base(message)
+        {
+        }
+
+        public DataBaseResetException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
     public class DataBasePasswordException : DataBaseException
     {
         public DataBasePasswordException()
