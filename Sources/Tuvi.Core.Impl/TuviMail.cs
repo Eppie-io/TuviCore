@@ -212,6 +212,10 @@ namespace Tuvi.Core.Impl
             {
                 // Do nothing. Operation was cancelled.
             }
+            catch (DataBaseResetException)
+            {
+                // Storage reset interrupted initialization.
+            }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
@@ -704,7 +708,8 @@ namespace Tuvi.Core.Impl
         private void RegisterException(Exception ex, string message, bool silent = false)
         {
             if (ex is OperationCanceledException ||
-                ex is ObjectDisposedException)
+                ex is ObjectDisposedException ||
+                ex is DataBaseResetException)
             {
                 return;
             }
@@ -987,6 +992,10 @@ namespace Tuvi.Core.Impl
             catch (OperationCanceledException)
             {
                 //ignore
+            }
+            catch (DataBaseResetException)
+            {
+                // Storage reset interrupted loading earlier messages.
             }
 
             return messages;

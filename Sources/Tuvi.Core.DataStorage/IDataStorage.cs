@@ -312,6 +312,7 @@ namespace Tuvi.Core.DataStorage
         /// <param name="contact">Contact to add</param>
         /// <param name="cancellationToken"></param>
         /// <returns>True if <paramref name="contact"/> was successfully added and False if <paramref name="contact"/> already exists or exception occured</returns>
+        /// <exception cref="DataBaseResetException">Storage access has permanently ended because of reset.</exception>
         Task<bool> TryAddContactAsync(Contact contact, CancellationToken cancellationToken);
 
         /// <summary>

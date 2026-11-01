@@ -67,6 +67,14 @@ namespace Tuvi.Core
         /// <summary>
         /// Reset application and erase all its data.
         /// </summary>
+        /// <remarks>
+        /// Resetting an existing database permanently ends access through this core's storage,
+        /// including when cleanup fails. To continue using the application, dispose this core
+        /// and create a new core with new storage and security manager instances after the
+        /// previous storage owner's connection close and reset cleanup have completed.
+        /// When no database exists during initial setup, this method is a no-op and preserves
+        /// the prepared seed.
+        /// </remarks>
         /// <exception cref="DataBaseException" />
         Task ResetApplicationAsync();
 

@@ -50,8 +50,16 @@ namespace Tuvi.Core.DataStorage
         Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Reset storage to uninitialized state. All stored data is wiped.
+        /// Permanently ends this instance's access to storage and deletes the database file.
         /// </summary>
+        /// <remarks>
+        /// Rejects new database operations immediately and waits for active local database work
+        /// before closing the connection and deleting the file. It does not wait for all public
+        /// tasks or event callbacks. This instance remains terminal even if the file is absent
+        /// or cleanup fails. Repeated calls return the original task and outcome, including after
+        /// disposal; they never retry deletion. Further database work requires a new instance
+        /// after the previous owner's connection close and file cleanup have completed.
+        /// </remarks>
         /// <exception cref="DataBaseException"/>
         Task ResetAsync();
     }

@@ -84,6 +84,12 @@ namespace Tuvi.Core
         /// <summary>
         /// Reset application to uninitialized state. All keys and stored data are wiped.
         /// </summary>
+        /// <remarks>
+        /// Reset permanently ends access through the underlying storage instance, even if the
+        /// database file is absent or cleanup fails. To continue using the application, dispose
+        /// the owning core and create a new core with new storage and security manager instances
+        /// after the previous storage owner's connection close and reset cleanup have completed.
+        /// </remarks>
         /// <exception cref="DataBaseException" />
         Task ResetAsync();
 
