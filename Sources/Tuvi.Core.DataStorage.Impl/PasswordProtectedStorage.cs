@@ -104,7 +104,7 @@ namespace Tuvi.Core.DataStorage.Impl
                     {
                         File.Delete(Path);
                     }
-                    if (ex is SQLiteException)
+                    if (ex is SQLiteException || ex is IOException || ex is UnauthorizedAccessException)
                     {
                         throw new DataBaseException(ex.Message, ex);
                     }
