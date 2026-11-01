@@ -36,6 +36,7 @@ namespace Tuvi.Core.DataStorage.Impl
         private int _gateUsers;
         private TaskCompletionSource<bool> _resetCompletion;
         private TaskCompletionSource<bool> _disposeCompletion;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "CloseDatabaseAsync disposes the connection through a retained and awaited close task; native close failures remain observable.")]
         private StorageConnection _database;
         private Task _databaseClose;
 
@@ -83,15 +84,17 @@ namespace Tuvi.Core.DataStorage.Impl
                     throw new DataBaseAlreadyExistsException();
                 }
 
+                var options = await PrepareConnectionOptionsAsync(password, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create, ct).ConfigureAwait(false);
                 await CloseDatabaseAsync().ConfigureAwait(false);
                 bool created = false;
                 try
                 {
+                    ct.ThrowIfCancellationRequested();
                     using (new FileStream(Path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
                     {
                     }
                     created = true;
-                    _database = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create, ct).ConfigureAwait(false);
+                    _database = new StorageConnection(options);
                     await CreateOrMigrateTablesAsync(_database).ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -228,11 +231,14 @@ namespace Tuvi.Core.DataStorage.Impl
                 throw new DataBaseNotCreatedException();
             }
 
+            var options = await PrepareConnectionOptionsAsync(password, SQLiteOpenFlags.ReadWrite, cancellationToken).ConfigureAwait(false);
+            // Once replacement starts, finish opening a usable connection even
+            // if cancellation arrives during close, schema validation or migration.
             await CloseDatabaseAsync().ConfigureAwait(false);
 
             try
             {
-                _database = await CreateDBConnectionAsync(password, SQLiteOpenFlags.ReadWrite, cancellationToken).ConfigureAwait(false);
+                _database = new StorageConnection(options);
                 // A freshly owned physical connection must actually read the
                 // encrypted schema before the password can be accepted.
                 await _database.RunAsync(connection => connection.ExecuteScalar<int>("SELECT count(*) FROM sqlite_master")).ConfigureAwait(false);
@@ -612,13 +618,11 @@ namespace Tuvi.Core.DataStorage.Impl
         {
         }
 
-        private async Task<StorageConnection> CreateDBConnectionAsync(string password, SQLiteOpenFlags flags, CancellationToken cancellationToken)
+        private async Task<SQLiteConnectionString> PrepareConnectionOptionsAsync(string password, SQLiteOpenFlags flags, CancellationToken cancellationToken)
         {
             var hashedPassword = await GetPasswordHash(password).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var options = new SQLite.SQLiteConnectionString(Path, flags, storeDateTimeAsTicks: true, key: hashedPassword);
-
-            return new StorageConnection(options);
+            return new SQLiteConnectionString(Path, flags, storeDateTimeAsTicks: true, key: hashedPassword);
         }
 
         private bool IsStorageExist()

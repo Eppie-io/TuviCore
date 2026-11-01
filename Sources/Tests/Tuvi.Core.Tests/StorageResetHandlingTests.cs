@@ -42,6 +42,24 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
+        public async Task SuccessfulStartThenResetDuringAccountLoadingPropagatesReset()
+        {
+            var storage = new Mock<IDataStorage>();
+            using var core = CoreTestBase.CreateCore(storage.Object);
+            var security = Mock.Get(core.GetSecurityManager());
+            security.Setup(x => x.StartAsync("password", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            var failure = new DataBaseResetException("Reset after successful StartAsync");
+            storage.Setup(x => x.GetAccountsAsync(It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+
+            var actual = await Assert.CatchAsync<DataBaseResetException>(async () =>
+                await core.InitializeApplicationAsync("password", default).WaitAsync(Timeout).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(failure));
+            security.Verify(x => x.StartAsync("password", It.IsAny<CancellationToken>()), Times.Once);
+            storage.Verify(x => x.GetAccountsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
         public async Task ResetBeforeFirstStartPreservesPreparedSeed()
         {
             var storage = new Mock<IDataStorage>();
@@ -52,10 +70,18 @@ namespace Tuvi.Core.Tests
             security.Setup(x => x.GetSeedQuiz()).Returns(preparedSeed);
             bool wipeRequested = false;
             core.WipeAllDataNeeded += (_, _) => wipeRequested = true;
+            int contacts = 0;
+            core.ContactAdded += (_, _) => ++contacts;
+            core.ContactChanged += (_, _) => ++contacts;
 
             await core.ResetApplicationAsync().WaitAsync(Timeout).ConfigureAwait(false);
 
+            var contact = new Contact("Initial setup", new EmailAddress("setup@example.test"));
+            storage.Raise(x => x.ContactAdded += null, new ContactAddedEventArgs(contact));
+            storage.Raise(x => x.ContactChanged += null, new ContactChangedEventArgs(contact));
+
             Assert.That(core.GetSecurityManager().GetSeedQuiz(), Is.SameAs(preparedSeed));
+            Assert.That(contacts, Is.EqualTo(2), "The initial no-file reset must keep contact admission open.");
             Assert.That(wipeRequested, Is.False);
             security.Verify(x => x.ResetAsync(), Times.Never, "Initial setup must not clear the prepared seed.");
             storage.Verify(x => x.ResetAsync(), Times.Never, "The high-level no-file reset must remain a no-op.");
