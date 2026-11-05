@@ -37,6 +37,26 @@ namespace Tuvi.Core.Entities
         }
     }
 
+    /// <summary>
+    /// Storage access was rejected because reset has permanently ended this instance's database access.
+    /// </summary>
+    public class DataBaseResetException : DataBaseException
+    {
+        public DataBaseResetException()
+        {
+        }
+
+        public DataBaseResetException(string message)
+            : base(message)
+        {
+        }
+
+        public DataBaseResetException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
     public class DataBasePasswordException : DataBaseException
     {
         public DataBasePasswordException()

@@ -61,6 +61,7 @@ namespace Tuvi.Core.Impl
     public sealed class TuviMail : ITuviMail, IDisposable
     {
         private bool _isDisposed;
+        private int _contactNotificationsStopped;
         private readonly IMailBoxFactory MailBoxFactory;
         private readonly IMailServerTester MailServerTester;
         private readonly IDataStorage DataStorage;
@@ -154,8 +155,46 @@ namespace Tuvi.Core.Impl
             BackupManager.SetBackupDetails(implementationDetailsProvider);
             SecurityManager.SetKeyDerivationDetails(implementationDetailsProvider);
 
-            DataStorage.ContactAdded += (sender, args) => ContactAdded?.Invoke(sender, args);
-            DataStorage.ContactChanged += (sender, args) => ContactChanged?.Invoke(sender, args);
+            DataStorage.ContactAdded += OnStorageContactAdded;
+            DataStorage.ContactChanged += OnStorageContactChanged;
+        }
+
+        private void OnStorageContactAdded(object sender, ContactAddedEventArgs args)
+        {
+            RaiseContactNotification(ContactAdded, sender, args);
+        }
+
+        private void OnStorageContactChanged(object sender, ContactChangedEventArgs args)
+        {
+            RaiseContactNotification(ContactChanged, sender, args);
+        }
+
+        private void StopContactNotifications()
+        {
+            if (Interlocked.Exchange(ref _contactNotificationsStopped, 1) == 0)
+            {
+                DataStorage.ContactAdded -= OnStorageContactAdded;
+                DataStorage.ContactChanged -= OnStorageContactChanged;
+            }
+        }
+
+        private void RaiseContactNotification<TEventArgs>(EventHandler<TEventArgs> handlers, object sender, TEventArgs args)
+            where TEventArgs : EventArgs
+        {
+            if (handlers == null || Volatile.Read(ref _contactNotificationsStopped) != 0)
+            {
+                return;
+            }
+            foreach (EventHandler<TEventArgs> handler in handlers.GetInvocationList())
+            {
+                if (Volatile.Read(ref _contactNotificationsStopped) != 0)
+                {
+                    return;
+                }
+                // Admission occurs at this check. A callback admitted before reset
+                // or disposal may still run later; external handlers hold no lock.
+                handler(sender, args);
+            }
         }
 
         public ISecurityManager GetSecurityManager()
@@ -211,6 +250,11 @@ namespace Tuvi.Core.Impl
             catch (OperationCanceledException)
             {
                 // Do nothing. Operation was cancelled.
+            }
+            catch (DataBaseResetException)
+            {
+                // Storage reset interrupted initialization.
+                throw;
             }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
@@ -299,6 +343,7 @@ namespace Tuvi.Core.Impl
             {
                 return;
             }
+            StopContactNotifications();
             // reset caches
             AccountGroupCache.Clear();
             AccountCache.Clear();
@@ -704,7 +749,8 @@ namespace Tuvi.Core.Impl
         private void RegisterException(Exception ex, string message, bool silent = false)
         {
             if (ex is OperationCanceledException ||
-                ex is ObjectDisposedException)
+                ex is ObjectDisposedException ||
+                ex is DataBaseResetException)
             {
                 return;
             }
@@ -842,6 +888,7 @@ namespace Tuvi.Core.Impl
 
         public void Dispose()
         {
+            StopContactNotifications();
             if (_isDisposed)
             {
                 return;
@@ -899,7 +946,7 @@ namespace Tuvi.Core.Impl
             {
                 await DataStorage.SetContactAvatarAsync(contactEmail, avatarBytes, avatarWidth, avatarHeight, cancellationToken).ConfigureAwait(false);
                 var contact = await DataStorage.GetContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
-                ContactChanged?.Invoke(this, new ContactChangedEventArgs(contact));
+                RaiseContactNotification(ContactChanged, this, new ContactChangedEventArgs(contact));
             }
         }
 
@@ -909,7 +956,7 @@ namespace Tuvi.Core.Impl
             if (await DataStorage.ExistsContactWithEmailAddressAsync(contactEmail, cancellationToken).ConfigureAwait(false))
             {
                 await DataStorage.RemoveContactAsync(contactEmail, cancellationToken).ConfigureAwait(false);
-                ContactDeleted?.Invoke(this, new ContactDeletedEventArgs(contactEmail));
+                RaiseContactNotification(ContactDeleted, this, new ContactDeletedEventArgs(contactEmail));
             }
         }
 
@@ -987,6 +1034,10 @@ namespace Tuvi.Core.Impl
             catch (OperationCanceledException)
             {
                 //ignore
+            }
+            catch (DataBaseResetException)
+            {
+                // Storage reset interrupted loading earlier messages.
             }
 
             return messages;
