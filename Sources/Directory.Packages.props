@@ -22,7 +22,7 @@
     <PackageVersion Include="Portable.BouncyCastle" Version="1.9.0" />
     <PackageVersion Include="sqlite-net-sqlcipher" Version="1.9.172" />
     <PackageVersion Include="System.Data.HashFunction.CityHash" Version="2.0.0" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.14" />
+    <PackageVersion Include="System.Text.Json" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
