@@ -13,7 +13,7 @@
     <PackageVersion Include="MimeKit" Version="4.17.0" />
     <PackageVersion Include="Moq" Version="4.21.0" />
     <PackageVersion Include="NBitcoin" Version="10.0.20" />
-    <PackageVersion Include="Nethereum.Hex" Version="7.0.0" />
+    <PackageVersion Include="Nethereum.Hex" Version="7.1.0" />
     <PackageVersion Include="Nethereum.RLP" Version="7.0.0" />
     <PackageVersion Include="Nethereum.Signer" Version="7.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
