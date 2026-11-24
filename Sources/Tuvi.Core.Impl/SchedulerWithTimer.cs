@@ -52,6 +52,7 @@ namespace Tuvi.Core.Impl
         }
 
         private bool _isDisposed;
+        private bool _isStopping;
 
         /// <summary>
         /// Constructor for scheduler with timer
@@ -69,40 +70,34 @@ namespace Tuvi.Core.Impl
 
         private async void ExecuteAction()
         {
-            _currentTask = ExecuteActionAsync();
-            try
+            await StartTrackedAction().ConfigureAwait(false);
+        }
+
+        private Task StartTrackedAction()
+        {
+            lock (_lock)
             {
-                await _currentTask.ConfigureAwait(false);
-            }
-            finally
-            {
-                _currentTask = null;
+                if (_isDisposed || _isStopping) return Task.CompletedTask;
+                if (_isBusy) return _currentTask ?? Task.CompletedTask;
+                _isBusy = true;
+                _actionCancellationSource = new CancellationTokenSource();
+                var cancellationToken = _actionCancellationSource.Token;
+                _currentTask = Task.Run(() => ExecuteActionAsync(cancellationToken));
+                return _currentTask;
             }
         }
 
         public Task GetActionTask()
         {
-            var task = _currentTask;
-            if (task is null)
-            {
-                return Task.CompletedTask;
-            }
-            return task;
+            lock (_lock) { return _currentTask ?? Task.CompletedTask; }
         }
 
-        private async Task ExecuteActionAsync()
+        private async Task ExecuteActionAsync(CancellationToken cancellationToken)
         {
-            // If previous action is not finished, ignore this one
-            lock (_lock)
-            {
-                if (_isBusy) return;
-                _isBusy = true;
-            }
-
             try
             {
-                _actionCancellationSource = new CancellationTokenSource();
-                await _actionAsync(_actionCancellationSource.Token).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await _actionAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -120,9 +115,12 @@ namespace Tuvi.Core.Impl
             }
             finally
             {
-                _actionCancellationSource.Dispose();
-                _actionCancellationSource = null;
-                _isBusy = false;
+                lock (_lock)
+                {
+                    _actionCancellationSource.Dispose();
+                    _actionCancellationSource = null;
+                    _isBusy = false;
+                }
             }
         }
 
@@ -137,7 +135,7 @@ namespace Tuvi.Core.Impl
             }
 
             await GetActionTask().ConfigureAwait(false);
-            await ExecuteActionAsync().ConfigureAwait(false);
+            await StartTrackedAction().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -145,6 +143,7 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public void Start()
         {
+            lock (_lock) { _isStopping = false; }
             ExecuteAction();
             StartTimerIfNeeded();
         }
@@ -179,8 +178,10 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public void Cancel()
         {
-            Stop();
-            _actionCancellationSource?.Cancel();
+            CancellationTokenSource cancellation;
+            lock (_lock) { _isStopping = true; Stop(); cancellation = _actionCancellationSource; }
+            try { cancellation?.Cancel(); }
+            catch (ObjectDisposedException) { /* The tracked action already completed. */ }
         }
 
         /// <summary>

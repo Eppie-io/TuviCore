@@ -34,11 +34,94 @@ namespace Tuvi.Core.Tests
     {
         private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownTracksAnActiveActionAfterBusyStartOrForcedCheck(bool forced)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var scheduler = new SchedulerWithTimer(async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            }, 0);
+
+            Task operation;
+            if (forced)
+            {
+                operation = scheduler.ExecuteActionForceAsync();
+            }
+            else
+            {
+                scheduler.Start();
+                operation = scheduler.GetActionTask();
+            }
+
+            try
+            {
+                await entered.Task.WaitAsync(Timeout).ConfigureAwait(false);
+                if (!forced)
+                {
+                    scheduler.Start();
+                }
+                scheduler.Cancel();
+                Assert.That(scheduler.GetActionTask().IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await operation.WaitAsync(Timeout).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ForcedCheckWaitingForAnActiveActionHonorsSchedulerCancellation()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            using var scheduler = new SchedulerWithTimer(async token =>
+            {
+                Interlocked.Increment(ref calls);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            }, 0);
+
+            scheduler.Start();
+            Task queued = Task.CompletedTask;
+            try
+            {
+                await entered.Task.WaitAsync(Timeout).ConfigureAwait(false);
+                queued = scheduler.ExecuteActionForceAsync();
+                scheduler.Cancel();
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await queued.WaitAsync(Timeout).ConfigureAwait(false);
+            }
+            Assert.That(calls, Is.EqualTo(1));
+        }
+
         private static IEnumerable<TestCaseData> StorageFailures()
         {
             yield return new TestCaseData(new DataBaseResetException("Storage was reset"), false);
             yield return new TestCaseData(new DataBaseException("Storage failed"), true);
             yield return new TestCaseData(new IOException("File access failed"), true);
+        }
+
+        [Test]
+        public async Task InitializeAfterDisposeThrowsBeforeStartingSecurity()
+        {
+            var storage = new Mock<IDataStorage>();
+            using var core = CoreTestBase.CreateCore(storage.Object);
+            var security = Mock.Get(core.GetSecurityManager());
+            core.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                core.InitializeApplicationAsync("password", default)).ConfigureAwait(false);
+
+            security.Verify(x => x.StartAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]

@@ -223,6 +223,7 @@ namespace Tuvi.Core.Impl
 
         public async Task<bool> InitializeApplicationAsync(string password, CancellationToken cancellationToken)
         {
+            CheckDisposed();
             try
             {
                 await SecurityManager.StartAsync(password, cancellationToken).ConfigureAwait(false);
