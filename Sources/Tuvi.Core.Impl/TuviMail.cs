@@ -21,6 +21,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,7 +61,14 @@ namespace Tuvi.Core.Impl
 
     public sealed class TuviMail : ITuviMail, IDisposable
     {
-        private bool _isDisposed;
+        private volatile bool _isDisposed;
+        private readonly object _lifecycleLock = new object();
+        private readonly HashSet<SchedulerWithTimer> _ownedSchedulers = new HashSet<SchedulerWithTimer>();
+        private readonly Dictionary<SchedulerWithTimer, SchedulerStop> _schedulerStops = new Dictionary<SchedulerWithTimer, SchedulerStop>();
+        private readonly Dictionary<EmailAddress, object> _accountDeletionAttempts = new Dictionary<EmailAddress, object>();
+        private readonly Func<Func<CancellationToken, Task>, double, SchedulerWithTimer> _schedulerFactory;
+        private Task _disposeCompletion;
+        private Task _applicationResetCompletion;
         private int _contactNotificationsStopped;
         private readonly IMailBoxFactory MailBoxFactory;
         private readonly IMailServerTester MailServerTester;
@@ -68,7 +76,27 @@ namespace Tuvi.Core.Impl
         private readonly ISecurityManager SecurityManager;
         private readonly IBackupManager BackupManager;
         private readonly IDecStorageClient DecStorageClient;
-        public ICredentialsManager CredentialsManager { get; private set; }
+        private readonly ICredentialsManager _credentialsManager;
+        public ICredentialsManager CredentialsManager
+        {
+            get { CheckDisposed(); return _credentialsManager; }
+        }
+
+        private sealed class SchedulerStop
+        {
+            public readonly SchedulerWithTimer Scheduler;
+            public readonly EmailAddress Email;
+            public readonly Task Action;
+            public readonly TaskCompletionSource<Exception> Completion = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public int Started;
+
+            public SchedulerStop(SchedulerWithTimer scheduler, EmailAddress email)
+            {
+                Scheduler = scheduler;
+                Email = email;
+                Action = scheduler.PrepareStop();
+            }
+        }
 
         private ConcurrentDictionary<int, AccountGroup> AccountGroupCache = new ConcurrentDictionary<int, AccountGroup>();
         private ConcurrentDictionary<int, Account> AccountCache = new ConcurrentDictionary<int, Account>();
@@ -91,7 +119,6 @@ namespace Tuvi.Core.Impl
         public event EventHandler<ContactAddedEventArgs> ContactAdded;
         public event EventHandler<ContactChangedEventArgs> ContactChanged;
         public event EventHandler<ContactDeletedEventArgs> ContactDeleted;
-        public event EventHandler<EventArgs> WipeAllDataNeeded;
 
         public TuviMail(
             IMailBoxFactory mailBoxFactory,
@@ -102,6 +129,21 @@ namespace Tuvi.Core.Impl
             ICredentialsManager credentialsManager,
             ImplementationDetailsProvider implementationDetailsProvider,
             IDecStorageClient decStorageClient)
+            : this(mailBoxFactory, mailServerTester, dataStorage, securityManager, backupManager, credentialsManager,
+                  implementationDetailsProvider, decStorageClient, (action, interval) => new SchedulerWithTimer(action, interval))
+        {
+        }
+
+        internal TuviMail(
+            IMailBoxFactory mailBoxFactory,
+            IMailServerTester mailServerTester,
+            IDataStorage dataStorage,
+            ISecurityManager securityManager,
+            IBackupManager backupManager,
+            ICredentialsManager credentialsManager,
+            ImplementationDetailsProvider implementationDetailsProvider,
+            IDecStorageClient decStorageClient,
+            Func<Func<CancellationToken, Task>, double, SchedulerWithTimer> schedulerFactory)
         {
             if (mailBoxFactory is null)
             {
@@ -146,8 +188,9 @@ namespace Tuvi.Core.Impl
             DataStorage = dataStorage;
             SecurityManager = securityManager;
             BackupManager = backupManager;
-            CredentialsManager = credentialsManager;
+            _credentialsManager = credentialsManager;
             DecStorageClient = decStorageClient;
+            _schedulerFactory = schedulerFactory ?? throw new ArgumentNullException(nameof(schedulerFactory));
 
             BackupManager.AccountRestoredAsync += RestoreAccountFromBackupAsync;
             BackupManager.MessagesRestoredAsync += RestoreMessagesFromBackupAsync;
@@ -181,13 +224,13 @@ namespace Tuvi.Core.Impl
         private void RaiseContactNotification<TEventArgs>(EventHandler<TEventArgs> handlers, object sender, TEventArgs args)
             where TEventArgs : EventArgs
         {
-            if (handlers == null || Volatile.Read(ref _contactNotificationsStopped) != 0)
+            if (handlers == null || _isDisposed)
             {
                 return;
             }
             foreach (EventHandler<TEventArgs> handler in handlers.GetInvocationList())
             {
-                if (Volatile.Read(ref _contactNotificationsStopped) != 0)
+                if (_isDisposed)
                 {
                     return;
                 }
@@ -199,11 +242,13 @@ namespace Tuvi.Core.Impl
 
         public ISecurityManager GetSecurityManager()
         {
+            CheckDisposed();
             return SecurityManager;
         }
 
         public IBackupManager GetBackupManager()
         {
+            CheckDisposed();
             return BackupManager;
         }
 
@@ -223,79 +268,200 @@ namespace Tuvi.Core.Impl
 
         public async Task<bool> InitializeApplicationAsync(string password, CancellationToken cancellationToken)
         {
-            CheckDisposed();
+            lock (_lifecycleLock)
+            {
+                CheckLifecycleReentryLocked();
+                CheckDisposed();
+            }
             try
             {
                 await SecurityManager.StartAsync(password, cancellationToken).ConfigureAwait(false);
-                await InitializeAndStartAllAccountSchedulersAsync(cancellationToken).ConfigureAwait(false);
-                return true;
             }
             catch (DataBasePasswordException)
             {
+                CheckDisposed();
                 return false;
             }
+            await InitializeAndStartAllAccountSchedulersAsync(cancellationToken).ConfigureAwait(false);
+            CheckDisposed();
+            return true;
         }
 
         private async Task InitializeAndStartAllAccountSchedulersAsync(CancellationToken cancellationToken)
         {
+            await CancelAccountSchedulersAsync().ConfigureAwait(false);
+            List<Account> accounts;
             try
             {
-                AccountSchedulers.Clear();
-
-                var accounts = await GetAccountsAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var account in accounts)
-                {
-                    AddAndStartAccountScheduler(account);
-                }
+                accounts = await GetAccountsAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                // Do nothing. Operation was cancelled.
+                CheckDisposed();
+                return;
             }
-            catch (DataBaseResetException)
-            {
-                // Storage reset interrupted initialization.
-                throw;
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
+            catch (DataBaseResetException) { throw; }
+            catch (ObjectDisposedException) { throw; }
+#pragma warning disable CA1031 // Preserve diagnostics for account loading failures.
             catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
+#pragma warning restore CA1031
             {
                 this.Log().LogError(ex, "An error occurred while initializing and starting all account scheduler");
+                return;
             }
+            lock (_lifecycleLock)
+            {
+                CheckDisposed();
+                foreach (var account in accounts) AddAndStartAccountScheduler(account);
+            }
+        }
+
+        internal int OwnedSchedulerCount
+        {
+            get { lock (_lifecycleLock) { return _ownedSchedulers.Count; } }
+        }
+
+        internal SchedulerWithTimer GetAccountScheduler(EmailAddress email)
+        {
+            lock (_lifecycleLock) { return AccountSchedulers[email]; }
         }
 
         private void AddAndStartAccountScheduler(Account account)
         {
-            if (AccountSchedulers.ContainsKey(account.Email))
+            lock (_lifecycleLock)
             {
-                return;
+                CheckDisposed();
+                if (AccountSchedulers.ContainsKey(account.Email)) return;
+                var scheduler = _schedulerFactory(
+                    token => CheckForNewMessagesAsync(account, token),
+                    TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds);
+                scheduler.ExceptionOccurred += OnSchedulerExceptionOccurred;
+                _ownedSchedulers.Add(scheduler);
+                AccountSchedulers[account.Email] = scheduler;
+                scheduler.Start();
             }
+        }
 
-            SchedulerWithTimer scheduler = new SchedulerWithTimer(
-                (schedulerCancellation) =>
+        private SchedulerStop RegisterSchedulerStopLocked(SchedulerWithTimer scheduler, EmailAddress email)
+        {
+            if (!_schedulerStops.TryGetValue(scheduler, out var stop))
+            {
+                stop = new SchedulerStop(scheduler, email);
+                _schedulerStops.Add(scheduler, stop);
+            }
+            return stop;
+        }
+
+        private SchedulerStop[] PrepareAllSchedulerStopsLocked()
+        {
+            foreach (var entry in AccountSchedulers)
+            {
+                RegisterSchedulerStopLocked(entry.Value, entry.Key);
+            }
+            AccountSchedulers.Clear();
+            return _schedulerStops.Values.ToArray();
+        }
+
+        private Task CancelAccountSchedulersAsync()
+        {
+            SchedulerStop[] stops;
+            lock (_lifecycleLock)
+            {
+                CheckDisposed();
+                stops = PrepareAllSchedulerStopsLocked();
+            }
+            return StopSchedulersAsync(stops);
+        }
+
+        private void StartSchedulerStops(IEnumerable<SchedulerStop> stops)
+        {
+            foreach (var stop in stops)
+            {
+                if (Interlocked.CompareExchange(ref stop.Started, 1, 0) == 0)
                 {
-                    if (_isDisposed)
-                    {
-                        return Task.CompletedTask;
-                    }
-                    return CheckForNewMessagesAsync(account, schedulerCancellation);
-                },
-                TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds);
-            scheduler.ExceptionOccurred += OnSchedulerExceptionOccurred;
+                    _ = CompleteSchedulerStopAsync(stop);
+                }
+            }
+        }
 
-            AccountSchedulers[account.Email] = scheduler;
-            scheduler.Start();
+        private async Task CompleteSchedulerStopAsync(SchedulerStop stop)
+        {
+            var failures = new List<Exception>();
+            TryCleanup(stop.Scheduler.Cancel, failures);
+            try
+            {
+                await stop.Action.ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // Release the scheduler after cancellation and its action have both finished.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                if (stop.Action.Exception != null) failures.AddRange(stop.Action.Exception.InnerExceptions);
+                else failures.Add(ex);
+            }
+            stop.Scheduler.ExceptionOccurred -= OnSchedulerExceptionOccurred;
+            TryCleanup(() =>
+            {
+                stop.Scheduler.Dispose();
+                lock (_lifecycleLock)
+                {
+                    _ownedSchedulers.Remove(stop.Scheduler);
+                    _schedulerStops.Remove(stop.Scheduler);
+                }
+            }, failures);
+            var failure = GetFailure(failures);
+            stop.Completion.TrySetResult(failure);
+            if (failure != null)
+            {
+                this.Log().LogError(failure, "An error occurred while stopping an account scheduler");
+            }
+        }
+
+        private Task StopSchedulersAsync(SchedulerStop[] stops)
+        {
+            StartSchedulerStops(stops);
+            return WaitForSchedulerStopsAsync(stops);
+        }
+
+        private static async Task WaitForSchedulerStopsAsync(IEnumerable<SchedulerStop> stops)
+        {
+            var failures = await Task.WhenAll(stops.Select(x => x.Completion.Task)).ConfigureAwait(false);
+            ThrowFailures(failures.Where(x => x != null).ToList());
+        }
+
+        private void CheckLifecycleReentryLocked()
+        {
+            if (_ownedSchedulers.Any(x => x.IsExecutingAction || x.IsExecutingCancellation))
+            {
+                throw new InvalidOperationException("A check or its cancellation callback must request initialization, account deletion, reset or disposal through the core owner and return.");
+            }
+        }
+
+        private static Exception GetFailure(List<Exception> failures)
+        {
+            return failures.Count == 0 ? null : failures.Count == 1 ? failures[0] : new AggregateException(failures);
+        }
+
+        private static void ThrowFailures(List<Exception> failures)
+        {
+            var failure = GetFailure(failures);
+            if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
         private void OnSchedulerExceptionOccurred(object sender, ExceptionEventArgs args)
         {
-            ExceptionOccurred?.Invoke(sender, args);
+            ExceptionOccurred?.Invoke(this, args);
         }
 
         private async Task CheckForNewMessagesForceAsync(Account account, CancellationToken cancellationToken, bool silent = false)
         {
-            if (AccountSchedulers.TryGetValue(account.Email, out SchedulerWithTimer scheduler))
+            SchedulerWithTimer scheduler;
+            lock (_lifecycleLock)
+            {
+                CheckDisposed();
+                AccountSchedulers.TryGetValue(account.Email, out scheduler);
+            }
+            if (scheduler != null)
             {
                 await scheduler.ExecuteActionForceAsync().ConfigureAwait(false);
             }
@@ -311,59 +477,75 @@ namespace Tuvi.Core.Impl
 
         private async Task CheckForNewMessagesAsync(Account account, CancellationToken cancellationToken)
         {
-            List<EmailFolderError> failedEmailFolders = new List<EmailFolderError>();
-
-            try
+            if (_isDisposed) return;
+            var accountService = GetAccountService(account);
+            await accountService.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
+            foreach (var folder in account.FoldersStructure)
             {
-                CheckDisposed();
-                var accountService = GetAccountService(account);
-                await accountService.UpdateFolderStructureAsync(cancellationToken).ConfigureAwait(true);
-                foreach (var folder in account.FoldersStructure)
-                {
-                    CheckDisposed();
-                    await LoadNewMessagesAsync(folder, accountService, cancellationToken).ConfigureAwait(true);
-                }
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    CheckDisposed();
-                    await accountService.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
-                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (_isDisposed) return;
+                await LoadNewMessagesAsync(folder, accountService, cancellationToken).ConfigureAwait(true);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
+            if (!cancellationToken.IsCancellationRequested && !_isDisposed)
             {
-                RegisterException(ex, "An error occurred while checking for new messages");
+                await accountService.SynchronizeAsync(full: false, cancellationToken).ConfigureAwait(true);
             }
         }
 
-        public async Task ResetApplicationAsync()
+        public Task ResetApplicationAsync()
         {
-            CheckDisposed();
-            if (await SecurityManager.IsNeverStartedAsync().ConfigureAwait(true))
+            TaskCompletionSource<bool> completion;
+            SchedulerStop[] stops;
+            lock (_lifecycleLock)
             {
-                return;
+                CheckLifecycleReentryLocked();
+                if (_applicationResetCompletion != null) return _applicationResetCompletion;
+                CheckDisposed();
+                _isDisposed = true;
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _applicationResetCompletion = completion.Task;
+                stops = PrepareAllSchedulerStopsLocked();
             }
-            StopContactNotifications();
-            // reset caches
-            AccountGroupCache.Clear();
-            AccountCache.Clear();
-            AccountServiceCache.Clear();
-            foreach (var s in AccountSchedulers)
+            // Shutdown must make progress even if an external caller blocks its UI context in Dispose.
+            _ = Task.Run(() => CompleteApplicationResetAsync(stops, completion));
+            return completion.Task;
+        }
+
+        private async Task CompleteApplicationResetAsync(SchedulerStop[] stops, TaskCompletionSource<bool> completion)
+        {
+            try
             {
-                s.Value.Cancel();
+                var failures = new List<Exception>();
+                TryCleanup(StopContactNotifications, failures);
+                try
+                {
+                    await StopSchedulersAsync(stops).ConfigureAwait(false);
+                }
+#pragma warning disable CA1031 // Stop every check before publishing the shared reset result.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    failures.Add(ex);
+                }
+                ThrowFailures(failures);
+                AccountCache.Clear();
+                AccountGroupCache.Clear();
+                AccountServiceCache.Clear();
+                FolderToAccountMapping.Clear();
+                await SecurityManager.ResetAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
             }
-            AccountSchedulers.Clear();
-            FolderToAccountMapping.Clear();
-
-            // TODO: TVM-181 clear application cache like mailboxes and mails
-            await SecurityManager.ResetAsync().ConfigureAwait(true);
-
-            WipeAllDataNeeded?.Invoke(this, null);
+#pragma warning disable CA1031 // Every caller observes the same terminal reset outcome.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                completion.TrySetException(ex);
+            }
         }
 
         public Task<bool> IsFirstApplicationStartAsync(CancellationToken cancellationToken)
         {
+            CheckDisposed();
             return SecurityManager.IsNeverStartedAsync(cancellationToken);
         }
 
@@ -648,35 +830,99 @@ namespace Tuvi.Core.Impl
 
         public async Task DeleteAccountAsync(Account account, CancellationToken cancellationToken)
         {
-            CheckDisposed();
+            lock (_lifecycleLock)
+            {
+                CheckLifecycleReentryLocked();
+                CheckDisposed();
+            }
             if (account is null)
             {
                 throw new ArgumentNullException(nameof(account));
             }
-            foreach (var folder in account.FoldersStructure)
+            cancellationToken.ThrowIfCancellationRequested();
+            var email = account.Email;
+            int accountId = account.Id;
+            if (accountId == 0)
             {
-                await DataStorage.DeleteFolderAsync(account.Email, folder.FullName, cancellationToken).ConfigureAwait(false);
+                accountId = (await DataStorage.GetAccountAsync(email, cancellationToken).ConfigureAwait(false)).Id;
             }
+            var attempt = new object();
+            try
+            {
+                bool removedScheduler = await RemoveAccountSchedulerByKeyAsync(email, attempt, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    foreach (var folder in account.FoldersStructure)
+                    {
+                        await DataStorage.DeleteFolderAsync(email, folder.FullName, CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    if (removedScheduler) await RestoreAccountSchedulerAsync(email, accountId, attempt).ConfigureAwait(false);
+                    throw;
+                }
 
-            SecurityManager.RemovePgpKeys(account);
+                SecurityManager.RemovePgpKeys(account);
 
-            RemoveAccountServiceByKey(account.Email);
-            RemoveAccountSchedulerByKey(account.Email);
-            AccountCache.TryRemove(account.Id, out Account _);
+                RemoveAccountServiceByKey(email);
+                AccountCache.TryRemove(account.Id, out Account _);
 
-            await DataStorage.DeleteAccountAsync(account, cancellationToken).ConfigureAwait(false);
+                await DataStorage.DeleteAccountAsync(account, CancellationToken.None).ConfigureAwait(false);
 
-            AccountDeleted?.Invoke(this, new AccountEventArgs(account));
+                AccountDeleted?.Invoke(this, new AccountEventArgs(account));
+            }
+            finally
+            {
+                lock (_lifecycleLock)
+                {
+                    if (_accountDeletionAttempts.TryGetValue(email, out var current) && ReferenceEquals(current, attempt))
+                    {
+                        _accountDeletionAttempts.Remove(email);
+                    }
+                }
+            }
         }
 
-        private void RemoveAccountSchedulerByKey(EmailAddress key)
+        private async Task RestoreAccountSchedulerAsync(EmailAddress email, int accountId, object attempt)
         {
-            if (AccountSchedulers.TryRemove(key, out SchedulerWithTimer scheduler))
+            try
             {
-                scheduler.Cancel();
-                scheduler.ExceptionOccurred -= OnSchedulerExceptionOccurred;
-                scheduler.Dispose();
+                var account = await DataStorage.GetAccountAsync(email, CancellationToken.None).ConfigureAwait(false);
+                lock (_lifecycleLock)
+                {
+                    if (_isDisposed || account.Id != accountId || AccountSchedulers.ContainsKey(email) ||
+                        !_accountDeletionAttempts.TryGetValue(email, out var current) || !ReferenceEquals(current, attempt)) return;
+                    AddAndStartAccountScheduler(account);
+                }
             }
+#pragma warning disable CA1031 // Preserve the original folder deletion error if synchronization cannot be restored.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                this.Log().LogError(ex, "An error occurred while restoring account synchronization after a folder deletion failure");
+            }
+        }
+
+        private async Task<bool> RemoveAccountSchedulerByKeyAsync(EmailAddress email, object attempt, CancellationToken cancellationToken)
+        {
+            SchedulerStop[] stops;
+            bool removed = false;
+            lock (_lifecycleLock)
+            {
+                CheckDisposed();
+                cancellationToken.ThrowIfCancellationRequested();
+                _accountDeletionAttempts[email] = attempt;
+                if (AccountSchedulers.TryRemove(email, out var scheduler))
+                {
+                    removed = true;
+                    _ownedSchedulers.Add(scheduler);
+                    RegisterSchedulerStopLocked(scheduler, email);
+                }
+                stops = _schedulerStops.Values.Where(x => x.Email.Equals(email)).ToArray();
+            }
+            await StopSchedulersAsync(stops).ConfigureAwait(false);
+            return removed;
         }
 
         public async Task CheckForNewMessagesInFolderAsync(CompositeFolder folder, CancellationToken cancellationToken = default)
@@ -849,13 +1095,17 @@ namespace Tuvi.Core.Impl
                 return;
             }
             var interval = TimeSpan.FromMinutes(account.SynchronizationInterval).TotalMilliseconds;
-            if (AccountSchedulers.TryGetValue(account.Email, out SchedulerWithTimer scheduler))
+            lock (_lifecycleLock)
             {
-                scheduler.Interval = interval;
-            }
-            else
-            {
-                AddAndStartAccountScheduler(account);
+                CheckDisposed();
+                if (AccountSchedulers.TryGetValue(account.Email, out SchedulerWithTimer scheduler))
+                {
+                    scheduler.Interval = interval;
+                }
+                else
+                {
+                    AddAndStartAccountScheduler(account);
+                }
             }
         }
 
@@ -889,24 +1139,78 @@ namespace Tuvi.Core.Impl
 
         public void Dispose()
         {
-            StopContactNotifications();
-            if (_isDisposed)
+            BeginDispose().GetAwaiter().GetResult();
+        }
+
+        internal Task BeginDispose()
+        {
+            TaskCompletionSource<bool> completion;
+            SchedulerStop[] stops;
+            Task reset;
+            lock (_lifecycleLock)
             {
-                return;
+                CheckLifecycleReentryLocked();
+                if (_disposeCompletion != null) return _disposeCompletion;
+                _isDisposed = true;
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _disposeCompletion = completion.Task;
+                reset = _applicationResetCompletion;
+                stops = reset == null
+                    ? PrepareAllSchedulerStopsLocked()
+                    : Array.Empty<SchedulerStop>();
             }
-            foreach (var accountScheduler in AccountSchedulers)
+            _ = CompleteDisposeAsync(reset, stops, completion);
+            return completion.Task;
+        }
+
+        private async Task CompleteDisposeAsync(Task reset, SchedulerStop[] stops, TaskCompletionSource<bool> completion)
+        {
+            var failures = new List<Exception>();
+            TryCleanup(StopContactNotifications, failures);
+            try
             {
-                accountScheduler.Value.Cancel();
+                if (reset != null)
+                {
+                    // The accepted reset owns all scheduler stops. Its failure remains on the reset task.
+                    try { await reset.ConfigureAwait(false); }
+#pragma warning disable CA1031 // Reset failure must not skip ordinary resource cleanup.
+                    catch (Exception) { }
+#pragma warning restore CA1031
+                }
+                else
+                {
+                    await StopSchedulersAsync(stops).ConfigureAwait(false);
+                }
             }
-            var tasks = AccountSchedulers.Select(x => x.Value.GetActionTask()).ToList();
-            Task.WhenAll(tasks).Wait();
-            foreach (var accountScheduler in AccountSchedulers)
+#pragma warning disable CA1031 // A stop failure must not skip credentials or storage cleanup.
+            catch (Exception ex)
+#pragma warning restore CA1031
             {
-                accountScheduler.Value.Dispose();
+                failures.Add(ex);
             }
-            CredentialsManager.Dispose();
-            DataStorage.Dispose();
-            _isDisposed = true;
+            TryCleanup(_credentialsManager.Dispose, failures);
+            TryCleanup(DataStorage.Dispose, failures);
+            var failure = GetFailure(failures);
+            if (failure == null) completion.TrySetResult(true);
+            else
+            {
+                try { this.Log().LogError(failure, "An error occurred while disposing the core"); }
+                finally { completion.TrySetException(failure); }
+            }
+        }
+
+        private static void TryCleanup(Action cleanup, List<Exception> failures)
+        {
+            try
+            {
+                cleanup();
+            }
+#pragma warning disable CA1031 // Every owned resource must receive a cleanup attempt.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                failures.Add(ex);
+            }
         }
 
         public Task<IEnumerable<Contact>> GetContactsAsync(CancellationToken cancellationToken = default)
@@ -1286,6 +1590,7 @@ namespace Tuvi.Core.Impl
 
         public IAIAgentsStorage GetAIAgentsStorage()
         {
+            CheckDisposed();
             return DataStorage;
         }
 

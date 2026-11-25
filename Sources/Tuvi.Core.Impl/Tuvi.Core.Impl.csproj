@@ -41,4 +41,7 @@
     <ProjectReference Include="..\Tuvi.Core.Mail\Tuvi.Core.Mail.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tuvi.Core.Tests" />
+  </ItemGroup>
 </Project>

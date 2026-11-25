@@ -30,12 +30,35 @@ namespace Tuvi.Core.Impl
         private System.Timers.Timer _timer { get; }
 
         private readonly object _lock = new object();
+        private static readonly AsyncLocal<CancellationTokenSource> _executingAction = new AsyncLocal<CancellationTokenSource>();
+        [ThreadStatic]
+        private static CancellationScope _cancelling;
         private bool _isBusy { get; set; }
         private Func<CancellationToken, Task> _actionAsync;
         private CancellationTokenSource _actionCancellationSource;
         private Task _currentTask;
+        private Task _stoppedAction;
+        private int _cancellationCalls;
+
+        private sealed class CancellationScope
+        {
+            public readonly SchedulerWithTimer Scheduler;
+            public readonly CancellationScope Previous;
+
+            public CancellationScope(SchedulerWithTimer scheduler, CancellationScope previous)
+            {
+                Scheduler = scheduler;
+                Previous = previous;
+            }
+        }
 
         public event EventHandler<ExceptionEventArgs> ExceptionOccurred;
+
+        internal event EventHandler Disposed
+        {
+            add { _timer.Disposed += value; }
+            remove { _timer.Disposed -= value; }
+        }
 
         private double _interval;
         /// <summary>
@@ -43,11 +66,19 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public double Interval
         {
-            get => _interval;
+            get { lock (_lock) { return _interval; } }
             set
             {
-                _interval = value;
-                Restart();
+                lock (_lock)
+                {
+                    if (_isDisposed) throw new ObjectDisposedException(nameof(SchedulerWithTimer));
+                    _interval = value;
+                    if (!_isStopping)
+                    {
+                        _timer.Stop();
+                        StartTimerIfNeeded();
+                    }
+                }
             }
         }
 
@@ -65,24 +96,38 @@ namespace Tuvi.Core.Impl
             _interval = interval;
 
             _timer = new System.Timers.Timer();
-            _timer.Elapsed += (sender, args) => ExecuteAction();
+            _timer.Elapsed += (sender, args) => _ = ExecuteAction();
         }
 
-        private async void ExecuteAction()
+        internal async Task ExecuteAction()
         {
-            await StartTrackedAction().ConfigureAwait(false);
+            var action = StartTrackedAction(skipIfBusy: true);
+            if (action == null) return;
+            try
+            {
+                await action.ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // A timer observes failures from the run it started.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                this.Log().LogError(ex, "An error occurred in the scheduled check's exception handler");
+            }
         }
 
-        private Task StartTrackedAction()
+        private Task StartTrackedAction(bool skipIfBusy)
         {
             lock (_lock)
             {
-                if (_isDisposed || _isStopping) return Task.CompletedTask;
-                if (_isBusy) return _currentTask ?? Task.CompletedTask;
+                if (_isDisposed || _isStopping) return null;
+                if (_currentTask != null && !_currentTask.IsCompleted)
+                {
+                    return skipIfBusy ? null : _currentTask;
+                }
                 _isBusy = true;
                 _actionCancellationSource = new CancellationTokenSource();
-                var cancellationToken = _actionCancellationSource.Token;
-                _currentTask = Task.Run(() => ExecuteActionAsync(cancellationToken));
+                var cancellation = _actionCancellationSource;
+                _currentTask = Task.Run(() => ExecuteActionAsync(cancellation));
                 return _currentTask;
             }
         }
@@ -92,10 +137,40 @@ namespace Tuvi.Core.Impl
             lock (_lock) { return _currentTask ?? Task.CompletedTask; }
         }
 
-        private async Task ExecuteActionAsync(CancellationToken cancellationToken)
+        internal bool IsExecutingAction
         {
+            get
+            {
+                lock (_lock)
+                {
+                    return _isBusy && _executingAction.Value != null && ReferenceEquals(_executingAction.Value, _actionCancellationSource);
+                }
+            }
+        }
+
+        internal bool IsExecutingCancellation
+        {
+            get
+            {
+                // Cancellation callbacks may restore an older ExecutionContext after the action ended.
+                for (var scope = _cancelling; scope != null; scope = scope.Previous)
+                {
+                    if (ReferenceEquals(scope.Scheduler, this)) return true;
+                }
+                lock (_lock)
+                {
+                    return _cancellationCalls != 0 && _executingAction.Value != null &&
+                        ReferenceEquals(_executingAction.Value, _actionCancellationSource);
+                }
+            }
+        }
+
+        private async Task ExecuteActionAsync(CancellationTokenSource cancellation)
+        {
+            _executingAction.Value = cancellation;
             try
             {
+                var cancellationToken = cancellation.Token;
                 cancellationToken.ThrowIfCancellationRequested();
                 await _actionAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -106,6 +181,10 @@ namespace Tuvi.Core.Impl
             {
                 // Storage reset interrupted the scheduled action.
             }
+            catch (ObjectDisposedException) when (IsStopping())
+            {
+                // Core disposal interrupted the scheduled action.
+            }
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
@@ -115,13 +194,22 @@ namespace Tuvi.Core.Impl
             }
             finally
             {
+                _executingAction.Value = null;
                 lock (_lock)
                 {
-                    _actionCancellationSource.Dispose();
-                    _actionCancellationSource = null;
                     _isBusy = false;
+                    if (!_isStopping)
+                    {
+                        cancellation.Dispose();
+                        _actionCancellationSource = null;
+                    }
                 }
             }
+        }
+
+        internal bool IsStopping()
+        {
+            lock (_lock) { return _isStopping; }
         }
 
         /// <summary>
@@ -129,13 +217,31 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public async Task ExecuteActionForceAsync()
         {
-            if (_isDisposed)
+            Task previous;
+            lock (_lock)
             {
-                throw new ObjectDisposedException(nameof(SchedulerWithTimer));
+                if (_isDisposed) throw new ObjectDisposedException(nameof(SchedulerWithTimer));
+                if (_isStopping) return;
+                previous = _currentTask != null && !_currentTask.IsCompleted ? _currentTask : null;
             }
-
-            await GetActionTask().ConfigureAwait(false);
-            await StartTrackedAction().ConfigureAwait(false);
+            if (previous != null)
+            {
+                try
+                {
+                    await previous.ConfigureAwait(false);
+                }
+#pragma warning disable CA1031 // The preceding run belongs to its caller or timer.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    // This call may start a new attempt after the preceding run failed.
+                }
+            }
+            var action = StartTrackedAction(skipIfBusy: false);
+            if (action != null)
+            {
+                await action.ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -143,9 +249,13 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public void Start()
         {
-            lock (_lock) { _isStopping = false; }
-            ExecuteAction();
-            StartTimerIfNeeded();
+            lock (_lock)
+            {
+                if (_isDisposed) throw new ObjectDisposedException(nameof(SchedulerWithTimer));
+                if (_isStopping) return;
+                StartTimerIfNeeded();
+            }
+            _ = ExecuteAction();
         }
 
         private void StartTimerIfNeeded()
@@ -162,30 +272,53 @@ namespace Tuvi.Core.Impl
         /// </summary>
         public void Stop()
         {
-            _timer.Stop();
+            lock (_lock)
+            {
+                if (!_isDisposed) _timer.Stop();
+            }
         }
 
-
-        private void Restart()
+        internal virtual Task PrepareStop()
         {
-            Stop();
-            StartTimerIfNeeded();
+            lock (_lock)
+            {
+                if (!_isStopping)
+                {
+                    _isStopping = true;
+                    if (!_isDisposed) _timer.Stop();
+                    _stoppedAction = _currentTask != null && !_currentTask.IsCompleted ? _currentTask : Task.CompletedTask;
+                }
+                return _stoppedAction ?? Task.CompletedTask;
+            }
         }
 
         /// <summary>
-        /// Stop timer and cancel all asynchronious actions.
-        /// Should be run before Dispose.
+        /// Permanently stop admission and cancel the current action.
+        /// Await GetActionTask after cancellation returns, then call Dispose.
         /// </summary>
         public void Cancel()
         {
             CancellationTokenSource cancellation;
-            lock (_lock) { _isStopping = true; Stop(); cancellation = _actionCancellationSource; }
+            lock (_lock)
+            {
+                if (_isDisposed) return;
+                PrepareStop();
+                cancellation = _actionCancellationSource;
+                ++_cancellationCalls;
+            }
+            var previous = _cancelling;
+            _cancelling = new CancellationScope(this, previous);
             try { cancellation?.Cancel(); }
             catch (ObjectDisposedException) { /* The tracked action already completed. */ }
+            finally
+            {
+                _cancelling = previous;
+                lock (_lock) { --_cancellationCalls; }
+            }
         }
 
         /// <summary>
-        /// Dispose all resources. Make sure you called Cancel() before.
+        /// Dispose resources after Cancel has returned and the action has completed.
         /// </summary>
         public void Dispose()
         {
@@ -195,15 +328,19 @@ namespace Tuvi.Core.Impl
 
         protected virtual void Dispose(bool disposing)
         {
-            if (_isDisposed) return;
-
-            if (disposing)
+            lock (_lock)
             {
-                _timer.Dispose();
-                _actionCancellationSource?.Dispose();
-            }
+                if (_isDisposed) return;
 
-            _isDisposed = true;
+                if (disposing)
+                {
+                    _timer.Dispose();
+                    _actionCancellationSource?.Dispose();
+                }
+
+                _isDisposed = true;
+                _isStopping = true;
+            }
         }
 
         ~SchedulerWithTimer()

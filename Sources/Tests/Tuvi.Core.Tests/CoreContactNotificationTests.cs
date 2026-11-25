@@ -53,9 +53,13 @@ namespace Tuvi.Core.Tests
         public async Task CapturedStorageForwardersRejectNotificationsAfterClosing(bool dispose)
         {
             var storage = new Mock<IDataStorage>();
+            EventHandler<ContactAddedEventArgs> added = null;
+            EventHandler<ContactChangedEventArgs> changed = null;
+            storage.SetupAdd(x => x.ContactAdded += It.IsAny<EventHandler<ContactAddedEventArgs>>())
+                .Callback((EventHandler<ContactAddedEventArgs> handler) => added = handler);
+            storage.SetupAdd(x => x.ContactChanged += It.IsAny<EventHandler<ContactChangedEventArgs>>())
+                .Callback((EventHandler<ContactChangedEventArgs> handler) => changed = handler);
             using var core = CreateCore(storage);
-            var added = (EventHandler<ContactAddedEventArgs>)storage.Invocations.Single(x => x.Method.Name == "add_ContactAdded").Arguments[0];
-            var changed = (EventHandler<ContactChangedEventArgs>)storage.Invocations.Single(x => x.Method.Name == "add_ContactChanged").Arguments[0];
             int delivered = 0;
             core.ContactAdded += (sender, args) =>
             {
@@ -245,10 +249,9 @@ namespace Tuvi.Core.Tests
                         core.ResetApplicationAsync().WaitAsync(Timeout).GetAwaiter().GetResult();
                     }
                 };
-                core.WipeAllDataNeeded += (_, _) => events.Add("wipe");
                 await storage.AddMessageListAsync(account.Email, account.FoldersStructure[0].FullName, messages, false).WaitAsync(Timeout).ConfigureAwait(false);
                 Assert.That(sourceEvents, Is.GreaterThanOrEqualTo(2), "The committed storage batch must actually publish its old tail.");
-                Assert.That(events, Is.EqualTo(new[] { "contact", "wipe" }));
+                Assert.That(events, Is.EqualTo(new[] { "contact" }));
                 Assert.That(File.Exists(path), Is.False);
             }
             finally

@@ -112,6 +112,12 @@ namespace Tuvi.Core.Tests
     {
         public static TuviMail CreateCore(IDataStorage dataStorage, IMailBox externalMailBox = null, IMessageProtector externalProtector = null)
         {
+            return CreateCore(dataStorage, externalMailBox, externalProtector, null);
+        }
+
+        internal static TuviMail CreateCore(IDataStorage dataStorage, IMailBox externalMailBox,
+            IMessageProtector externalProtector, Func<Func<CancellationToken, Task>, double, SchedulerWithTimer> schedulerFactory)
+        {
             var mailBox = GetMailBox(externalMailBox);
             var mailBoxFactory = new Mock<IMailBoxFactory>();
             var mailMailTester = new Mock<IMailServerTester>();
@@ -132,7 +138,8 @@ namespace Tuvi.Core.Tests
                                 backupManager.Object,
                                 credentialsManager.Object,
                                 new ImplementationDetailsProvider("Test seed", "Test.Package", "backup@test"),
-                                decStorageClient.Object);
+                                decStorageClient.Object,
+                                schedulerFactory ?? ((action, interval) => new SchedulerWithTimer(action, interval)));
 
             IMailBox GetMailBox(IMailBox external)
             {

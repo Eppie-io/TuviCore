@@ -143,31 +143,26 @@ namespace Tuvi.Core.Tests
         }
 
         [Test]
-        public async Task ResetBeforeFirstStartPreservesPreparedSeed()
+        public async Task ResetBeforeFirstStartClosesTheCoreAndRetainsItsOutcome()
         {
             var storage = new Mock<IDataStorage>();
             using var core = CoreTestBase.CreateCore(storage.Object);
             var security = Mock.Get(core.GetSecurityManager());
-            var preparedSeed = new Mock<ISeedQuiz>().Object;
             security.Setup(x => x.IsNeverStartedAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-            security.Setup(x => x.GetSeedQuiz()).Returns(preparedSeed);
-            bool wipeRequested = false;
-            core.WipeAllDataNeeded += (_, _) => wipeRequested = true;
             int contacts = 0;
             core.ContactAdded += (_, _) => ++contacts;
             core.ContactChanged += (_, _) => ++contacts;
-
-            await core.ResetApplicationAsync().WaitAsync(Timeout).ConfigureAwait(false);
-
+            var reset = core.ResetApplicationAsync();
+            await reset.WaitAsync(Timeout).ConfigureAwait(false);
+            Assert.That(core.ResetApplicationAsync(), Is.SameAs(reset));
             var contact = new Contact("Initial setup", new EmailAddress("setup@example.test"));
             storage.Raise(x => x.ContactAdded += null, new ContactAddedEventArgs(contact));
             storage.Raise(x => x.ContactChanged += null, new ContactChangedEventArgs(contact));
-
-            Assert.That(core.GetSecurityManager().GetSeedQuiz(), Is.SameAs(preparedSeed));
-            Assert.That(contacts, Is.EqualTo(2), "The initial no-file reset must keep contact admission open.");
-            Assert.That(wipeRequested, Is.False);
-            security.Verify(x => x.ResetAsync(), Times.Never, "Initial setup must not clear the prepared seed.");
-            storage.Verify(x => x.ResetAsync(), Times.Never, "The high-level no-file reset must remain a no-op.");
+            Assert.That(contacts, Is.Zero);
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => core.InitializeApplicationAsync("password", default)).ConfigureAwait(false);
+            security.Verify(x => x.ResetAsync(), Times.Once);
+            security.Verify(x => x.IsNeverStartedAsync(It.IsAny<CancellationToken>()), Times.Never);
+            security.Verify(x => x.StartAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [TestCaseSource(nameof(StorageFailures))]
