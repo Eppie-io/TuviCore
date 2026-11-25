@@ -19,6 +19,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Tuvi.Core.DataStorage.Impl;
 
 namespace Tuvi.Core.DataStorage.Tests
@@ -29,9 +30,13 @@ namespace Tuvi.Core.DataStorage.Tests
         protected const string IncorrectPassword = "65432211";
         protected const string NewPassword = "987654321";
 
+        private IDataStorage _storage;
+
         protected IDataStorage GetDataStorage()
         {
-            return DataStorageProvider.GetDataStorage(DataBasePath);
+            DisposeCreatedStorages();
+            _storage = DataStorageProvider.GetDataStorage(DataBasePath);
+            return _storage;
         }
 
         protected async Task<IDataStorage> OpenDataStorageAsync()
@@ -55,10 +60,18 @@ namespace Tuvi.Core.DataStorage.Tests
 
         protected void DeleteStorage()
         {
+            DisposeCreatedStorages();
             if (DatabaseFileExists())
             {
                 File.Delete(DataBasePath);
             }
+        }
+
+        [TearDown]
+        public void DisposeCreatedStorages()
+        {
+            _storage?.Dispose();
+            _storage = null;
         }
 
         private const string DataBaseFileName = "TestTuviMail.db";

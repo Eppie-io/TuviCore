@@ -26,6 +26,23 @@ using Tuvi.Core.Utils;
 
 namespace Tuvi.Core
 {
+    /// <summary>
+    /// Provides mail operations and owns the resources used by the core.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IDisposable.Dispose"/> waits for scheduled checks and resource cleanup.
+    /// Repeated external calls observe the same cleanup result. If reset was accepted first,
+    /// Dispose waits for that reset before releasing resources; reset errors remain on the
+    /// reset task. If Dispose was accepted first, the database is preserved and reset is rejected.
+    /// An active check, its message handlers and its synchronous cancellation callbacks must
+    /// forward initialization, account deletion, reset or disposal requests to the owner and
+    /// return. Direct calls on the same core throw InvalidOperationException before starting
+    /// an operation or joining its completion.
+    /// Requests for security, backup, AI storage and credentials throw ObjectDisposedException
+    /// once shutdown is accepted. Previously issued references are not automatically revoked.
+    /// The application must complete Dispose on the old core, including after a failed reset,
+    /// before creating the next owner of the same database file.
+    /// </remarks>
     public interface ITuviMail : IDisposable
     {
         ISecurityManager GetSecurityManager();
@@ -49,7 +66,6 @@ namespace Tuvi.Core
         event EventHandler<ContactAddedEventArgs> ContactAdded;
         event EventHandler<ContactChangedEventArgs> ContactChanged;
         event EventHandler<ContactDeletedEventArgs> ContactDeleted;
-        event EventHandler<EventArgs> WipeAllDataNeeded;
 
         Task TestMailServerAsync(string serverAddress, int serverPort, MailProtocol protocol, ICredentialsProvider credentialsProvider, CancellationToken cancellationToken = default);
 
@@ -57,6 +73,12 @@ namespace Tuvi.Core
         /// Check application password and initialize application.
         /// </summary>
         /// <returns>True if password was accepted.</returns>
+        /// <remarks>
+        /// Failures while stopping previous checks propagate. A closed core rejects initialization.
+        /// This core's active checks, message handlers and synchronous cancellation callbacks must
+        /// forward initialization requests to the core owner and return from the handler.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">Called from this core's active check, message handler or cancellation callback.</exception>
         Task<bool> InitializeApplicationAsync(string password, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -67,7 +89,25 @@ namespace Tuvi.Core
         /// <summary>
         /// Reset application and erase all its data.
         /// </summary>
+        /// <remarks>
+        /// The first accepted call immediately closes access to this core's profile and
+        /// registration of account schedulers, including when no database file exists.
+        /// It stops every owned account check before calling SecurityManager.ResetAsync once.
+        /// A stop failure preserves the database. This core remains terminal on every outcome.
+        /// Concurrent and subsequent reset calls share the first task and its final success
+        /// or failure; they never make another storage reset attempt.
+        /// Dispose the old core before creating new core, storage and security manager instances.
+        /// Dispose waits for an already accepted reset even before it reaches storage. If
+        /// disposal was accepted first, reset throws ObjectDisposedException and preserves the file.
+        /// Calls from this core's active check, its message handlers or its synchronous
+        /// cancellation callbacks throw InvalidOperationException even if reset is in progress.
+        /// Those handlers must forward the request to the owner and return.
+        /// New contact notifications are stopped, including between subscribers. Already
+        /// admitted callbacks may finish after reset; reset does not wait for contact callbacks.
+        /// </remarks>
         /// <exception cref="DataBaseException" />
+        /// <exception cref="InvalidOperationException">Called from this core's check or cancellation callback.</exception>
+        /// <exception cref="ObjectDisposedException">Ordinary disposal was accepted before reset.</exception>
         Task ResetApplicationAsync();
 
         /// <summary>
@@ -81,6 +121,17 @@ namespace Tuvi.Core
         Task<IReadOnlyList<CompositeAccount>> GetCompositeAccountsAsync(CancellationToken cancellationToken = default);
         Task<IAccountService> GetAccountServiceAsync(EmailAddress email, CancellationToken cancellationToken = default);
         Task AddAccountAsync(Account account, CancellationToken cancellationToken = default);
+        /// <summary>Stop synchronization and delete the account and its folders.</summary>
+        /// <remarks>
+        /// Cancellation is observed before synchronization is stopped. Once accepted, deletion
+        /// finishes without caller cancellation. Scheduler stop and storage failures propagate.
+        /// A folder deletion failure attempts to restore synchronization for the surviving account,
+        /// unless a later deletion or shutdown has taken over. Committed folder changes are not
+        /// rolled back, and the original deletion error propagates even if restoration fails.
+        /// This core's active checks, message handlers and synchronous cancellation callbacks must
+        /// forward deletion requests to the core owner and return, regardless of the target account.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">Called from this core's active check, message handler or cancellation callback.</exception>
         Task DeleteAccountAsync(Account account, CancellationToken cancellationToken = default);
         Task UpdateAccountAsync(Account account, CancellationToken cancellationToken = default);
         Task CreateHybridAccountAsync(Account account, CancellationToken cancellationToken = default);

@@ -17,7 +17,7 @@
 // ---------------------------------------------------------------------------- //
 
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using KeyDerivation.Keys;
@@ -176,29 +176,29 @@ namespace Tuvi.Core.DataStorage.Tests
         }
 
         [Test]
-        public void OpenCreateMultithreadTest()
+        public async Task ConcurrentOpenAndCreateAfterResetAreRejected()
         {
-            for (int j = 0; j < 100; ++j)
+            var timeout = TimeSpan.FromSeconds(20);
+            var storage = GetDataStorage();
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var calls = Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
             {
-                Assert.That(DatabaseFileExists(), Is.False);
-                var tasks = new List<Task>();
-                var storage = GetDataStorage();
-                Assert.That(DatabaseFileExists(), Is.False);
-                for (int i = 0; i < 100; ++i)
-                {
-                    tasks.Add(Task.Run(async () =>
-                    {
-#pragma warning disable CA5394 // Do not use insecure randomness
-                        await Task.Delay(Random.Shared.Next(200)).ConfigureAwait(false);
-#pragma warning restore CA5394 // Do not use insecure randomness
-                        await storage.OpenAsync(Password).ConfigureAwait(false);
-                        Assert.That(DatabaseFileExists(), Is.True);
-                    }));
-                }
-                storage.ResetAsync(); // should wait all connections
-                Assert.That(DatabaseFileExists(), Is.False);
+                await start.Task.WaitAsync(timeout).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await storage.OpenAsync(Password).WaitAsync(timeout).ConfigureAwait(false),
+                    Throws.TypeOf<Entities.DataBaseResetException>()).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await storage.CreateAsync(Password).WaitAsync(timeout).ConfigureAwait(false),
+                    Throws.TypeOf<Entities.DataBaseResetException>()).ConfigureAwait(false);
+            })).ToArray();
+            try
+            {
+                await storage.ResetAsync().WaitAsync(timeout).ConfigureAwait(false);
             }
-
+            finally
+            {
+                start.TrySetResult(true);
+                await Task.WhenAll(calls).WaitAsync(timeout).ConfigureAwait(false);
+            }
+            Assert.That(DatabaseFileExists(), Is.False);
         }
     }
 }
